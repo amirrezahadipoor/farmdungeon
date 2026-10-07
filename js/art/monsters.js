@@ -4,7 +4,8 @@
 import { Raster } from '../raster.js';
 import { applyRim } from './rim.js';
 import { MSPR, MOX, MOY, MC } from './monster_parts.js';
-import { MBODY, MOUT, MSHW } from './monster_registry.js'; // ن۴۷: رجیستری ادغام
+import { MBODY, MSHW } from './monster_registry.js'; // ن۴۷: رجیستری ادغام
+import { inkOutline } from './outline.js'; // S1.7: outline انتخابیِ یکدست
 import { rp } from './ramps.js'; // S1.5a: سایه از رمپ جوهری
 
 // فریم نهایی: بدنه → rim-light → outline → فلش سفید → سایه‌ی نرم
@@ -15,8 +16,7 @@ export function drawMonsterFrame(kind, o) {
   // rim-light مشترک (art/rim.js)
   const hiC = MC[kind + 'Hi'];
   if (hiC && f.state !== 'die' && !o.hit) applyRim(body, hiC, 0.62);
-  const oc = MOUT[kind];
-  if (oc && !o.hit) body.outline(oc);
+  if (!o.hit) inkOutline(body, { mode: 'sel' }); // S1.7: یکدست برای همه‌ی کیندها (L≈۱۹)
   if (o.hit) for (let y = 0; y < MSPR; y++) for (let x = 0; x < MSPR; x++) { const c = body.get(x, y); if (c && c[3] > 120) body.px(x, y, MC.white); }
   const out = new Raster(MSPR, MSPR);
   const [sw, sh2] = MSHW[kind];

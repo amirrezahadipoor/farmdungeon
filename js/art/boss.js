@@ -3,6 +3,7 @@ import { Raster } from '../raster.js';
 import { MC } from './monster_parts.js';
 import { ease } from '../skeleton.js';
 import { rp } from './ramps.js'; // S1.5b: سایه از رمپ جوهری
+import { inkOutline } from './outline.js'; // S1.7: outline انتخابیِ یکدست
 
 const BSPR = 128;
 const OX = 64, OY = 112; // باس بزرگ است: مبدأ پایین‌تر تا داخل بوم جا شود
@@ -124,7 +125,7 @@ export function drawBossFrame(o) {
     g.rect(sx - 6 + fall * 8, hy - 5 + fall * 26, 3, 5, B.gold); g.rect(sx - 1 + fall * 10, hy - 5 + fall * 28, 3, 5, B.gold); g.rect(sx + 4 + fall * 6, hy - 5 + fall * 25, 3, 5, B.gold);
     if (dead > 0.6) { g.rect(sx - 20, gy - 20, 14, 8, B.out); g.rect(sx + 8, gy - 14, 12, 7, B.out); } // خرده‌سنگ
   }
-  r.outline(B.out);
+  if (!o.hit) inkOutline(r, { mode: 'sel' }); // S1.7: به‌جای B.out ثابت — تُنِ ماده، L≈۱۹
   if (o.hit) for (let y = 0; y < BSPR; y++) for (let x = 0; x < BSPR; x++) { const c = r.get(x, y); if (c && c[3] > 120) r.px(x, y, MC.white); }
   const out = new Raster(BSPR, BSPR);
   // S1.5b: سایه‌ی ۵ لایه (هم‌سبک موب‌ها) — ۵ باند آلفا برای M4

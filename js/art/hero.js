@@ -7,6 +7,7 @@ import { SPR, OX, OY, DIRS, GEO, ACT, actionPose, gaitPose, poseLerp, mapPts } f
 import { drawEquipHat, drawEquipBody, drawEquipBoots, swordPal } from './equipment.js';
 import { applyRim } from './rim.js';                     // S1.6: جلای لبه پیش از snap
 import { lockPAL } from './palette_snap.js';             // S1.6: قفل پالت (بدون رنگ سرِخود)
+import { inkOutline } from './outline.js';               // S1.7: outline انتخابیِ یکدست
 
 // ---------- قطعات ----------
 const TRIP = {
@@ -241,9 +242,9 @@ export function halfSprite(s) {
     const j = (y * t.w + x) * 4;
     td[j] = sd[best]; td[j + 1] = sd[best + 1]; td[j + 2] = sd[best + 2]; td[j + 3] = al;
   }
-  t.outline(C.out);       // S1.6: outline در مقیاس نهایی — یکدست ۱px
   applyRim(t, null, 0.62); // جلای لبه‌ی بالا — هم‌قدر موب‌ها (default rim.js)
-  lockPAL(t);             // قفل پالت: خروجی ⊆ ۲۶ رنگ
+  inkOutline(t, { mode: 'ink' }); // S1.7: حلقهٔ جوهر (پالت قهرمان سفارشی است → حلقه داخل PM می‌ماند)
+  lockPAL(t);             // قفل پالت (پیکسل‌های حلقه معاف‌اند)
   t.rimDone = true;       // تماس‌های بعدیِ applyRim بی‌اثرند (farm_render/run_render)
   return t;
 }

@@ -2,6 +2,7 @@
 // تنه و ریشه ثابت؛ تاج با تابِ آهسته‌ی سینوسی ±۱px (دوره ~۷ث — قاعده‌ی نوبت ۱۸: بدون موج مربعی)
 import { Raster } from '../raster.js';
 import { applyRim } from './rim.js';
+import { inkOutline } from './outline.js'; // S1.7: outline ۱px دور تاج/تنه
 
 const _cache = [null, null];
 
@@ -39,6 +40,7 @@ function fullTree(variant, sway) {
   const f = new Raster(28, 32);
   t.trunk.over(f, 0, 0);
   t.canopy.over(f, sway, 0); // همان ترتیب/برشِ قبلی (ستون بیرونی در sway=±1 بریده می‌شود — مثل قبل)
+  inkOutline(f, { mode: 'sel' }); // S1.7: درخت هم outline می‌گیرد (پخت یک‌بار در کش)
   return f;
 }
 

@@ -8,8 +8,9 @@ const LUM = LOCK.map((c) => c[0] * 0.299 + c[1] * 0.587 + c[2] * 0.114);
 
 export function lockPAL(s) {
   const d = s.d;
+  const ring = s.ringPx && new Set(s.ringPx);          // S1.7: پیکسل‌های حلقه‌ی outline معاف‌اند (رنگ انتخابی ماده)
   for (let i = 0; i < d.length; i += 4) {
-    if (d[i + 3] <= 8) continue;
+    if (d[i + 3] <= 8 || (ring && ring.has(i))) continue;
     const r = d[i], g = d[i + 1], b = d[i + 2];
     const L = r * 0.299 + g * 0.587 + b * 0.114;
     let bp = -1, bd = 1e9, bq = -1, bq2 = 1e9;             // bp: نزدیک‌ترین · bq: نزدیک‌ترینِ روشن‌تر
