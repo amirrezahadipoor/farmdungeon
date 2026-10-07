@@ -1,5 +1,6 @@
 // art/ground.js — تایل‌های زمین مزرعه: چمن/خاک/آب/پرچین/حصار/دروازه/بوته
 import { TILE, E, sprite, h2 } from './palette_env.js';
+import { rp } from './ramps.js';
 // ---------- تایل‌های زمین ----------
 // کش عددی — حلقه‌ی رندر ~۶۰۰ بار/فریم صدا می‌زند؛ کلید رشته‌ای = زبال‌ساز پنهان
 const KIND_ID = { grass: 0, soil: 1, path: 2, hedge: 3, water: 4, fence: 5, dfloor: 6, wall: 7, stairs: 8, gateL: 9, gateR: 10, pillar: 11, decor: 12, bush: 13, fencePost: 14 };
@@ -136,22 +137,22 @@ export function groundSprite(kind, variant = 0, wet = false, waterFrame = 0, the
       const L2 = kind === 'gateL', top = variant === 0;
       const ox = L2 ? 4 : 0, ow = 12; // دهانه‌ی بنفش (سمت داخلی هر نیمه)
       r.rect(0, 0, 16, 16, P.stone);
-      r.rect(ox, top ? 4 : 0, ow, top ? 12 : 12, [26, 18, 46, 255]);
-      r.rect(ox, top ? 4 : 0, ow, 1, [18, 12, 34, 255]);
+      r.rect(ox, top ? 4 : 0, ow, top ? 12 : 12, rp('ink', 1)); // S1.3: سیاه جوهری (رمپ)
+      r.rect(ox, top ? 4 : 0, ow, 1, rp('ink', 0));
       if (L2) { r.rect(0, 0, 5, 16, P.stone); r.rect(1, 0, 3, 16, P.stoneHi); r.rect(0, top ? 8 : 4, 5, 2, P.stoneSh); r.rect(4, 0, 1, 16, P.stoneSh); }
       else { r.rect(11, 0, 5, 16, P.stone); r.rect(12, 0, 3, 16, P.stoneHi); r.rect(11, top ? 8 : 4, 5, 2, P.stoneSh); r.rect(11, 0, 1, 16, P.stoneSh); }
       if (top) { // سردر: سنگ‌چین + کلید طاق
         r.rect(0, 0, 16, 4, P.brick); r.rect(0, 0, 16, 1, P.brickHi); r.rect(0, 3, 16, 1, P.brickOut);
         r.rect(L2 ? 12 : 0, 0, 4, 4, P.cap); r.rect(L2 ? 12 : 0, 0, 4, 1, P.brickHi);
         if (!L2) r.px(0, 1, P.brickHi); else r.px(15, 1, P.brickHi);
-        r.px(L2 ? 14 : 1, 2, [122, 208, 232, 255]); // رون کلید طاق
+        r.px(L2 ? 14 : 1, 2, rp('magicCyan', 6)); // رون کلید طاق (رمپ)
       } else { // آستانه: پله‌ی سنگی روشن
         r.rect(0, 12, 16, 4, P.stairs); r.rect(0, 12, 16, 1, P.stoneHi); r.rect(0, 15, 16, 1, P.stairsSh);
-        r.rect(ox, 11, ow, 1, [58, 40, 96, 255]);
+        r.rect(ox, 11, ow, 1, rp('clothPurple', 3));
       }
-      if (L2) { r.px(7, top ? 8 : 4, E.essence); r.px(9, top ? 12 : 8, [154, 220, 240, 200]); }
-      else { r.px(5, top ? 11 : 6, E.essence); r.px(8, top ? 7 : 2, [154, 220, 240, 200]); }
-      r.px(L2 ? 2 : 13, top ? 6 : 2, [122, 208, 232, 255]); r.px(L2 ? 2 : 13, top ? 11 : 8, [154, 220, 240, 255]); // رون‌های ستون
+      if (L2) { r.px(7, top ? 8 : 4, rp('magicCyan', 6)); r.px(9, top ? 12 : 8, [...rp('magicCyan', 6).slice(0, 3), 200]); }
+      else { r.px(5, top ? 11 : 6, rp('magicCyan', 6)); r.px(8, top ? 7 : 2, [...rp('magicCyan', 6).slice(0, 3), 200]); }
+      r.px(L2 ? 2 : 13, top ? 6 : 2, rp('magicCyan', 6)); r.px(L2 ? 2 : 13, top ? 11 : 8, rp('magicCyan', 5)); // رون‌های ستون
     } else if (kind === 'pillar') { // ستون سنگی روی کف (مانع) — v1: ترک‌خورده
       if (variant === 1) {
         r.rect(0, 0, 16, 16, P.stone);

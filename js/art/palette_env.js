@@ -1,5 +1,6 @@
 // tiles.js — تایل‌های ۱۶×۱۶ رویه‌ای (چمن/خاک/پرچین/آب/حصار) + محصولات ۴ مرحله‌ای + فونت پیکسلی ۳×۵
 import { Raster } from '../raster.js';
+import { rp } from './ramps.js';
 
 export const TILE = 16;
 export const COLS = 30, ROWS = 20;
@@ -28,6 +29,30 @@ const P = {
 };
 export const E = {};
 for (const k in P) E[k] = [parseInt(P[k].slice(1, 3), 16), parseInt(P[k].slice(3, 5), 16), parseInt(P[k].slice(5, 7), 16), 255];
+
+// ---------- S1.3: نگاشت به رمپ‌ها (منبع واحد رنگ) — کلیدهای E حفظ شده‌اند (سازگاری کامل) ----------
+// انتخاب پله‌ها برای رعایت ΔL صحنه: چمن[4]↔خاک[3]=۱۴ · خاک↔راه(dust[4])=۱۴ · آب[3]↔چمن=۱۴ · محصول رسیده gold[5]/fire[5]↔خاک=۲۷
+const PM_WHITE = [242, 239, 228, 255]; // سفید گرم ویژه (در پالت مستر — نه رمپ)
+const EMAP = {
+  grass: ['grass', 4], grassHi: ['grass', 5], grassBlade: ['grass', 6], grassSh: ['grass', 3],
+  flowerW: ['__white', 0], flowerY: ['gold', 6],
+  soil: ['soil', 3], soilHi: ['soil', 4], soilSh: ['soil', 2], furrow: ['soil', 1],
+  soilWet: ['soilWet', 2], soilWetHi: ['soilWet', 3], soilWetSh: ['soilWet', 1], wet: ['water', 5],
+  hedge: ['grass', 2], hedgeHi: ['grass', 3], hedgeSh: ['grass', 1], hedgeOut: ['grass', 0],
+  water: ['water', 2], waterHi: ['water', 5], waterSh: ['water', 1], // آب↔چمن=۲۷ ✓ (S1.3)
+  wood: ['soil', 5], woodHi: ['soil', 6], woodSh: ['soil', 3],
+  leaf: ['leaf', 4], leafHi: ['leaf', 5], leafSh: ['leaf', 3], sprout: ['leaf', 6],
+  stone: ['stoneCool', 4], stoneHi: ['stoneCool', 5], stoneSh: ['stoneCool', 3],
+  berry: ['clothRed', 5], gold: ['gold', 6], stem: ['leaf', 3], wheatG: ['leaf', 4],
+  wheat: ['gold', 5], wheatHi: ['gold', 6], wheatSh: ['gold', 4],
+  carrot: ['fire', 5], carrotHi: ['fire', 6],
+  pumpkin: ['fire', 5], pumpkinHi: ['fire', 6], pumpkinSh: ['fire', 4],
+  straw: ['clothRed', 5], strawHi: ['clothRed', 6], strawSh: ['clothRed', 3],
+  eggplant: ['clothPurple', 5], eggplantHi: ['clothPurple', 6], eggplantSh: ['clothPurple', 3],
+  corn: ['gold', 5], cornHi: ['gold', 6], cornSh: ['gold', 4],
+  // سنگ/آجر دانجن در S1.4 (DTHEME) — این‌جا فقط کلید مشترکِ ستون/حصار
+};
+for (const k in EMAP) { const m = EMAP[k]; E[k] = m[0] === '__white' ? PM_WHITE.slice() : rp(m[0], m[1]).slice(); }
 
 export const h2 = (x, y) => { let h = (x * 374761393 + y * 668265263) | 0; h = (h ^ (h >> 13)) * 1274126177; return ((h ^ (h >> 16)) >>> 0) / 4294967295; };
 const cache = new Map();

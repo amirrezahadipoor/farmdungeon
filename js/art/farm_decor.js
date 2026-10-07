@@ -26,7 +26,8 @@ export function drawMeadow(r, sx, sy, tx, ty) {
 }
 
 // اسپارکل چشمک‌زن روی محصول رسیده — از دور قابل‌دیدن
-const _gC = [255, 210, 90, 0]; // اسپارکل طلایی — نفس‌کش
+import { rp } from './ramps.js';
+const _gC = [...rp('gold', 6).slice(0, 3), 0]; // اسپارکل طلایی — نفس‌کش (S1.3: رنگ از رمپ)
 export function drawReadySparkle(r, sx, sy, tx, ty, time, golden = false) {
   if (golden) { // محصول طلایی: ستاره‌ی طلایی درشت همیشه‌روشن (آلفای نفس‌کش کوانتیزه)
     _gC[3] = 110 + 25 * Math.round((Math.sin(time * 1.1 + hash(tx, ty) * 6) + 1));
@@ -85,7 +86,7 @@ export function drawPathEdge(r, sx, sy, tx, ty, f) {
     if (R) { r.px(sx + 15, sy + i, E.grass); if (!n) r.px(sx + 14, sy + i, E.grass); }
   }
   const hp = hash(tx * 13, ty * 29); // سنگ‌ریزه‌ی پراکنده، نه تکرار یکنواخت در هر تایل
-  if (hp < 0.4) { const qx = 3 + Math.floor(hash(tx, ty * 3) * 9), qy = 3 + Math.floor(hash(tx * 3, ty) * 9); r.px(sx + qx, sy + qy, [140, 128, 118, 255]); r.px(sx + qx + 1, sy + qy + 1, [96, 84, 78, 255]); }
+  if (hp < 0.4) { const qx = 3 + Math.floor(hash(tx, ty * 3) * 9), qy = 3 + Math.floor(hash(tx * 3, ty) * 9); r.px(sx + qx, sy + qy, rp('dust', 6)); r.px(sx + qx + 1, sy + qy + 1, rp('dust', 3)); } // S1.3: سنگ‌ریزه از رمپ
   if (U) for (let i = 0; i < 16; i += 5) r.px(sx + i + 1, sy, E.grassBlade);
   if (L) for (let i = 0; i < 16; i += 5) r.px(sx, sy + i + 1, E.grassBlade);
 }

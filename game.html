@@ -754,6 +754,7 @@ const __m_art_palette_env = (() => {
 // tiles.js — تایل‌های ۱۶×۱۶ رویه‌ای (چمن/خاک/پرچین/آب/حصار) + محصولات ۴ مرحله‌ای + فونت پیکسلی ۳×۵
 
 
+
 const TILE = 16;
 const COLS = 30, ROWS = 20;
 const WORLD_W = COLS * TILE, WORLD_H = ROWS * TILE;
@@ -782,6 +783,30 @@ const P = {
 const E = {};
 for (const k in P) E[k] = [parseInt(P[k].slice(1, 3), 16), parseInt(P[k].slice(3, 5), 16), parseInt(P[k].slice(5, 7), 16), 255];
 
+// ---------- S1.3: نگاشت به رمپ‌ها (منبع واحد رنگ) — کلیدهای E حفظ شده‌اند (سازگاری کامل) ----------
+// انتخاب پله‌ها برای رعایت ΔL صحنه: چمن[4]↔خاک[3]=۱۴ · خاک↔راه(dust[4])=۱۴ · آب[3]↔چمن=۱۴ · محصول رسیده gold[5]/fire[5]↔خاک=۲۷
+const PM_WHITE = [242, 239, 228, 255]; // سفید گرم ویژه (در پالت مستر — نه رمپ)
+const EMAP = {
+  grass: ['grass', 4], grassHi: ['grass', 5], grassBlade: ['grass', 6], grassSh: ['grass', 3],
+  flowerW: ['__white', 0], flowerY: ['gold', 6],
+  soil: ['soil', 3], soilHi: ['soil', 4], soilSh: ['soil', 2], furrow: ['soil', 1],
+  soilWet: ['soilWet', 2], soilWetHi: ['soilWet', 3], soilWetSh: ['soilWet', 1], wet: ['water', 5],
+  hedge: ['grass', 2], hedgeHi: ['grass', 3], hedgeSh: ['grass', 1], hedgeOut: ['grass', 0],
+  water: ['water', 2], waterHi: ['water', 5], waterSh: ['water', 1], // آب↔چمن=۲۷ ✓ (S1.3)
+  wood: ['soil', 5], woodHi: ['soil', 6], woodSh: ['soil', 3],
+  leaf: ['leaf', 4], leafHi: ['leaf', 5], leafSh: ['leaf', 3], sprout: ['leaf', 6],
+  stone: ['stoneCool', 4], stoneHi: ['stoneCool', 5], stoneSh: ['stoneCool', 3],
+  berry: ['clothRed', 5], gold: ['gold', 6], stem: ['leaf', 3], wheatG: ['leaf', 4],
+  wheat: ['gold', 5], wheatHi: ['gold', 6], wheatSh: ['gold', 4],
+  carrot: ['fire', 5], carrotHi: ['fire', 6],
+  pumpkin: ['fire', 5], pumpkinHi: ['fire', 6], pumpkinSh: ['fire', 4],
+  straw: ['clothRed', 5], strawHi: ['clothRed', 6], strawSh: ['clothRed', 3],
+  eggplant: ['clothPurple', 5], eggplantHi: ['clothPurple', 6], eggplantSh: ['clothPurple', 3],
+  corn: ['gold', 5], cornHi: ['gold', 6], cornSh: ['gold', 4],
+  // سنگ/آجر دانجن در S1.4 (DTHEME) — این‌جا فقط کلید مشترکِ ستون/حصار
+};
+for (const k in EMAP) { const m = EMAP[k]; E[k] = m[0] === '__white' ? PM_WHITE.slice() : rp(m[0], m[1]).slice(); }
+
 const h2 = (x, y) => { let h = (x * 374761393 + y * 668265263) | 0; h = (h ^ (h >> 13)) * 1274126177; return ((h ^ (h >> 16)) >>> 0) / 4294967295; };
 const cache = new Map();
 function sprite(key, fn) {
@@ -795,6 +820,7 @@ return {TILE, COLS, ROWS, WORLD_W, WORLD_H, E, h2, sprite};
 const {TILE, COLS, ROWS, WORLD_W, WORLD_H, E, h2, sprite} = __m_art_palette_env;
 const __m_art_ground = (() => {
 // art/ground.js — تایل‌های زمین مزرعه: چمن/خاک/آب/پرچین/حصار/دروازه/بوته
+
 
 // ---------- تایل‌های زمین ----------
 // کش عددی — حلقه‌ی رندر ~۶۰۰ بار/فریم صدا می‌زند؛ کلید رشته‌ای = زبال‌ساز پنهان
@@ -932,22 +958,22 @@ function groundSprite(kind, variant = 0, wet = false, waterFrame = 0, theme = 0)
       const L2 = kind === 'gateL', top = variant === 0;
       const ox = L2 ? 4 : 0, ow = 12; // دهانه‌ی بنفش (سمت داخلی هر نیمه)
       r.rect(0, 0, 16, 16, P.stone);
-      r.rect(ox, top ? 4 : 0, ow, top ? 12 : 12, [26, 18, 46, 255]);
-      r.rect(ox, top ? 4 : 0, ow, 1, [18, 12, 34, 255]);
+      r.rect(ox, top ? 4 : 0, ow, top ? 12 : 12, rp('ink', 1)); // S1.3: سیاه جوهری (رمپ)
+      r.rect(ox, top ? 4 : 0, ow, 1, rp('ink', 0));
       if (L2) { r.rect(0, 0, 5, 16, P.stone); r.rect(1, 0, 3, 16, P.stoneHi); r.rect(0, top ? 8 : 4, 5, 2, P.stoneSh); r.rect(4, 0, 1, 16, P.stoneSh); }
       else { r.rect(11, 0, 5, 16, P.stone); r.rect(12, 0, 3, 16, P.stoneHi); r.rect(11, top ? 8 : 4, 5, 2, P.stoneSh); r.rect(11, 0, 1, 16, P.stoneSh); }
       if (top) { // سردر: سنگ‌چین + کلید طاق
         r.rect(0, 0, 16, 4, P.brick); r.rect(0, 0, 16, 1, P.brickHi); r.rect(0, 3, 16, 1, P.brickOut);
         r.rect(L2 ? 12 : 0, 0, 4, 4, P.cap); r.rect(L2 ? 12 : 0, 0, 4, 1, P.brickHi);
         if (!L2) r.px(0, 1, P.brickHi); else r.px(15, 1, P.brickHi);
-        r.px(L2 ? 14 : 1, 2, [122, 208, 232, 255]); // رون کلید طاق
+        r.px(L2 ? 14 : 1, 2, rp('magicCyan', 6)); // رون کلید طاق (رمپ)
       } else { // آستانه: پله‌ی سنگی روشن
         r.rect(0, 12, 16, 4, P.stairs); r.rect(0, 12, 16, 1, P.stoneHi); r.rect(0, 15, 16, 1, P.stairsSh);
-        r.rect(ox, 11, ow, 1, [58, 40, 96, 255]);
+        r.rect(ox, 11, ow, 1, rp('clothPurple', 3));
       }
-      if (L2) { r.px(7, top ? 8 : 4, E.essence); r.px(9, top ? 12 : 8, [154, 220, 240, 200]); }
-      else { r.px(5, top ? 11 : 6, E.essence); r.px(8, top ? 7 : 2, [154, 220, 240, 200]); }
-      r.px(L2 ? 2 : 13, top ? 6 : 2, [122, 208, 232, 255]); r.px(L2 ? 2 : 13, top ? 11 : 8, [154, 220, 240, 255]); // رون‌های ستون
+      if (L2) { r.px(7, top ? 8 : 4, rp('magicCyan', 6)); r.px(9, top ? 12 : 8, [...rp('magicCyan', 6).slice(0, 3), 200]); }
+      else { r.px(5, top ? 11 : 6, rp('magicCyan', 6)); r.px(8, top ? 7 : 2, [...rp('magicCyan', 6).slice(0, 3), 200]); }
+      r.px(L2 ? 2 : 13, top ? 6 : 2, rp('magicCyan', 6)); r.px(L2 ? 2 : 13, top ? 11 : 8, rp('magicCyan', 5)); // رون‌های ستون
     } else if (kind === 'pillar') { // ستون سنگی روی کف (مانع) — v1: ترک‌خورده
       if (variant === 1) {
         r.rect(0, 0, 16, 16, P.stone);
@@ -1388,7 +1414,8 @@ function drawMeadow(r, sx, sy, tx, ty) {
 }
 
 // اسپارکل چشمک‌زن روی محصول رسیده — از دور قابل‌دیدن
-const _gC = [255, 210, 90, 0]; // اسپارکل طلایی — نفس‌کش
+
+const _gC = [...rp('gold', 6).slice(0, 3), 0]; // اسپارکل طلایی — نفس‌کش (S1.3: رنگ از رمپ)
 function drawReadySparkle(r, sx, sy, tx, ty, time, golden = false) {
   if (golden) { // محصول طلایی: ستاره‌ی طلایی درشت همیشه‌روشن (آلفای نفس‌کش کوانتیزه)
     _gC[3] = 110 + 25 * Math.round((Math.sin(time * 1.1 + hash(tx, ty) * 6) + 1));
@@ -1447,7 +1474,7 @@ function drawPathEdge(r, sx, sy, tx, ty, f) {
     if (R) { r.px(sx + 15, sy + i, E.grass); if (!n) r.px(sx + 14, sy + i, E.grass); }
   }
   const hp = hash(tx * 13, ty * 29); // سنگ‌ریزه‌ی پراکنده، نه تکرار یکنواخت در هر تایل
-  if (hp < 0.4) { const qx = 3 + Math.floor(hash(tx, ty * 3) * 9), qy = 3 + Math.floor(hash(tx * 3, ty) * 9); r.px(sx + qx, sy + qy, [140, 128, 118, 255]); r.px(sx + qx + 1, sy + qy + 1, [96, 84, 78, 255]); }
+  if (hp < 0.4) { const qx = 3 + Math.floor(hash(tx, ty * 3) * 9), qy = 3 + Math.floor(hash(tx * 3, ty) * 9); r.px(sx + qx, sy + qy, rp('dust', 6)); r.px(sx + qx + 1, sy + qy + 1, rp('dust', 3)); } // S1.3: سنگ‌ریزه از رمپ
   if (U) for (let i = 0; i < 16; i += 5) r.px(sx + i + 1, sy, E.grassBlade);
   if (L) for (let i = 0; i < 16; i += 5) r.px(sx, sy + i + 1, E.grassBlade);
 }
