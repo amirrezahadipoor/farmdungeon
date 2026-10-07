@@ -14,6 +14,7 @@ import { groundSprite } from '../js/art/ground.js';
 import { cropSprite } from '../js/art/crops.js';
 import { MONSTER_KINDS, MOX, MOY } from '../js/art/monster_parts.js';
 import { drawText } from '../js/art/font2.js';
+import { PM_SIZE, PM_COVER, inPM } from '../js/art/palette_master.js';
 
 const ROOT = path.resolve(path.dirname(new URL(import.meta.url).pathname), '..');
 const SHOTS = path.join(ROOT, 'shots');
@@ -132,33 +133,39 @@ function sceneMetrics(sc) {
   return { seam, hard, identical: hN + vN ? (hEq + vEq) / (hN + vN) : 0 };
 }
 
-// ---------- M5: پالت مستر موقت (همه‌ی کاشی‌های زمین) + ΔE ----------
-function masterPalette() {
-  const set = new Set();
-  const kinds = ['grass', 'soil', 'path', 'hedge', 'water', 'fence', 'dfloor', 'wall', 'stairs', 'gateL', 'gateR', 'pillar', 'decor', 'bush', 'fencePost'];
-  for (const k of kinds) for (let v = 0; v < 4; v++) for (let t = 0; t < 4; t++) {
-    const s = groundSprite(k, v, false, 0, t);
-    for (let i = 0; i < s.d.length; i += 4) if (s.d[i + 3] > 200) set.add((s.d[i] << 16) | (s.d[i + 1] << 8) | s.d[i + 2]);
-  }
-  for (const t of ['carrot', 'wheat', 'pumpkin', 'strawberry', 'eggplant', 'corn']) for (let st = 0; st < 4; st++) {
-    const s = cropSprite(t, st);
-    for (let i = 0; i < s.d.length; i += 4) if (s.d[i + 3] > 200) set.add((s.d[i] << 16) | (s.d[i + 1] << 8) | s.d[i + 2]);
-  }
-  return [...set].map((v) => [(v >> 16) & 255, (v >> 8) & 255, v & 255]);
-}
-function paletteCoverage(sc, pal) {
-  let inP = 0, tot = 0;
-  const d = sc.d;
+// ---------- M5: پوشش پالت مستر (S1.2) — per صحنه/ماژول + ۵ رنگ پرتکرارِ خارج ----------
+function pmCheck(r) {
+  const d = r.d;
+  let inside = 0, tot = 0;
+  const out = new Map();
   for (let i = 0; i < d.length; i += 4) {
     if (d[i + 3] < 200) continue;
     tot++;
-    for (const [pr, pg, pb] of pal) {
-      const dr = d[i] - pr, dg = d[i + 1] - pg, db = d[i + 2] - pb;
-      if (Math.sqrt((dr * dr + dg * dg + db * db) / 3) < 6) { inP++; break; }
-    }
+    if (inPM(d[i], d[i + 1], d[i + 2])) { inside++; continue; }
+    const k = ((d[i] >> 3) << 10) | ((d[i + 1] >> 3) << 5) | (d[i + 2] >> 3); // دانه‌ی ۵ بیتی برای شمارش
+    const e = out.get(k) || [0, 0, 0, 0];
+    e[0] += d[i]; e[1] += d[i + 1]; e[2] += d[i + 2]; e[3]++;
+    out.set(k, e);
   }
-  return tot ? inP / tot : 0;
+  const top = [...out.values()].sort((a, b) => b[3] - a[3]).slice(0, 5)
+    .map((e) => [Math.round(e[0] / e[3]), Math.round(e[1] / e[3]), Math.round(e[2] / e[3]), e[3]]);
+  return { pct: tot ? (inside / tot) * 100 : 100, tot, top };
 }
+function poolRaster(sprites, cell = 72, cols = 8) {
+  const rows = Math.ceil(sprites.length / cols);
+  const r = new Raster(cell * cols, cell * rows);
+  sprites.forEach(([k, s], i) => {
+    const cx = (i % cols) * cell, cy = ((i / cols) | 0) * cell;
+    for (let y = 0; y < Math.min(cell, s.h); y++) for (let x = 0; x < Math.min(cell, s.w); x++) {
+      const si = (y * s.w + x) * 4;
+      if (s.d[si + 3] < 200) continue;
+      r.px(cx + x, cy + y, [s.d[si], s.d[si + 1], s.d[si + 2], 255]);
+    }
+  });
+  return r;
+}
+const CROP_SPRS = [];
+for (const t of ['carrot', 'wheat', 'pumpkin', 'strawberry', 'eggplant', 'corn']) for (let st = 0; st < 4; st++) CROP_SPRS.push([t + st, cropSprite(t, st)]);
 
 // ---------- M9: diff فریم (٪ پیکسل متفاوت، آلفا>۱۲۰، تفاوت کانالی>۸) ----------
 function frameDiff(a, b) {
@@ -203,7 +210,15 @@ const FARM = farmScene(100), DUN = dungeonScene(13, 1); // صحنه‌های م�
 M.M6 = { farm: rnd(sceneMetrics(FARM).seam, 2), dungeon: rnd(sceneMetrics(DUN).seam, 2) };
 M.M7 = { farm: rnd(sceneMetrics(FARM).identical * 100, 1), dungeon: rnd(sceneMetrics(DUN).identical * 100, 1) };
 M.M8 = { farm: sceneMetrics(FARM).hard, dungeon: sceneMetrics(DUN).hard };
-M.M5 = { pct: rnd(paletteCoverage(FARM, masterPalette()) * 100, 1), scene: 'مزرعه‌ی مرجع' };
+const M5_GROUPS = [
+  ['صحنه‌ی مزرعه', pmCheck(FARM)],
+  ['صحنه‌ی دانجن', pmCheck(DUN)],
+  ['قهرمان', pmCheck(HERO)],
+  ['موب‌ها (۱۵)', pmCheck(poolRaster(SPRITES))],
+  ['محصولات (۲۴)', pmCheck(poolRaster(CROP_SPRS, 24, 8))],
+];
+M.M5 = { pct: rnd(Math.min(...M5_GROUPS.map(([, g]) => g.pct)), 1), pmSize: PM_SIZE, cover: rnd(PM_COVER, 2), groups: M5_GROUPS.map(([n, g]) => [n, rnd(g.pct, 1)]) };
+M.M5.top = M5_GROUPS.map(([n, g]) => [n, g.top.map((c) => c.slice(0, 3).join(',') + '×' + c[3])]);
 
 // M9 — idle زنده + حمله‌ی اسکلت/کماندار
 const idle = {}, idleAmp = {}, atk = {};
@@ -285,7 +300,7 @@ const fmt = {
   M2: `انحراف=${M.M2.sd} میانگین=${M.M2.mean} (بدترین: ${M.M2.worst.map((w) => w.join(':')).join(' ')})`,
   M3: `قهرمان=${M.M3.hero} · موب‌ها ${M.M3.mobsMin}..${M.M3.mobsMax}`,
   M4: `کمینه باند سایه=${M.M4.minBands} (قهرمان=${M.M4.heroBands})`,
-  M5: `${M.M5.pct}٪ داخل پالت موقت (${M.M5.scene})`,
+  M5: `کمینه ${M.M5.pct}٪ · ${M.M5.groups.map(([n, v]) => n.replace(/\s*\(.*\)/, '') + ' ' + v + '٪').join(' · ')} (پالت ${M.M5.pmSize} رنگ · پوشش ${M.M5.cover})`,
   M6: `مزرعه=${M.M6.farm} دانجن=${M.M6.dungeon}`,
   M7: `مزرعه=${M.M7.farm}٪ دانجن=${M.M7.dungeon}٪`,
   M8: `مزرعه=${M.M8.farm} دانجن=${M.M8.dungeon} مرز سخت`,
@@ -296,6 +311,8 @@ console.log('\n════════ ممیزی آرت (S0.3) ═════
 for (const k of ['M1', 'M2', 'M3', 'M4', 'M5', 'M6', 'M7', 'M8', 'M9', 'M10']) {
   console.log(`${k}  ${goals[k] ? '✔' : '✘'}  ${fmt[k]}   (هدف ${verdict[k]})`);
 }
+console.log('M5 خارج‌ها (۵ رنگ پرتکرار هر گروه):');
+for (const [n, t] of M.M5.top) console.log('   ' + n + ': ' + (t.length ? t.join('  ') : '—'));
 console.log(`M11 پرفورمنس: جدا در tools/bench.mjs (S0.4)`);
 console.log(`امتیاز سنجه‌محور: ${passed}/11 → ${score}/10   (${((Date.now() - t0) / 1000).toFixed(1)}s)`);
 const core = { bat_dL: M.M1.bat, outline_sd: M.M2.sd, hero_colors: M.M3.hero };
