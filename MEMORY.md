@@ -1,7 +1,7 @@
 # 🧠 MEMORY — بازی «مزرعه و دانجن»
 
 > حافظه‌ی عامل: **نقشه‌ی فایل‌ها (دقیق/per-file)** + وضعیت خطی + اعداد + درس‌ها + قواعد کاربر.
-> آخرین به‌روزرسانی: 2026-10-08 (نوبت ۵۲ — S0.3 ✅ ممیزی عددی؛ نشست بعدی S0.4).
+> آخرین به‌روزرسانی: 2026-10-08 (نوبت ۵۳ — S0.4 ✅ شیت/صحنه/بنچ؛ نشست بعدی S1.1).
 > **رودمپ فعال: `ROADMAP.md` (۵۹ نشست، ۹ فاز) — اول §«🗺 رودمپ آرت v2» همین فایل را بخوان.**
 
 ## 🚨 اول هر نوبت
@@ -17,8 +17,8 @@ farm-dungeon/   (کل ورک‌اسپیس ۲٫۵MB — بیرون فقط uploads
 ├── game.html ⭐ باندل تک‌فایل ۴۲۶٬۷۶۴B = ۱۰۸ ماژول + CSS اینلاین (تنها خروجی بیلدر)
 ├── index.html (ورودی بیلدر: شل + اسکریپت main_app) · css/style.css (تنها CSS) · serve.mjs (:8080 no-store) · MEMORY.md
 ├── ROADMAP.md (فهرست ۵۹ نشست + قواعد + Scoreboard) · roadmap/P0…P8.md (جزئیات هر فاز) · .gitignore
-├── shots/ (۶): stage47_elites.gif · stage47_montage.png · art48_review.png (ممیزی آرت) · mobs44_sheet.png · tiles43_sheet.png · font41_sheet.png
-├── tools/ (۱۰ پایه + push.sh · secret_guard.sh · setup_tests.sh · boot_check.mjs · run_all.sh · art_audit.mjs؛ دائمی بعدی S0.4: sheet.mjs) · .github/workflows/ci.yml = run_all+art_audit هر push: build_single.mjs (باندلر: BASE پشت‌سرهم، فقط export const/function؛ entry جدا: bundle('index.html','game.html','main_app'))
+├── shots/ (S0.3/S0.4): audit.json + audit_baseline.json + art_audit.png · sheet_{tiles,mobs,farm,dungeon}.png · ref_farm_{day,rain,night}.png · ref_dungeon_f{01,06,11,16}.png (۶ قدیمی به‌خواست کاربر حذف شد)
+├── tools/ (build_single · render5/6 · elite47 · bench · png · push.sh · secret_guard.sh · setup_tests.sh · boot_check.mjs · run_all.sh · art_audit.mjs · sheet.mjs + baseline.json؛ tiles43/mobs44 حذف) · .github/workflows/ci.yml = run_all+art_audit هر push: build_single.mjs (باندلر: BASE پشت‌سرهم، فقط export const/function؛ entry جدا: bundle('index.html','game.html','main_app'))
 │   · render5.mjs ⟨۱۵ رگرسیون⟩ · render6.mjs ⟨۲۷ پولیش⟩ · elite47.mjs ⟨۴ تست تاج+GIF نخبه → /tmp/qa47⟩
 │   · build_bp42.py (مولد/ولیداتور نقشه‌ها) · author_font41.py (منبع حقیقت فونت) · mobs44_sheet.mjs · tiles43_sheet.mjs · png.mjs · bench.mjs
 └── js/
@@ -45,8 +45,9 @@ farm-dungeon/   (کل ورک‌اسپیس ۲٫۵MB — بیرون فقط uploads
 ```
 
 ## ✅ وضعیت (هر نوبت یک خط — جزئیات در شیت/اسکریپت همان نوبت)
+- **ن۵۳: S0.4 ✅ شیت‌ساز + صحنه‌های مرجع + بنچ** — `tools/sheet.mjs <tiles|mobs|farm|dungeon|all>` (زوم ×۲/۴ + برچسب font2 → `shots/sheet_*.png`) · ۷ صحنه‌ی مرجع قطعی `ref_farm_{day,rain,night}.png` + `ref_dungeon_f{01,06,11,16}.png` (مالکیت ref از art_audit به sheet منتقل شد) · `tools/bench.mjs` گسترش: میانه‌ی ۳ اجرا → **`tools/baseline.json`: مزرعه ۰٫۵۹ms · دانجن ۱٫۲۰ms** (پایه ۰٫۶۰/~۱٫۳ ✓ M11 پاس) · `tiles43_sheet.mjs`+`mobs44_sheet.mjs` حذف شدند · run_all سبز · نشست بعدی: **S1.1** (`art/ramps.js` — تنها ماژول جدید P1)
 - **ن۵۲: S0.3 ✅ art_audit پایدار** — `tools/art_audit.mjs` (M1–M10 عددی + شیت + JSON؛ قطعی=random استاب؛ ۰٫۳ث) + `shots/audit_baseline.json` + `shots/art_audit.png` + ۴ صحنه‌ی مرجع `ref_*.png`؛ **اسکرین‌شات‌های قدیمی (۶ فایل) به‌خواست کاربر حذف شدند**؛ CI: `.github/workflows/ci.yml` (هر push: run_all + art_audit + آپلود آرتیفکت)؛ پایه‌ی سنجه‌محور **۲/۱۱ = ۱٫۸/۱۰** — M1 ΔL=۹٫۶ (bat بدترین) · M2=۲۲ · M3 قهرمان ۸۳ رنگ/موب ۵–۹ · M4=۱ باند · M5=۹۷٫۴٪ · M6=۰٫۵۹/۰٫۵۷ · M7=۴۶٫۲٪/۰٫۷٪ · M8=۰/۰ · M9 idle-min=۰٪ (golem یخ‌زده)، حمله ۱۹٫۸/۱۹٫۱٪ · M10=۷–۱۳px×۴؛ هم‌خوانی با ن۴۸: قهرمان ۸۳↔۸۲، موب ۵–۹↔۵–۹، محصول ۷–۱۳↔۷–۱۳، حمله ۱۹٫۸/۱۹٫۱↔۱۵/۱۹، bat بدترین↔bat · نشست بعدی: S0.4
-- **ن۵۱: S0.1 ✅ + S0.2 ✅** — مخزن با توکن کلون شد، `farm-dungeon-roadmap.zip` آنزیپ و ساختار پروژه در ریشه‌ی ریپو (`farm-dungeon/`) قرار گرفت؛ zip حذف؛ `secret_guard: clean`؛ پوش اول `3f61d4c` (local==remote)؛ تگ `art-baseline` لوکال+ریموت · **S0.2**: `tools/setup_tests.sh` + `tools/boot_check.mjs` (۱۰ سناریو jsdom) + `tools/run_all.sh` → `ALL GREEN` در ۲۲ث (boot ۱۰/۱۰ در ۱۹٬۲ث · render5 ۱۵/۱۵ · render6 ۲۷/۲۷) و **بیلد بایت‌برابر با game.html موجود (Parity)** · نشست بعدی: S0.4 (شیت/صحنه/بنچ)
+- **ن۵۱: S0.1 ✅ + S0.2 ✅** — مخزن با توکن کلون شد، `farm-dungeon-roadmap.zip` آنزیپ و ساختار پروژه در ریشه‌ی ریپو (`farm-dungeon/`) قرار گرفت؛ zip حذف؛ `secret_guard: clean`؛ پوش اول `3f61d4c` (local==remote)؛ تگ `art-baseline` لوکال+ریموت · **S0.2**: `tools/setup_tests.sh` + `tools/boot_check.mjs` (۱۰ سناریو jsdom) + `tools/run_all.sh` → `ALL GREEN` در ۲۲ث (boot ۱۰/۱۰ در ۱۹٬۲ث · render5 ۱۵/۱۵ · render6 ۲۷/۲۷) و **بیلد بایت‌برابر با game.html موجود (Parity)** · نشست بعدی: S1.1 (رمپ‌های رنگ)
 - **ن۵۰: رودمپ آرت v2 تدوین شد** (۵۹ نشست/۹ فاز: P0 زیرساخت · P1 رنگ · P2 تایل مزرعه · P3 تایل دانجن · P4 نور · P5 جزئیات مزرعه · P6 موجودات · P7 UI · P8 پولیش) — کد بازی دست‌نخورده، فقط `.gitignore` + `tools/push.sh` + `tools/secret_guard.sh` + ROADMAP/roadmap اضافه شد · نشست بعدی: S0.3 · هدف امتیاز آرت ۵٫۵ → ≥ ۸٫۵ (Scoreboard در ROADMAP.md)
 - قابل بازی: game.html روی :8080 · نوبت جاری: **ن۴۸ آرت-ممیزی سنجه‌محور ~۵٫۵/۱۰ سخت‌گیرانه** — کمبودها: **P1 خوانایی** bat ΔL=۳ و فقط ۱۵px، bandit ΔL=۵، spider ۲۱، ghost ۱۰ (نیمه‌عمدی)، outline اسکلت/کماندار L~۸۶=حاشیه نه outline · **P2 سبک** پالت قهرمان ۸۲ رنگ↔موب‌ها ۵-۹ (ژاکارد ۰٫۰۱۷)، outline غیریکدست (انحراف ۴۲)، اسکلت/کماندار ۲ باند سایه، صفر بافت/dither (فاصله‌ی اصلی با استاردیو) · **P3** محصول ۴ مرحله (استاردیو ۵) و رسیده ۷-۱۳px، حمله‌ی اسکلت ۱۵٪/کماندار ۱۹٪ کم‌خوانا، idle hare/golem/boss ۱۱-۱۴٪ یخ‌زده، اسکلت ۲٫۳t>قهرمان ۱٫۸t، گلیف ص/ض/ط/ظ ۸px در شبکه‌ی ۷ · قوت‌ها: خط لوله‌ی منظم، انیمیشن ۴حالته، فونت ۹۵ گلیف، باس≠گولم، صحنه ۱۰۸-۱۷۰ رنگ · سنجه‌ها: shots/art48_review.png (اسکریپت اندازه‌گیری /tmp/artaudit48.mjs — سنجه‌ها: پالت کوانتیزه >>۴، خوشه‌ی روشنایی ≥۸٪، ΔL در برابر کفِ L=۷۲، ژاکارد، diffRatio)
 - ن۴۹: **باگ‌های ظاهری + پولیش** — (۱) تایل‌های fence/fencePost شفاف بودند (بدون چمن زیرشان → سیاهی/ردّ فریم قبل روی بوم) → چمن زیرشان در farm_render · (۲) خاک‌راه: تایل‌های «نان‌مانند» جدا → تایل پر + حاشیه‌ی دندانه‌ای per-همسایه `drawPathEdge` (farm_decor) + سنگ‌ریزه‌ی پراکنده · (۳) دروازه‌ی ۲×۲ دو در روی هم بود → طاق یکپارچه (variant 0 سردر / 1 آستانه) · (۴) گندم رسیده شبیه «میز» → سه سنبله‌ی طلایی با ریشک · (۵) فونت font2: حروف کوچک لاتین «؟» می‌شدند (Floor→F????) → نگاشت به بزرگ؛ نیم‌فاصله‌ی U+200C «؟» رسم می‌شد → حذف؛ ارقام داخل جمله‌ی فارسی برعکس بودند (۱۲۳→۳۲۱) → bidi ردیف‌های LTR؛ alias آ/أ/ي/ك/٪/—/→ و گلیف ( ) = ·؛ ۳ شبیه «؟» بود → سه‌قوسی · بیلد+بوت jsdom صفر خطا · شفافیت: صفر پیکسل alpha=0 در مزرعه و ۵ طبقه‌ی دانجن
@@ -64,13 +65,13 @@ farm-dungeon/   (کل ورک‌اسپیس ۲٫۵MB — بیرون فقط uploads
 - باگ باز: — (فهرست ن۴۸ = بهبود آرت، نه باگ) | داستان/NPC عمداً نیست
 
 ## 🗺 رودمپ آرت v2 (از ن۵۰)
-- **منبع حقیقت پیشرفت**: چک‌باکس‌های `ROADMAP.md`؛ جزئیات/پذیرش هر نشست در `roadmap/P?.md`. **نشست بعدی: S0.4** (S0.1 ✅، S0.2 ✅، S0.3 ✅).
+- **منبع حقیقت پیشرفت**: چک‌باکس‌های `ROADMAP.md`؛ جزئیات/پذیرش هر نشست در `roadmap/P?.md`. **نشست بعدی: S1.1** (P0 کامل ✅ — S0.1 تا S0.4).
 - **ترتیب فازها**: P0 زیرساخت/اندازه‌گیری → P1 رنگ و رمپ‌ها (بزرگ‌ترین جهش) → P2 تایل مزرعه → P3 تایل دانجن → P4 نور/سایه → P5 جزئیات مزرعه → P6 موجودات → P7 UI/آیکون/فونت → P8 پولیش. ایست‌های بازبینی کاربر 🛑: R1 (بعد P1)، R2 (بعد P3)، R3 (بعد P5)، R4 (پایان).
 - **پروتکل نشست** (کوتاه): MEMORY + فایل فاز را بخوان → اجرا (≤ ۱ ماژول جدید + ≤ ۳ فایل ویرایشی، هر ماژول ≤ ۲۸۰ خط، ≲ ۳۵ فراخوانی ابزار) → `node tools/build_single.mjs` + بوت jsdom + تست‌های فاز + audit → `bash tools/push.sh "art(Sx.y): …"` → تیک چک‌باکس‌ها (فایل فاز + ROADMAP) + یک خط در §وضعیت → **بایست**. بزرگ شد؟ WIP را push کن، زیرنشست `Sx.yb` بساز، ادامه نده.
 - **پروتکل گیت**: فقط `tools/push.sh` (secret_guard + commit + push با URL موقت؛ توکن در remote/فایل/لاگ نمی‌ماند). تگ پایان فازها: `art-baseline`, `art-P1`, `art-P3`, `art-P5`, `art-v2`. هرگز `--force` مگر کاربر بگوید.
 - **سنجه‌ها** (M1–M11، جدول در ROADMAP): ΔL موجودات ≥ ۲۵ · انحراف outline ≤ ۱۲ · پالت قهرمان/موب ۱۰–۲۸ · باند سایه ≥ ۴ · پیکسل داخل پالت ≥ ۹۷٪ · seam ۰٫۸–۱٫۲۵ · تایل همسایه‌ی یکسان ≤ ۱۵٪ · مرز بی‌ترنزیشن = ۰ · idle ≥ ۱۲٪/حمله ≥ ۲۵٪ · محصول رسیده ≥ ۱۲px با ۶ مرحله · پرفورمنس مزرعه ≤ پایه/دانجن ≤ +۱۵٪. پایه‌ها از ن۴۸: bat ΔL=۳، outline انحراف ۴۲، قهرمان ۸۲ رنگ، idle هار/گولم/باس ۱۱–۱۴٪، حمله‌ی اسکلت ۱۵٪/کماندار ۱۹٪، محصول ۴ مرحله و ۷–۱۳px.
 - **یافته‌ی کلیدی کد**: `halfSprite` (art/hero.js) میانگین RGB ۲×۲ می‌گیرد → قهرمان ۲۴→~۸۲ رنگ و outline ۲px قاطی‌شده (ریشه‌ی M2/M3؛ رفع در S1.6). چمن/دکور = پیکسل‌های منفرد؛ فقط خاک‌راه ترنزیشن دارد؛ دیوار دانجن همیشه کلاهک۴+آجر۱۲ (حتی وسط توده)؛ مزرعه کش زمین ندارد (۶۰۰ `over`/فریم)؛ `buildFloorCache` دانجن موجود است (پایه‌ی P3).
-- **ابزارهای دائمی** (استثنای قاعده‌ی «فقط فایل جاری»): build_single · render5/6 · elite47 · bench · png · author_font41.py · build_bp42.py + (رودمپ) push.sh · secret_guard.sh · setup_tests.sh · boot_check.mjs · run_all.sh · art_audit.mjs · sheet.mjs · baseline.json. ابزار یک‌بارمصرف همان‌روز حذف شود؛ `mobs44_sheet/tiles43_sheet` در S0.4 با `sheet.mjs` جایگزین و حذف می‌شوند.
+- **ابزارهای دائمی** (استثنای قاعده‌ی «فقط فایل جاری»): build_single · render5/6 · elite47 · bench · png · author_font41.py · build_bp42.py + (رودمپ) push.sh · secret_guard.sh · setup_tests.sh · boot_check.mjs · run_all.sh · art_audit.mjs · sheet.mjs · baseline.json. ابزار یک‌بارمصرف همان‌روز حذف شود؛ `mobs44_sheet/tiles43_sheet` در S0.4 با `sheet.mjs` جایگزین و حذف **شدند ✓**.
 
 ## 🔢 اعداد معتبر
 - **اقتصاد**: هزینه=base×1.15^lvl · زمین150/باغ450/کارگر200+500/آبپاش180/سبد220 (سکه) · بیل15/قوطی15/داس20/شمشیر25/زره30/چکمه20/کود12 (گوهر، سقف۵) · شروع: ۶۰ سکه+۶ بذر هویج · مرگ: سکه/بذر نصف، آیتم می‌ماند
@@ -145,7 +146,8 @@ node /tmp/qa_all.mjs              # ۵۲: seam/pix/font+i18n/logic/bp/tile/mobs(
 bash tools/run_all.sh             # ← یک‌فرمانی: setup+build+boot+render5+render6 → ALL GREEN (ن۵۱: ۲۲ث)
 node tools/boot_check.mjs         # ۱۰ سناریو jsdom (Date.now→seed · AC استاب · resize صفر · موبایل · شب+باران · سیو/زبان)
 node tools/art_audit.mjs          # ممیزی آرت M1–M10 → shots/audit.json + art_audit.png (ART_AUDIT_STRICT=1 = گارد لنگرهای ن۴۸)
-node tools/bench.mjs              # فقط میانه‌ی هم‌پروسه
+node tools/sheet.mjs all          # شیت‌های بازبینی بصری ×۲/۴ + صحنه‌های مرجع → shots/
+node tools/bench.mjs              # میانه‌ی هم‌پروسه + ذخیره‌ی tools/baseline.json (M11)
 ```
 - بعد از هر ماژول جدید: چک wire «BASE∪entry» (الگوی ن۴۷) + بوت jsdom
 - بعد از هر تغییر dungeon/blueprint: ممیزی دسترس‌پذیری (flood-fill + A* از اسپاون به صندوق/محراب/پله، ۲۰۰ سیید)

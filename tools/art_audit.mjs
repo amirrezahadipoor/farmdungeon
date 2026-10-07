@@ -199,7 +199,7 @@ M.M4 = { minBands: Math.min(stHero.bands, ...stAll.map(([, st]) => st.bands)), h
 // صحنه‌های مرجع (برای M5–M8 + شیت)
 const farmScene = (dayT) => fixedRnd(() => farmSceneReal(dayT));
 const dungeonScene = (seed, f) => fixedRnd(() => dungeonSceneReal(seed, f));
-const FARM = farmScene(100), FARM_NIGHT = farmScene(2220), DUN = dungeonScene(13, 1), DUN_F6 = dungeonScene(13, 6);
+const FARM = farmScene(100), DUN = dungeonScene(13, 1); // صحنه‌های مرجع ۱:۱ از S0.4 در tools/sheet.mjs ساخته می‌شوند
 M.M6 = { farm: rnd(sceneMetrics(FARM).seam, 2), dungeon: rnd(sceneMetrics(DUN).seam, 2) };
 M.M7 = { farm: rnd(sceneMetrics(FARM).identical * 100, 1), dungeon: rnd(sceneMetrics(DUN).identical * 100, 1) };
 M.M8 = { farm: sceneMetrics(FARM).hard, dungeon: sceneMetrics(DUN).hard };
@@ -278,11 +278,6 @@ function blit(dst, src, dx, dy, sc = 1, sx0 = 0, sy0 = 0, sw = src.w, sh = src.h
   });
   savePNG(path.join(SHOTS, 'art_audit.png'), sheet);
 }
-savePNG(path.join(SHOTS, 'ref_farm_day.png'), FARM);
-savePNG(path.join(SHOTS, 'ref_farm_night_rain.png'), FARM_NIGHT);
-savePNG(path.join(SHOTS, 'ref_dungeon_theme0.png'), DUN);
-savePNG(path.join(SHOTS, 'ref_dungeon_theme1.png'), DUN_F6);
-
 // ---------- گزارش ----------
 const verdict = { M1: '≥۲۵', M2: '≤۱۲', M3: '۱۰–۲۸', M4: '≥۴', M5: '≥۹۷٪', M6: '۰٫۸–۱٫۲۵', M7: '≤۱۵٪', M8: '=۰', M9: 'idle≥۱۲٪ حمله≥۲۵٪', M10: '≥۱۲px × ۶مرحله' };
 const fmt = {

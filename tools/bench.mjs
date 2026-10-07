@@ -1,4 +1,7 @@
 // bench.mjs — بنچمارک گلوگاه‌ها: رندر مزرعه (۴ حالت آب‌وهوا) + دانجن + میکرو (over/rect/ellipse)
+// S0.4: در پایان، میانه‌ی ۳ اجرای هم‌پروسه برای M11 در tools/baseline.json ذخیره می‌شود (نویز ±۴۰٪ — فقط مقایسه‌ی هم‌پروسه)
+import fs from 'node:fs';
+import path from 'node:path';
 import { Game } from '../js/game.js';
 import { Run } from '../js/run.js';
 import { Raster } from '../js/raster.js';
@@ -41,3 +44,28 @@ for (const f of [1, 10]) {
   const tu = ms((i) => { run.time = i/60; run.update(1/60); }, 400), tr = ms((i) => run.render(r), 400);
   console.log(`دانجن طبقه ${String(f).padEnd(3)}    :`, tr + 'ms رندر + ' + tu + 'ms آپدیت');
 }
+
+// --- M11: میانه‌ی ۳ اجرا (همان پروسه) → tools/baseline.json ---
+const med = (a) => { const b = [...a].sort((x, y) => x - y); return b[(b.length / 2) | 0]; };
+function benchFarm() {
+  const g = new Game(W, 5, {}); g.view = { w: 480, h: 320 }; g.dayT = 100;
+  const r = new Raster(480, 320);
+  for (let i = 0; i < 60; i++) { g.update(1 / 60); g.render(r); }
+  return { render: +ms(() => g.render(r), 400), update: +ms((i) => { g.time = i / 60; g.update(1 / 60); }, 400) };
+}
+function benchDungeon() {
+  const run = new Run(7, {}); run.view = { w: 480, h: 320 };
+  const r = new Raster(480, 320);
+  for (let i = 0; i < 60; i++) { run.update(1 / 60); run.render(r); }
+  return { render: +ms(() => run.render(r), 400), update: +ms((i) => { run.time = i / 60; run.update(1 / 60); }, 400) };
+}
+const F = [0, 1, 2].map(benchFarm), D = [0, 1, 2].map(benchDungeon);
+const baseline = {
+  ts: new Date().toISOString(),
+  note: 'M11 — ms میانه‌ی ۳ اجرا، همان پروسه (480×320)؛ نویز ±۴۰٪ — فقط A/B هم‌دقیقه معتبر است (درس ۱۴)',
+  farm: { render: med(F.map((x) => x.render)), update: med(F.map((x) => x.update)) },
+  dungeon: { render: med(D.map((x) => x.render)), update: med(D.map((x) => x.update)) },
+};
+const ROOT = path.resolve(path.dirname(new URL(import.meta.url).pathname), '..');
+fs.writeFileSync(path.join(ROOT, 'tools', 'baseline.json'), JSON.stringify(baseline, null, 1));
+console.log('M11 baseline → tools/baseline.json:', JSON.stringify(baseline.farm), JSON.stringify(baseline.dungeon));
