@@ -9,6 +9,7 @@ import { applyNight, nightFactor } from './night.js';
 import { drawBirds } from './art/critters.js';
 import { drawRain, isRaining, lightningK, flashTint, drawLightning, drawPondRipples } from './art/weather.js';
 import { drawHeroFrame, frameKey, framePhase, halfSprite } from './art/hero.js';
+import { flushDirty, bakeWater, OPAQUE } from './farm_terrain.js'; // S2.1: کش زمین + dirty-tile
 import { HOX, HOY } from './art/hero_pose.js';
 import { applyRim } from './art/rim.js';
 
@@ -48,38 +49,24 @@ export function renderFarm(game, r) {
     const f = game.farm, wf = [0, 1, 2, 1][Math.floor(game.time * 0.9) % 4]; // موج آب: سیکل آرام ~۱٫۱ث/فریم (ن۳۷)
     const x0 = Math.max(0, Math.floor(cx / TILE)), x1 = Math.min(COLS - 1, Math.ceil((cx + r.w) / TILE));
     const y0 = Math.max(0, Math.floor(cy / TILE)), y1 = Math.min(ROWS - 1, Math.ceil((cy + r.h) / TILE));
-    for (let ty = y0; ty <= y1; ty++) for (let tx = x0; tx <= x1; tx++) {
+    // S2.1: لایه‌ی استاتیک از کش (blit تایل‌به‌تایل؛ تایلِ مات = کپیِ u32، بدون blend) — dirtyها پیش از blit بازپخت می‌شوند
+    const terr = flushDirty(f);
+    let allOp = true; // اگر تمام پنجره‌ی دید مات باشد، کل زمین با یک blit می‌آید
+    for (let ty = y0; ty <= y1 && allOp; ty++) for (let tx = x0; tx <= x1; tx++) if (!OPAQUE[ty * COLS + tx]) { allOp = false; break; }
+    if (allOp) terr.blit(r, x0 * TILE, y0 * TILE, (x1 - x0 + 1) * TILE, (y1 - y0 + 1) * TILE, x0 * TILE - cx, y0 * TILE - cy, true);
+    for (let ty = y0; ty <= y1; ty++) {
+      let rowOp = true;
+      for (let tx = x0; tx <= x1; tx++) if (!OPAQUE[ty * COLS + tx]) { rowOp = false; break; }
+      if (!allOp && rowOp) terr.blit(r, x0 * TILE, ty * TILE, (x1 - x0 + 1) * TILE, TILE, x0 * TILE - cx, ty * TILE - cy, true); // ردیفِ مات: یک memcpy به‌جای ۳۰ blit
+      for (let tx = x0; tx <= x1; tx++) {
       const c = f.cell(tx, ty);
       const sx = tx * TILE - cx, sy = ty * TILE - cy;
-      let base;
-      if (c.kind === 'grass') base = groundSprite('grass', c.variant);
-      else if (c.kind === 'path') base = groundSprite('path', c.variant & 1);
-      else if (c.kind === 'tree') base = groundSprite('grass', 0); // زیر درخت چمن است
-      else if (c.kind === 'soil') base = groundSprite('soil', 0, c.wet);
-      else if (c.kind === 'water') base = groundSprite('water', (tx * 5 + ty * 3) & 3, false, wf); // ن۳۸: فاز موج per-tile
-      else if (c.kind === 'hedge') base = groundSprite('hedge');
-      else if (c.kind === 'gate') base = groundSprite(c.gL ? 'gateL' : 'gateR', ty === f.gate.y ? 0 : 1); // پایه‌ی دروازه ثابت — جادوی متحرک در drawGateSwirl
-      else if (c.kind === 'sign') base = groundSprite('grass', 0); // تابلوی فروش باغ شمالی — تخته در drawSaleSign
-      else if (c.kind === 'house') base = groundSprite('grass', 0); // بدنه‌ی خانه در گذر موجودات (y-sort)
-      else if (c.kind === 'scarecrow') base = groundSprite('grass', 0); // مترسک روی چمن
-      else { groundSprite('grass', (tx * 5 + ty * 3) & 3).over(r, sx, sy); base = groundSprite(c.fenceH ? 'fence' : 'fencePost'); } // حصار روی چمن (قبلاً شفاف = سیاهی/ردّ فریم قبل)
-      base.over(r, sx, sy);
-      if (c.kind === 'path') drawPathEdge(r, sx, sy, tx, ty, f);
-      if (c.kind === 'water') { // کرانه‌ی آب فقط روی مرز (ن۳۸) — داخل حوضچه یکدست، بی‌رگه
-        if (!f.cell(tx, ty - 1) || f.cell(tx, ty - 1).kind !== 'water') r.rect(sx, sy, 16, 1, E.waterSh);
-        if (!f.cell(tx, ty + 1) || f.cell(tx, ty + 1).kind !== 'water') { r.rect(sx, sy + 14, 16, 1, E.waterSh); r.rect(sx, sy + 15, 16, 1, E.waterSh); }
-        if (!f.cell(tx - 1, ty) || f.cell(tx - 1, ty).kind !== 'water') r.rect(sx, sy, 1, 16, E.waterSh);
-        if (!f.cell(tx + 1, ty) || f.cell(tx + 1, ty).kind !== 'water') r.rect(sx + 15, sy, 1, 16, E.waterSh);
-      }
+      if (!allOp && !rowOp) terr.blit(r, tx * TILE, ty * TILE, TILE, TILE, sx, sy, OPAQUE[ty * COLS + tx] !== 0);
+      if (c.kind === 'water') bakeWater(r, f, tx, ty, sx, sy, wf); // آب متحرک: هر فریم روی کش
       if (c.crop) cropSprite(c.crop.type, f.stage(c)).over(r, sx, sy);
       if (c.crop && c.crop.g && !f.mature(c)) { // طلاییِ در حال رشد: درخشش ریز (کوانتیزه)
         _gP[3] = 55 + 25 * Math.round((Math.sin(game.time * 1.2 + tx) + 1)); // ن۳۶: پالس آرام‌تر — نشانِ طلایی، نه استروب
         r.px(sx + 3, sy + 4, _gP); r.px(sx + 12, sy + 11, _gP);
-      }
-      // بوته‌ی مرز روی زمین قفل‌شده (تایل زیرین آزاد است)
-      if (c.kind === 'grass' && !c.farmable && f.insideFence(tx, ty)) {
-        const below = f.cell(tx, ty + 1);
-        if (below && below.farmable && below.kind === 'grass') groundSprite('bush').over(r, sx, sy);
       }
       // ---- دکور زنده‌ی مزرعه (آرت جدا در js/art/) ----
       if (c.kind === 'sign') drawSaleSign(r, sx, sy, game.time);
@@ -89,6 +76,7 @@ export function renderFarm(game, r) {
       if (tx === 18 && ty === 16 && game.toolLvls.basket) drawBasketCrate(r, sx, sy, game.time); // سبد: کنار خانه
       else if (c.kind === 'water') drawWaterLife(r, sx, sy, tx, ty, game.time);
       if (c.crop && f.mature(c)) drawReadySparkle(r, sx, sy, tx, ty, game.time, !!c.crop.g);
+      }
     }
     // نشانگر هدف (گوشه‌های چشمک‌زن)
     if (game.marker) {

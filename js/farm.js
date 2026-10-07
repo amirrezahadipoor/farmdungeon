@@ -57,6 +57,7 @@ export class Farm {
   recalcFarmable(level) {
     this.landLevel = Math.max(1, Math.min(LAND_MAX, level));
     const rows = landRows(this.landLevel);
+    this.onAll?.(); // سطح زمین عوض شد: همه‌ی تایل‌های استاتیک دوباره ارزیابی شوند (بوته/شخم‌پذیری)
     for (const c of this.grid) {
       const insideFence = c.x >= 6 && c.x <= 23 && c.y >= 6 && c.y <= 13;
       const soft = c.kind === 'grass' || c.kind === 'soil';
@@ -87,7 +88,7 @@ export class Farm {
     const c = this.cell(x, y);
     if (!c) return { ok: false };
     if (tool === 'hoe') {
-      if (c.kind === 'grass' && c.farmable) { c.kind = 'soil'; c.wet = false; c.wetT = 0; return { ok: true, ev: 'till' }; }
+      if (c.kind === 'grass' && c.farmable) { c.kind = 'soil'; c.wet = false; c.wetT = 0; this.onCell?.(x, y); return { ok: true, ev: 'till' }; }
     } else if (tool === 'seed') {
       if (c.kind === 'soil' && !c.crop && !this.canPlant(cropType, x, y)) return { ok: false, needFarm2: true }; // بذر باغ شمالی؟
       if (c.kind === 'soil' && !c.crop && this.canPlant(cropType, x, y)) { this._addCrop(c, cropType); return { ok: true, ev: 'plant', type: cropType }; } // بذر از موجودی — هزینه‌ای ندارد
@@ -97,7 +98,7 @@ export class Farm {
       if (c.crop && this.mature(c)) {
         const t = c.crop.type, g = !!c.crop.g; // پرچم طلایی قبل از پاک‌شدن محصول
         const count = (t === 'pumpkin' || t === 'eggplant' || t === 'corn') ? 1 : (Math.random() < 0.3 ? 2 : 1);
-        this._delCrop(c); c.crop = null; c.wet = false; c.wetT = 0;
+        this._delCrop(c); c.crop = null; c.wet = false; c.wetT = 0; this.onCell?.(x, y);
         return { ok: true, ev: 'harvest', type: t, count, g };
       }
     }
@@ -112,22 +113,22 @@ export class Farm {
       if (!c.wet) continue;
       c.wetT -= dt;
       c.crop.progress = Math.min(CROPS[c.crop.type].grow, c.crop.progress + dt * mul);
-      if (c.wetT <= 0) { c.wet = false; c.wetT = 0; }
+      if (c.wetT <= 0) { c.wet = false; c.wetT = 0; this.onCell?.(c.x, c.y); }
     }
     const B = this._wetBare; // خاک لختِ خیس هم خشک می‌شود (ن۳۴ — قبلاً همیشه خیس می‌ماند)
     for (let i = B.length - 1; i >= 0; i--) {
       const c = B[i];
       c.wetT -= dt;
-      if (c.wetT <= 0 || c.crop || c.kind !== 'soil') { c.wet = false; c.wetT = 0; c._wb = 0; B[i] = B[B.length - 1]; B.pop(); }
+      if (c.wetT <= 0 || c.crop || c.kind !== 'soil') { c.wet = false; c.wetT = 0; c._wb = 0; this.onCell?.(c.x, c.y); B[i] = B[B.length - 1]; B.pop(); }
     }
   }
   // خیس‌کردن تایل (با/بدون محصول) — خاک لخت به لیست خشک‌شدن می‌رود
   soak(c, t) {
-    c.wet = true; c.wetT = Math.max(c.wetT, t);
+    c.wet = true; c.wetT = Math.max(c.wetT, t); this.onCell?.(c.x, c.y);
     if (!c.crop && !c._wb) { c._wb = 1; this._wetBare.push(c); }
   }
   // لیست تایل‌های دارای محصول — نگهداری تغییرات اینجا
-  _addCrop(c, type) { c.crop = { type, progress: 0, g: Math.random() < 0.08 }; this._crops.push(c); if (c._wb) { c._wb = 0; const i = this._wetBare.indexOf(c); if (i >= 0) { this._wetBare[i] = this._wetBare[this._wetBare.length - 1]; this._wetBare.pop(); } } }
+  _addCrop(c, type) { this.onCell?.(c.x, c.y); c.crop = { type, progress: 0, g: Math.random() < 0.08 }; this._crops.push(c); if (c._wb) { c._wb = 0; const i = this._wetBare.indexOf(c); if (i >= 0) { this._wetBare[i] = this._wetBare[this._wetBare.length - 1]; this._wetBare.pop(); } } }
   _delCrop(c) { const i = this._crops.indexOf(c); if (i >= 0) { this._crops[i] = this._crops[this._crops.length - 1]; this._crops.pop(); } }
   rebuildCropList() { this._crops.length = 0; for (const c of this.grid) if (c.crop) this._crops.push(c); return this._crops; }
   get crops() { return this._crops; }

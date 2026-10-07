@@ -431,6 +431,46 @@ class Raster {
       }
     }
   }
+  // بلitِ یک زیرمستطیل از this به dst — برای کش زمین (S2.1)؛ ریاضی‌اش عیناً همان over است
+  blit(dst, sx, sy, w, h, dx, dy, opaque = false) {
+    dx = Math.round(dx); dy = Math.round(dy);
+    if (sx < 0) { w += sx; dx -= sx; sx = 0; }
+    if (sy < 0) { h += sy; dy -= sy; sy = 0; }
+    if (sx + w > this.w) w = this.w - sx;
+    if (sy + h > this.h) h = this.h - sy;
+    if (dx < 0) { w += dx; sx -= dx; dx = 0; }
+    if (dy < 0) { h += dy; sy -= dy; dy = 0; }
+    if (dx + w > dst.w) w = dst.w - dx;
+    if (dy + h > dst.h) h = dst.h - dy;
+    if (w <= 0 || h <= 0) return;
+    const sd = this.d, dd = dst.d, sw = this.w, dw = dst.w;
+    if (opaque) { // تایل مات: ردیف کوتاه = حلقه‌ی u32، ردیف بلند = memcpy
+      if (w <= 24) {
+        const su = this.u32(), du = dst.u32();
+        for (let y = 0; y < h; y++) {
+          let si = (sy + y) * sw + sx, di = (dy + y) * dw + dx;
+          for (let k = 0; k < w; k++) du[di + k] = su[si + k];
+        }
+      } else {
+        const len4 = w * 4;
+        for (let y = 0; y < h; y++) { const si = ((sy + y) * sw + sx) * 4; dd.set(sd.subarray(si, si + len4), (((dy + y) * dw) + dx) * 4); } // آفستِ مقصد هم باید بایتی باشد (×۴)
+      }
+      return;
+    }
+    for (let y = 0; y < h; y++) {
+      let si = ((sy + y) * sw + sx) * 4, di = ((dy + y) * dw + dx) * 4;
+      for (let x = 0; x < w; x++, si += 4, di += 4) {
+        const a = sd[si + 3];
+        if (a === 0) continue;
+        if (a >= 255) { dd[di] = sd[si]; dd[di + 1] = sd[si + 1]; dd[di + 2] = sd[si + 2]; dd[di + 3] = 255; continue; }
+        const t = a / 255, it = 1 - t;
+        dd[di] = sd[si] * t + dd[di] * it;
+        dd[di + 1] = sd[si + 1] * t + dd[di + 1] * it;
+        dd[di + 2] = sd[si + 2] * t + dd[di + 2] * it;
+        if (a > dd[di + 3]) dd[di + 3] = a;
+      }
+    }
+  }
   clear() { this.d.fill(0); }
 }
 
@@ -2241,6 +2281,123 @@ function drawBasketCrate(r, sx, sy, time) {
 return {drawFarmhouse, drawScarecrow, drawSprinkler, drawFarmhouseGlow, drawBasketCrate};
 })();
 const {drawFarmhouse, drawScarecrow, drawSprinkler, drawFarmhouseGlow, drawBasketCrate} = __m_art_farm_buildings;
+const __m_farm_terrain = (() => {
+// farm_terrain.js — کش لایه‌ی استاتیک زمین مزرعه + dirty-tile (S2.1)
+// کش = **دقیقاً** همان ترتیبِ قدیمیِ رسم تایل‌های استاتیک (پایه + لبه‌ی راه + کرانه‌ی آب + بوته)
+// ⇒ خروجی هر فریم با قبل بایت‌به‌بایت یکسان می‌ماند؛ فقط هزینه‌ی هر فریم حذف می‌شود.
+// پویاها (آب متحرک، محصول، درخشش، دکور زنده) در farm_render روی کش کشیده می‌شوند.
+
+
+
+
+let cache = null;      // Raster کل دنیا (۴۸۰×۳۲۰)
+let bound = null;      // فارمِ متصل به کش (هر Game کش خودش را دارد)
+const dirty = new Set();
+const changed = new Set(); // بازاستفاده در هر فریم (بدون تخصیص در مسیر داغ)
+const W = WORLD_W; // عرضِ کش به پیکسل
+const KIND = { grass: 1, path: 2, tree: 3, soil: 4, water: 5, hedge: 6, gate: 7, sign: 8, house: 9, scarecrow: 10, fence: 11 };
+let sigs = null;       // امضای استاتیک هر سلول (تورِ اطمینان: هر جهشِ بی‌هوک را هم می‌گیرد)
+const OPAQUE = new Uint8Array(COLS * ROWS); // آیا همه‌ی پیکسل‌های تایلِ کش مات‌اند؟ (⇒ blit فوق‌سریع)
+
+// ترتیب رسمِ قدیمیِ یک تایل استاتیک — عیناً از farm_render منتقل شد
+function bakeTile(f, tx, ty, r, wf = 0) {
+  const c = f.cell(tx, ty); if (!c) return;
+  const sx = tx * TILE, sy = ty * TILE;
+  let base;
+  if (c.kind === 'grass') base = groundSprite('grass', c.variant);
+  else if (c.kind === 'path') base = groundSprite('path', c.variant & 1);
+  else if (c.kind === 'tree') base = groundSprite('grass', 0);
+  else if (c.kind === 'soil') base = groundSprite('soil', 0, c.wet);
+  else if (c.kind === 'water') base = groundSprite('water', (tx * 5 + ty * 3) & 3, false, wf);
+  else if (c.kind === 'hedge') base = groundSprite('hedge');
+  else if (c.kind === 'gate') base = groundSprite(c.gL ? 'gateL' : 'gateR', ty === f.gate.y ? 0 : 1);
+  else if (c.kind === 'sign') base = groundSprite('grass', 0);
+  else if (c.kind === 'house') base = groundSprite('grass', 0);
+  else if (c.kind === 'scarecrow') base = groundSprite('grass', 0);
+  else { groundSprite('grass', (tx * 5 + ty * 3) & 3).over(r, sx, sy); base = groundSprite(c.fenceH ? 'fence' : 'fencePost'); }
+  base.over(r, sx, sy);
+  if (c.kind === 'path') drawPathEdge(r, sx, sy, tx, ty, f);
+  if (c.kind === 'water') bakeWater(r, f, tx, ty, sx, sy, wf);
+  // بوته‌ی مرز روی زمین قفل‌شده (تایل زیرین آزاد است)
+  if (c.kind === 'grass' && !c.farmable && f.insideFence(tx, ty)) {
+    const below = f.cell(tx, ty + 1);
+    if (below && below.farmable && below.kind === 'grass') groundSprite('bush').over(r, sx, sy);
+  }
+}
+
+// آب: تایل متحرک + کرانه‌ها (کرانه فقط روی مرز) — هم در پخت کش و هم هر فریم استفاده می‌شود
+function bakeWater(r, f, tx, ty, sx, sy, wf) {
+  groundSprite('water', (tx * 5 + ty * 3) & 3, false, wf).over(r, sx, sy);
+  if (!f.cell(tx, ty - 1) || f.cell(tx, ty - 1).kind !== 'water') r.rect(sx, sy, 16, 1, E.waterSh);
+  if (!f.cell(tx, ty + 1) || f.cell(tx, ty + 1).kind !== 'water') { r.rect(sx, sy + 14, 16, 1, E.waterSh); r.rect(sx, sy + 15, 16, 1, E.waterSh); }
+  if (!f.cell(tx - 1, ty) || f.cell(tx - 1, ty).kind !== 'water') r.rect(sx, sy, 1, 16, E.waterSh);
+  if (!f.cell(tx + 1, ty) || f.cell(tx + 1, ty).kind !== 'water') r.rect(sx + 15, sy, 1, 16, E.waterSh);
+}
+
+// امضای ورودی‌های استاتیک یک سلول (kind/variant/wet/fenceH/gL/farmable + ردیف دروازه)
+function sig(f, c, ty) {
+  return (KIND[c.kind] || 0) | (c.variant << 5) | (c.wet ? 1024 : 0) | (c.fenceH ? 2048 : 0) |
+    (c.gL ? 4096 : 0) | (c.farmable ? 8192 : 0) | (f.gate && f.gate.y === ty ? 16384 : 0);
+}
+function collect(f, out) { // dirty بر اساس تفاوت امضا (تور اطمینان)
+  let n = 0;
+  for (let ty = 0; ty < ROWS; ty++) for (let tx = 0; tx < COLS; tx++) {
+    const i = ty * COLS + tx, s = sig(f, f.grid[i], ty);
+    if (sigs[i] !== s) { sigs[i] = s; out.add(i); n++; }
+  }
+  return n;
+}
+function rebake(f, list) { // پاک‌کردن جعبه‌ی تایل‌ها سپس پخت به ترتیب ردیفی (همان ترتیب قدیم)
+  const seen = new Set();
+  for (const i of list) {
+    const tx = i % COLS, ty = (i / COLS) | 0;
+    for (let dy = -1; dy <= 1; dy++) for (let dx = -1; dx <= 1; dx++) { // +۸ همسایه (آماده‌ی autotile S2.2)
+      const x = tx + dx, y = ty + dy;
+      if (x >= 0 && y >= 0 && x < COLS && y < ROWS) seen.add(y * COLS + x);
+    }
+  }
+  const arr = [...seen].sort((a, b) => a - b);
+  for (const i of arr) cache.rect((i % COLS) * TILE, ((i / COLS) | 0) * TILE, TILE, TILE, [0, 0, 0, 0]);
+  for (const i of arr) bakeTile(f, i % COLS, (i / COLS) | 0, cache);
+  const u = cache.u32();
+  for (const i of arr) { // پرچم مات‌بودن: اگر همه‌ی ۲۵۶ پیکسل α=255 دارند، blit با کپیِ u32
+    const tx = i % COLS, ty = (i / COLS) | 0; let m = 1;
+    for (let y = 0; y < TILE && m; y++) { let j = (ty * TILE + y) * W + tx * TILE; // ایندکس u32 = عرضِ پیکسلیِ کش
+      for (let x = 0; x < TILE; x++, j++) if ((u[j] >>> 24) !== 255) { m = 0; break; }
+    }
+    OPAQUE[i] = m;
+  }
+  engineCalls += arr.length;
+}
+let engineCalls = 0; // شمارش پخت‌ها (تست)
+function build(f) {
+  cache = new Raster(WORLD_W, WORLD_H);
+  sigs = new Int32Array(COLS * ROWS).fill(-1);
+  bound = f; dirty.clear(); engineCalls = 0;
+  f.onCell = (tx, ty) => markDirty(tx, ty); // هوک مدل→نما (فارم تغییر سلول را اعلام می‌کند)
+  f.onAll = () => { for (let i = 0; i < sigs.length; i++) sigs[i] = -1; };
+  const all = new Set(); for (let i = 0; i < COLS * ROWS; i++) all.add(i);
+  rebake(f, all);
+  return cache;
+}
+function markDirty(tx, ty) {
+  if (!cache || tx < 0 || ty < 0 || tx >= COLS || ty >= ROWS) return;
+  dirty.add(ty * COLS + tx);
+}
+function markAll() { if (sigs) sigs.fill(-1); }
+function flushDirty(f) {
+  if (f !== bound) return build(f);
+  if (dirty.size) { for (const i of dirty) sigs[i] = -1; dirty.clear(); }
+  changed.clear();
+  const n = collect(f, changed); // تفاوت امضا = سلول‌های عوض‌شده
+  if (n) rebake(f, changed);
+  return cache;
+}
+const terrainStats = () => ({ baked: engineCalls, size: cache ? [cache.w, cache.h] : null });
+
+return {OPAQUE, terrainStats, bakeWater, markDirty, markAll, flushDirty};
+})();
+const {OPAQUE, terrainStats, bakeWater, markDirty, markAll, flushDirty} = __m_farm_terrain;
 const __m_farm_layout = (() => {
 // farm_layout.js — چیدمان دنیای مزرعه: پرچین، حوضچه، حصار+دروازه،
 // مسیرِ عبرت (دروازه‌ی مزرعه → دروازه‌ی دانجن)، درخت‌ها و مناطق گلِ جذب‌شده به مسیر/آب.
@@ -2659,6 +2816,7 @@ const __m_farm_render = (() => {
 
 
 
+
 const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
 const FENTS = []; // pool موجودات مزرعه
 const _gP = [255, 210, 90, 0]; // درخشش طلایی — اسکرچ
@@ -2695,38 +2853,24 @@ function renderFarm(game, r) {
     const f = game.farm, wf = [0, 1, 2, 1][Math.floor(game.time * 0.9) % 4]; // موج آب: سیکل آرام ~۱٫۱ث/فریم (ن۳۷)
     const x0 = Math.max(0, Math.floor(cx / TILE)), x1 = Math.min(COLS - 1, Math.ceil((cx + r.w) / TILE));
     const y0 = Math.max(0, Math.floor(cy / TILE)), y1 = Math.min(ROWS - 1, Math.ceil((cy + r.h) / TILE));
-    for (let ty = y0; ty <= y1; ty++) for (let tx = x0; tx <= x1; tx++) {
+    // S2.1: لایه‌ی استاتیک از کش (blit تایل‌به‌تایل؛ تایلِ مات = کپیِ u32، بدون blend) — dirtyها پیش از blit بازپخت می‌شوند
+    const terr = flushDirty(f);
+    let allOp = true; // اگر تمام پنجره‌ی دید مات باشد، کل زمین با یک blit می‌آید
+    for (let ty = y0; ty <= y1 && allOp; ty++) for (let tx = x0; tx <= x1; tx++) if (!OPAQUE[ty * COLS + tx]) { allOp = false; break; }
+    if (allOp) terr.blit(r, x0 * TILE, y0 * TILE, (x1 - x0 + 1) * TILE, (y1 - y0 + 1) * TILE, x0 * TILE - cx, y0 * TILE - cy, true);
+    for (let ty = y0; ty <= y1; ty++) {
+      let rowOp = true;
+      for (let tx = x0; tx <= x1; tx++) if (!OPAQUE[ty * COLS + tx]) { rowOp = false; break; }
+      if (!allOp && rowOp) terr.blit(r, x0 * TILE, ty * TILE, (x1 - x0 + 1) * TILE, TILE, x0 * TILE - cx, ty * TILE - cy, true); // ردیفِ مات: یک memcpy به‌جای ۳۰ blit
+      for (let tx = x0; tx <= x1; tx++) {
       const c = f.cell(tx, ty);
       const sx = tx * TILE - cx, sy = ty * TILE - cy;
-      let base;
-      if (c.kind === 'grass') base = groundSprite('grass', c.variant);
-      else if (c.kind === 'path') base = groundSprite('path', c.variant & 1);
-      else if (c.kind === 'tree') base = groundSprite('grass', 0); // زیر درخت چمن است
-      else if (c.kind === 'soil') base = groundSprite('soil', 0, c.wet);
-      else if (c.kind === 'water') base = groundSprite('water', (tx * 5 + ty * 3) & 3, false, wf); // ن۳۸: فاز موج per-tile
-      else if (c.kind === 'hedge') base = groundSprite('hedge');
-      else if (c.kind === 'gate') base = groundSprite(c.gL ? 'gateL' : 'gateR', ty === f.gate.y ? 0 : 1); // پایه‌ی دروازه ثابت — جادوی متحرک در drawGateSwirl
-      else if (c.kind === 'sign') base = groundSprite('grass', 0); // تابلوی فروش باغ شمالی — تخته در drawSaleSign
-      else if (c.kind === 'house') base = groundSprite('grass', 0); // بدنه‌ی خانه در گذر موجودات (y-sort)
-      else if (c.kind === 'scarecrow') base = groundSprite('grass', 0); // مترسک روی چمن
-      else { groundSprite('grass', (tx * 5 + ty * 3) & 3).over(r, sx, sy); base = groundSprite(c.fenceH ? 'fence' : 'fencePost'); } // حصار روی چمن (قبلاً شفاف = سیاهی/ردّ فریم قبل)
-      base.over(r, sx, sy);
-      if (c.kind === 'path') drawPathEdge(r, sx, sy, tx, ty, f);
-      if (c.kind === 'water') { // کرانه‌ی آب فقط روی مرز (ن۳۸) — داخل حوضچه یکدست، بی‌رگه
-        if (!f.cell(tx, ty - 1) || f.cell(tx, ty - 1).kind !== 'water') r.rect(sx, sy, 16, 1, E.waterSh);
-        if (!f.cell(tx, ty + 1) || f.cell(tx, ty + 1).kind !== 'water') { r.rect(sx, sy + 14, 16, 1, E.waterSh); r.rect(sx, sy + 15, 16, 1, E.waterSh); }
-        if (!f.cell(tx - 1, ty) || f.cell(tx - 1, ty).kind !== 'water') r.rect(sx, sy, 1, 16, E.waterSh);
-        if (!f.cell(tx + 1, ty) || f.cell(tx + 1, ty).kind !== 'water') r.rect(sx + 15, sy, 1, 16, E.waterSh);
-      }
+      if (!allOp && !rowOp) terr.blit(r, tx * TILE, ty * TILE, TILE, TILE, sx, sy, OPAQUE[ty * COLS + tx] !== 0);
+      if (c.kind === 'water') bakeWater(r, f, tx, ty, sx, sy, wf); // آب متحرک: هر فریم روی کش
       if (c.crop) cropSprite(c.crop.type, f.stage(c)).over(r, sx, sy);
       if (c.crop && c.crop.g && !f.mature(c)) { // طلاییِ در حال رشد: درخشش ریز (کوانتیزه)
         _gP[3] = 55 + 25 * Math.round((Math.sin(game.time * 1.2 + tx) + 1)); // ن۳۶: پالس آرام‌تر — نشانِ طلایی، نه استروب
         r.px(sx + 3, sy + 4, _gP); r.px(sx + 12, sy + 11, _gP);
-      }
-      // بوته‌ی مرز روی زمین قفل‌شده (تایل زیرین آزاد است)
-      if (c.kind === 'grass' && !c.farmable && f.insideFence(tx, ty)) {
-        const below = f.cell(tx, ty + 1);
-        if (below && below.farmable && below.kind === 'grass') groundSprite('bush').over(r, sx, sy);
       }
       // ---- دکور زنده‌ی مزرعه (آرت جدا در js/art/) ----
       if (c.kind === 'sign') drawSaleSign(r, sx, sy, game.time);
@@ -2736,6 +2880,7 @@ function renderFarm(game, r) {
       if (tx === 18 && ty === 16 && game.toolLvls.basket) drawBasketCrate(r, sx, sy, game.time); // سبد: کنار خانه
       else if (c.kind === 'water') drawWaterLife(r, sx, sy, tx, ty, game.time);
       if (c.crop && f.mature(c)) drawReadySparkle(r, sx, sy, tx, ty, game.time, !!c.crop.g);
+      }
     }
     // نشانگر هدف (گوشه‌های چشمک‌زن)
     if (game.marker) {
@@ -4741,6 +4886,7 @@ class Farm {
   recalcFarmable(level) {
     this.landLevel = Math.max(1, Math.min(LAND_MAX, level));
     const rows = landRows(this.landLevel);
+    this.onAll?.(); // سطح زمین عوض شد: همه‌ی تایل‌های استاتیک دوباره ارزیابی شوند (بوته/شخم‌پذیری)
     for (const c of this.grid) {
       const insideFence = c.x >= 6 && c.x <= 23 && c.y >= 6 && c.y <= 13;
       const soft = c.kind === 'grass' || c.kind === 'soil';
@@ -4771,7 +4917,7 @@ class Farm {
     const c = this.cell(x, y);
     if (!c) return { ok: false };
     if (tool === 'hoe') {
-      if (c.kind === 'grass' && c.farmable) { c.kind = 'soil'; c.wet = false; c.wetT = 0; return { ok: true, ev: 'till' }; }
+      if (c.kind === 'grass' && c.farmable) { c.kind = 'soil'; c.wet = false; c.wetT = 0; this.onCell?.(x, y); return { ok: true, ev: 'till' }; }
     } else if (tool === 'seed') {
       if (c.kind === 'soil' && !c.crop && !this.canPlant(cropType, x, y)) return { ok: false, needFarm2: true }; // بذر باغ شمالی؟
       if (c.kind === 'soil' && !c.crop && this.canPlant(cropType, x, y)) { this._addCrop(c, cropType); return { ok: true, ev: 'plant', type: cropType }; } // بذر از موجودی — هزینه‌ای ندارد
@@ -4781,7 +4927,7 @@ class Farm {
       if (c.crop && this.mature(c)) {
         const t = c.crop.type, g = !!c.crop.g; // پرچم طلایی قبل از پاک‌شدن محصول
         const count = (t === 'pumpkin' || t === 'eggplant' || t === 'corn') ? 1 : (Math.random() < 0.3 ? 2 : 1);
-        this._delCrop(c); c.crop = null; c.wet = false; c.wetT = 0;
+        this._delCrop(c); c.crop = null; c.wet = false; c.wetT = 0; this.onCell?.(x, y);
         return { ok: true, ev: 'harvest', type: t, count, g };
       }
     }
@@ -4796,22 +4942,22 @@ class Farm {
       if (!c.wet) continue;
       c.wetT -= dt;
       c.crop.progress = Math.min(CROPS[c.crop.type].grow, c.crop.progress + dt * mul);
-      if (c.wetT <= 0) { c.wet = false; c.wetT = 0; }
+      if (c.wetT <= 0) { c.wet = false; c.wetT = 0; this.onCell?.(c.x, c.y); }
     }
     const B = this._wetBare; // خاک لختِ خیس هم خشک می‌شود (ن۳۴ — قبلاً همیشه خیس می‌ماند)
     for (let i = B.length - 1; i >= 0; i--) {
       const c = B[i];
       c.wetT -= dt;
-      if (c.wetT <= 0 || c.crop || c.kind !== 'soil') { c.wet = false; c.wetT = 0; c._wb = 0; B[i] = B[B.length - 1]; B.pop(); }
+      if (c.wetT <= 0 || c.crop || c.kind !== 'soil') { c.wet = false; c.wetT = 0; c._wb = 0; this.onCell?.(c.x, c.y); B[i] = B[B.length - 1]; B.pop(); }
     }
   }
   // خیس‌کردن تایل (با/بدون محصول) — خاک لخت به لیست خشک‌شدن می‌رود
   soak(c, t) {
-    c.wet = true; c.wetT = Math.max(c.wetT, t);
+    c.wet = true; c.wetT = Math.max(c.wetT, t); this.onCell?.(c.x, c.y);
     if (!c.crop && !c._wb) { c._wb = 1; this._wetBare.push(c); }
   }
   // لیست تایل‌های دارای محصول — نگهداری تغییرات اینجا
-  _addCrop(c, type) { c.crop = { type, progress: 0, g: Math.random() < 0.08 }; this._crops.push(c); if (c._wb) { c._wb = 0; const i = this._wetBare.indexOf(c); if (i >= 0) { this._wetBare[i] = this._wetBare[this._wetBare.length - 1]; this._wetBare.pop(); } } }
+  _addCrop(c, type) { this.onCell?.(c.x, c.y); c.crop = { type, progress: 0, g: Math.random() < 0.08 }; this._crops.push(c); if (c._wb) { c._wb = 0; const i = this._wetBare.indexOf(c); if (i >= 0) { this._wetBare[i] = this._wetBare[this._wetBare.length - 1]; this._wetBare.pop(); } } }
   _delCrop(c) { const i = this._crops.indexOf(c); if (i >= 0) { this._crops[i] = this._crops[this._crops.length - 1]; this._crops.pop(); } }
   rebuildCropList() { this._crops.length = 0; for (const c of this.grid) if (c.crop) this._crops.push(c); return this._crops; }
   get crops() { return this._crops; }

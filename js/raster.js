@@ -153,6 +153,46 @@ export class Raster {
       }
     }
   }
+  // بلitِ یک زیرمستطیل از this به dst — برای کش زمین (S2.1)؛ ریاضی‌اش عیناً همان over است
+  blit(dst, sx, sy, w, h, dx, dy, opaque = false) {
+    dx = Math.round(dx); dy = Math.round(dy);
+    if (sx < 0) { w += sx; dx -= sx; sx = 0; }
+    if (sy < 0) { h += sy; dy -= sy; sy = 0; }
+    if (sx + w > this.w) w = this.w - sx;
+    if (sy + h > this.h) h = this.h - sy;
+    if (dx < 0) { w += dx; sx -= dx; dx = 0; }
+    if (dy < 0) { h += dy; sy -= dy; dy = 0; }
+    if (dx + w > dst.w) w = dst.w - dx;
+    if (dy + h > dst.h) h = dst.h - dy;
+    if (w <= 0 || h <= 0) return;
+    const sd = this.d, dd = dst.d, sw = this.w, dw = dst.w;
+    if (opaque) { // تایل مات: ردیف کوتاه = حلقه‌ی u32، ردیف بلند = memcpy
+      if (w <= 24) {
+        const su = this.u32(), du = dst.u32();
+        for (let y = 0; y < h; y++) {
+          let si = (sy + y) * sw + sx, di = (dy + y) * dw + dx;
+          for (let k = 0; k < w; k++) du[di + k] = su[si + k];
+        }
+      } else {
+        const len4 = w * 4;
+        for (let y = 0; y < h; y++) { const si = ((sy + y) * sw + sx) * 4; dd.set(sd.subarray(si, si + len4), (((dy + y) * dw) + dx) * 4); } // آفستِ مقصد هم باید بایتی باشد (×۴)
+      }
+      return;
+    }
+    for (let y = 0; y < h; y++) {
+      let si = ((sy + y) * sw + sx) * 4, di = ((dy + y) * dw + dx) * 4;
+      for (let x = 0; x < w; x++, si += 4, di += 4) {
+        const a = sd[si + 3];
+        if (a === 0) continue;
+        if (a >= 255) { dd[di] = sd[si]; dd[di + 1] = sd[si + 1]; dd[di + 2] = sd[si + 2]; dd[di + 3] = 255; continue; }
+        const t = a / 255, it = 1 - t;
+        dd[di] = sd[si] * t + dd[di] * it;
+        dd[di + 1] = sd[si + 1] * t + dd[di + 1] * it;
+        dd[di + 2] = sd[si + 2] * t + dd[di + 2] * it;
+        if (a > dd[di + 3]) dd[di + 3] = a;
+      }
+    }
+  }
   clear() { this.d.fill(0); }
 }
 
