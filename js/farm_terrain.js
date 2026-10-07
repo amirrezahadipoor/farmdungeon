@@ -5,6 +5,7 @@
 import { Raster } from './raster.js';
 import { groundSprite, E, TILE, COLS, ROWS, WORLD_W, WORLD_H } from './tiles.js';
 import { drawPathEdge } from './art/farm_decor.js';
+import { mask4 } from './art/autotile.js'; // S2.6: لبهٔ خاک/گزارهٔ خیس-خشک از همسایه‌ها
 import { fbm, hash2, vnoise } from './art/noise.js';
 import { bayer4 } from './art/dither.js';
 import { rp } from './art/ramps.js';
@@ -46,6 +47,46 @@ const isRoad = (c) => !!c && (c.kind === 'path' || c.kind === 'gate' || c.kind =
 const pathVar = (f, tx, ty) => // بیت۰: راهِ افقی (E/W) · بیت۱: راهِ عمودی (N/S) ⇒ ۴ واریانت
   ((isRoad(f.cell(tx - 1, ty)) || isRoad(f.cell(tx + 1, ty))) ? 1 : 0) |
   ((isRoad(f.cell(tx, ty - 1)) || isRoad(f.cell(tx, ty + 1))) ? 2 : 0);
+// S2.6: خاک — **لبهٔ بیرونی** (خاک↔غیرخاک) = حاشیهٔ چمنِ ۲–۳px با تُنِ میدانِ جهانیِ تافت ⇒ هم‌بافت با چمنِ همسایه
+// (وگرنه شیارِ L25 و لبهٔ L39 مقابل چمن = جهشِ >۱۵ در >۲۵٪ ردیف‌ها ⇒ M8 می‌شکند)؛ داخلِ آن ۱px کلوخهٔ روشن (بالا/چپ)
+// یا سایهٔ تیره (پایین/راست). لبهٔ **داخلی** (خاک↔خاک) باز می‌ماند ⇒ شیارها بین تایل‌ها پیوسته می‌مانند.
+function soilBake(r, f, tx, ty, sx, sy) {
+  const isS = (c) => !!c && c.kind === 'soil';
+  const wet = !!f.cell(tx, ty).wet, m = mask4((x, y) => isS(f.cell(x, y)), tx, ty);
+  const hi = wet ? E.soilWetHi : E.soilHi, sh = wet ? E.soilWetSh : E.soilSh;
+  const gx0 = tx * TILE, gy0 = ty * TILE;
+  const gA = rp('grass', 4), gB = rp('grass', 3), gC = rp('grass', 5);
+  const gTone = (gx, gy) => { const n = vnoise(gx * 0.3, gy * 0.3, 62) * 0.6 + bayer4(gx, gy) * 0.4; return n < 0.30 ? gB : (n < 0.64 ? gA : gC); };
+  for (const [bit, dx, dy, horiz, fromStart] of [[1, 0, -1, true, true], [2, 1, 0, false, false], [4, 0, 1, true, false], [8, -1, 0, false, true]]) {
+    if (m & bit) continue;                                   // لبهٔ داخلی (خاک↔خاک): باز
+    const clod = bit === 1 || bit === 8;                     // بالا/چپ = کلوخهٔ روشن · پایین/راست = سایه
+    for (let i = 0; i < TILE; i++) {
+      const h = hash2(bit * 31 + 5, horiz ? gx0 + i : gy0 + i, 81);
+      const w = 2 + (h > 0.62 ? 1 : 0);                      // حاشیه: ۲–۳px (هم‌سبک با لبهٔ راه)
+      for (let dd = 0; dd < w; dd++) {
+        const x = horiz ? i : (fromStart ? dd : TILE - 1 - dd), y = horiz ? (fromStart ? dd : TILE - 1 - dd) : i;
+        r.px(sx + x, sy + y, gTone(gx0 + x, gy0 + y));
+      }
+      const bx = horiz ? i : (fromStart ? w : TILE - 1 - w), by = horiz ? (fromStart ? w : TILE - 1 - w) : i;
+      r.px(sx + bx, sy + by, clod ? hi : sh);
+    }
+  }
+  // گذارِ خیس↔خشک: نوارِ ۳px؛ هر دو سو یک قاعدهٔ dither ⇒ نیمهٔ مرز مکمل و بی‌درز (bayer با مختصاتِ جهانی)
+  const dryB = E.soil, wetB = E.soilWet, d = r.d;
+  const dk = (dryB[0] << 16) | (dryB[1] << 8) | dryB[2], wk = (wetB[0] << 16) | (wetB[1] << 8) | wetB[2];
+  for (const [bit, dx, dy, horiz, fromStart] of [[1, 0, -1, true, true], [2, 1, 0, false, false], [4, 0, 1, true, false], [8, -1, 0, false, true]]) {
+    if (m & bit) { const nb = f.cell(tx + dx, ty + dy); if (!isS(nb) || !!nb.wet === wet) continue; }
+    else continue;                                           // مرز با غیرخاک: حاشیهٔ چمن کار را کرده
+    for (let i = 0; i < TILE; i++) for (let dd = 0; dd < 3; dd++) {
+      const x = horiz ? i : (fromStart ? dd : TILE - 1 - dd), y = horiz ? (fromStart ? dd : TILE - 1 - dd) : i;
+      const i4 = ((sy + y) * r.w + sx + x) * 4, key = (d[i4] << 16) | (d[i4 + 1] << 8) | d[i4 + 2];
+      if (key !== dk && key !== wk) continue;                // شیار/دانه/کلوخه دست‌نخورده
+      const t = (wet ? dd + 1 : 3 - dd) / 4;                 // احتمالِ ماندنِ «خیس» در عمقِ dd
+      const nc = bayer4(tx * TILE + x, ty * TILE + y) < t ? wetB : dryB;
+      d[i4] = nc[0]; d[i4 + 1] = nc[1]; d[i4 + 2] = nc[2];
+    }
+  }
+}
 // ترتیب رسمِ قدیمیِ یک تایل استاتیک — عیناً از farm_render منتقل شد
 function bakeTile(f, tx, ty, r, wf = 0) {
   const c = f.cell(tx, ty); if (!c) return;
@@ -54,7 +95,7 @@ function bakeTile(f, tx, ty, r, wf = 0) {
   if (c.kind === 'grass') base = groundSprite('grass', (hash2(tx, ty, 31) * 8) | 0); // S2.4: واریانت از hashِ مختصات
   else if (c.kind === 'path') base = groundSprite('path', pathVar(f, tx, ty)); // S2.5: واریانتِ جهت‌دار
   else if (c.kind === 'tree') base = groundSprite('grass', (hash2(tx, ty, 32) * 8) | 0);
-  else if (c.kind === 'soil') base = groundSprite('soil', 0, c.wet);
+  else if (c.kind === 'soil') base = groundSprite('soil', (hash2(tx, ty, 24) * 8) | 0, c.wet); // S2.6: دانه‌بندیِ per-تایل
   else if (c.kind === 'water') base = groundSprite('water', (tx * 5 + ty * 3) & 3, false, wf);
   else if (c.kind === 'hedge') base = groundSprite('hedge');
   else if (c.kind === 'gate') base = groundSprite(c.gL ? 'gateL' : 'gateR', ty === f.gate.y ? 0 : 1);
@@ -66,6 +107,7 @@ function bakeTile(f, tx, ty, r, wf = 0) {
   // S2.4: تُنِ ماکرو روی زمینِ چمنی (سازه‌ها هم چون پایه‌شان چمن است یکدست می‌مانند)
   if (c.kind === 'grass' || c.kind === 'tree' || c.kind === 'sign' || c.kind === 'house' || c.kind === 'scarecrow') tuftBake(r, sx, sy, tx, ty);
   if (c.kind === 'path') drawPathEdge(r, sx, sy, tx, ty, f);
+  if (c.kind === 'soil') soilBake(r, f, tx, ty, sx, sy); // S2.6
   if (c.kind === 'water') bakeWater(r, f, tx, ty, sx, sy, wf);
   // بوته‌ی مرز روی زمین قفل‌شده (تایل زیرین آزاد است)
   if (c.kind === 'grass' && !c.farmable && f.insideFence(tx, ty)) {

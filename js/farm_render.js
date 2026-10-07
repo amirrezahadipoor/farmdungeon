@@ -1,6 +1,7 @@
 // farm_render.js — رندر صحنه‌ی مزرعه: تایل‌ها، دکور زنده، نشانگر، قهرمان+کارگر،
 // افکت‌ها، شب/شب‌تاب، پروانه/ماهی، آب‌وهوا (باران/ابر) — فقط رسم، هیچ منطقی
 import { groundSprite, cropSprite, E, TILE, COLS, ROWS, WORLD_W, WORLD_H } from './tiles.js';
+import { rp } from './art/ramps.js'; // S2.6: تُنِ سایهٔ تماسِ محصول
 import { drawMeadow, drawReadySparkle, drawWaterLife, drawSaleSign, drawPathEdge } from './art/farm_decor.js';
 import { drawTree } from './art/tree.js';
 import { drawFarmhouse, drawFarmhouseGlow, drawScarecrow, drawSprinkler, drawBasketCrate } from './art/farm_buildings.js';
@@ -63,7 +64,11 @@ export function renderFarm(game, r) {
       const sx = tx * TILE - cx, sy = ty * TILE - cy;
       if (!allOp && !rowOp) terr.blit(r, tx * TILE, ty * TILE, TILE, TILE, sx, sy, OPAQUE[ty * COLS + tx] !== 0);
       if (c.kind === 'water') bakeWater(r, f, tx, ty, sx, sy, wf); // آب متحرک: هر فریم روی کش
-      if (c.crop) cropSprite(c.crop.type, f.stage(c)).over(r, sx, sy);
+      if (c.crop) { // S2.6: سایهٔ تماسِ ۲px زیر گیاه (محصول روی خاک «نشانده» می‌شود)
+        r.rect(sx + 5, sy + 14, 6, 1, c.wet ? E.soilWetSh : E.soilSh);
+        r.rect(sx + 6, sy + 15, 4, 1, c.wet ? rp('soilWet', 1) : rp('soil', 1));
+        cropSprite(c.crop.type, f.stage(c)).over(r, sx, sy);
+      }
       if (c.crop && c.crop.g && !f.mature(c)) { // طلاییِ در حال رشد: درخشش ریز (کوانتیزه)
         _gP[3] = 55 + 25 * Math.round((Math.sin(game.time * 1.2 + tx) + 1)); // ن۳۶: پالس آرام‌تر — نشانِ طلایی، نه استروب
         r.px(sx + 3, sy + 4, _gP); r.px(sx + 12, sy + 11, _gP);

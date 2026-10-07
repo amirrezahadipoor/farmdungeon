@@ -48,19 +48,26 @@ export function groundSprite(kind, variant = 0, wet = false, waterFrame = 0, the
           if (hh(5) < 0.55) r.px(px + 1, py + (hh(6) < 0.5 ? 0 : len - 1), side);
         }
       }
-    } else if (kind === 'soil') {
+    } else if (kind === 'soil') { // S2.6: خاکِ شخم‌خورده — شیارهای **هم‌ترازِ جهانی** (۴/۸/۱۲)؛ لبه‌های بیرونی در soilBake اضافه می‌شوند
+      // (خطِ روشنِ همواره-بالا حذف شد: بین دو خاکِ مجاور درزِ ۱px می‌ساخت؛ حالا فقط سمتِ بی‌همسایه = کلوخه)
       const base = wet ? E.soilWet : E.soil, hi = wet ? E.soilWetHi : E.soilHi, sh = wet ? E.soilWetSh : E.soilSh;
       r.rect(0, 0, 16, 16, base);
-      r.rect(0, 0, 16, 1, hi);
-      for (const y of [4, 8, 12]) { r.rect(0, y, 16, 2, sh); r.rect(0, y, 16, 1, wet ? E.soilWetSh : E.furrow); }
-      r.px(3, 2, hi); r.px(12, 6, hi); r.px(6, 10, hi); r.px(13, 14, hi);
-      // دانه‌بندی ریز + سنگ‌ریزه (بافت خاک واقعی‌تر)
-      for (let i = 0; i < 6; i++) {
-        const px = Math.floor(h2(variant * 17 + i, i * 7) * 16), py = 2 + Math.floor(h2(i * 11, variant * 13 + i) * 14);
-        r.px(px, py, sh);
+      // شیار = نوارِ ۲px یک پله زیرِ تُنِ پایه (ΔL≈۱۳، هم‌سبکِ قانونِ S2.4) — نه خطِ دو پله‌ای که M6 را زیرِ بازه می‌برد
+      for (const y of [4, 8, 12]) r.rect(0, y, 16, 2, sh);
+      const onFur = (y) => y >= 4 && y <= 13 && ((y - 4) % 4) <= 1; // ردیف‌های ۴–۵ · ۸–۹ · ۱۲–۱۳
+      for (let i = 0; i < 9; i++) { // دانه‌بندیِ خاک از hash2 (variant) — هرگز روی شیار، تا هم‌ترازی دقیق بماند
+        const px = Math.floor(hash2(variant * 17 + i, i * 7, 21) * 16), py = Math.floor(hash2(i * 11, variant * 13 + i, 21) * 16);
+        if (onFur(py)) continue;
+        r.px(px, py, i % 3 === 0 ? hi : sh);
       }
-      r.px(2 + Math.floor(h2(variant, 3) * 10), 6 + Math.floor(h2(5, variant) * 8), P.stoneHi);
-      if (wet) { r.px(4, 3, E.wet); r.px(11, 9, E.wet); r.px(7, 13, E.wet); r.px(14, 5, E.wet); r.px(2, 11, E.wet); }
+      r.px(2 + Math.floor(hash2(variant, 3, 22) * 10), 7, P.stoneHi); // سنگ‌ریزه (رویِ پشته، نه شیار)
+      if (wet) { // لکهٔ رطوبتِ ۲px از رمپِ آب (نه نقطهٔ آبیِ منفرد)
+        const wc = rp('water', 3);
+        for (let i = 0; i < 3; i++) {
+          const px = 2 + Math.floor(hash2(i, variant * 7 + i, 23) * 11), py = 2 + Math.floor(hash2(variant * 5 + i, i, 23) * 11);
+          r.px(px, py, wc); r.px(px + 1, py, wc);
+        }
+      }
     } else if (kind === 'path') { // S2.5: خاک‌راهِ کوبیده — ردِّ چرخِ **جهت‌دار** (variant: بیت۰=راهِ افقی E/W · بیت۱=راهِ عمودی N/S)
       // رِیلِ چرخ هم‌راستا با راه کشیده می‌شود ⇒ بین تایل‌های هم‌جهت پیوسته می‌ماند (variant از farm_terrain می‌آید)
       const base = rp('dust', 4), rut = rp('dust', 3), ew = variant & 1, ns = variant & 2;
