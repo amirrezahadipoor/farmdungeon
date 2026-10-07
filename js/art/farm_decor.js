@@ -27,6 +27,9 @@ export function drawMeadow(r, sx, sy, tx, ty) {
 
 // اسپارکل چشمک‌زن روی محصول رسیده — از دور قابل‌دیدن
 import { rp } from './ramps.js';
+import { vnoise, hash2 } from './noise.js';           // S2.5: میدان‌های نویزِ جهانی (hash2 توزیعِ یکنواخت دارد؛ hash محلی سوگیریِ پایینی دارد)
+import { bayer4 } from './dither.js';
+import { mask8, blob47, IDX_MASK } from './autotile.js';
 const _gC = [...rp('gold', 6).slice(0, 3), 0]; // اسپارکل طلایی — نفس‌کش (S1.3: رنگ از رمپ)
 export function drawReadySparkle(r, sx, sy, tx, ty, time, golden = false) {
   if (golden) { // محصول طلایی: ستاره‌ی طلایی درشت همیشه‌روشن (آلفای نفس‌کش کوانتیزه)
@@ -73,20 +76,59 @@ export function drawSaleSign(r, sx, sy, time) {
   r.px(sx + 9, sy + 6 + bob, E.wheatSh);
 }
 
-// حاشیه‌ی نرم خاک‌راه: هر ضلعی که همسایه‌اش راه/دروازه/خانه نیست با چمنِ دندانه‌دار + سایه‌ی لبه نرم می‌شود
+// ---------- S2.5: خاک‌راه ----------
+// لبه‌ی راه = حاشیه‌ی چمنِ نامنظمِ ۲–۳px (از blob47) + لکه‌های خوشه‌ای + سایه‌ی تماس + بریدگیِ گوشه‌های داخلی
+// همه‌ی میدان‌ها تابعِ **مختصاتِ جهانی**اند ⇒ هیچ درزی در مرزِ دو تایلِ هم‌جنس دیده نمی‌شود.
 const isP = (c) => !!c && (c.kind === 'path' || c.kind === 'gate' || c.kind === 'house');
-export function drawPathEdge(r, sx, sy, tx, ty, f) {
-  const U = !isP(f.cell(tx, ty - 1)), D = !isP(f.cell(tx, ty + 1)), L = !isP(f.cell(tx - 1, ty)), R = !isP(f.cell(tx + 1, ty));
-  for (let i = 0; i < 16; i++) {
-    const j = hash(tx * 16 + i, ty * 7) < 0.5 ? 1 : 2, k = (i + tx) & 1;
-    if (U) { r.px(sx + i, sy, E.grass); if (k) r.px(sx + i, sy + 1, E.grass); if (j === 2 && k) r.px(sx + i, sy + 2, E.grassSh); }
-    if (D) { r.px(sx + i, sy + 15, E.grass); if (!k) r.px(sx + i, sy + 14, E.grass); r.px(sx + i, sy + 13 + (k ? 0 : 1) * 0, E.soilSh); }
-    const m = hash(tx * 5, ty * 16 + i) < 0.5 ? 1 : 2, n = (i + ty) & 1;
-    if (L) { r.px(sx, sy + i, E.grass); if (n) r.px(sx + 1, sy + i, E.grass); if (m === 2 && n) r.px(sx + 2, sy + i, E.grassSh); }
-    if (R) { r.px(sx + 15, sy + i, E.grass); if (!n) r.px(sx + 14, sy + i, E.grass); }
+const tuftN = (gx, gy) => vnoise(gx * 0.3, gy * 0.3, 62) * 0.6 + bayer4(gx, gy) * 0.4; // همان میدانِ تافتِ S2.4
+const gTone = (gx, gy) => { const n = tuftN(gx, gy); return n < 0.30 ? rp('grass', 3) : (n < 0.64 ? rp('grass', 4) : rp('grass', 5)); };
+function cornerNotch(r, sx, sy, cx, cy, gx0, gy0) { // بریدگیِ مثلثیِ چمن در گوشه‌ی داخلیِ پیچِ راه
+  for (let d = 0; d < 3; d++) for (let e = 0; e <= 2 - d; e++) {
+    const x = cx ? 15 - e : e, y = cy ? 15 - d : d;
+    r.px(sx + x, sy + y, gTone(gx0 + x, gy0 + y));
   }
-  const hp = hash(tx * 13, ty * 29); // سنگ‌ریزه‌ی پراکنده، نه تکرار یکنواخت در هر تایل
-  if (hp < 0.4) { const qx = 3 + Math.floor(hash(tx, ty * 3) * 9), qy = 3 + Math.floor(hash(tx * 3, ty) * 9); r.px(sx + qx, sy + qy, rp('dust', 6)); r.px(sx + qx + 1, sy + qy + 1, rp('dust', 3)); } // S1.3: سنگ‌ریزه از رمپ
-  if (U) for (let i = 0; i < 16; i += 5) r.px(sx + i + 1, sy, E.grassBlade);
-  if (L) for (let i = 0; i < 16; i += 5) r.px(sx, sy + i + 1, E.grassBlade);
+}
+export function drawPathEdge(r, sx, sy, tx, ty, f) {
+  const m = mask8((x, y) => isP(f.cell(x, y)), tx, ty), mk = IDX_MASK[blob47(m)];
+  const gx0 = tx * 16, gy0 = ty * 16, ew = (m & 4) || (m & 64), ns = (m & 1) || (m & 16); // جهتِ راه = همان واریانتِ ground.js
+  // ۱) لکه‌های خوشه‌ایِ سطحِ راه (n و آستانه هر دو جهانی ⇒ پیوسته بین تایل‌ها) + اشغالِ پراکنده
+  const lo = rp('dust', 3), hi = rp('dust', 5), chip = rp('dust', 2);
+  for (let y = 0; y < 16; y++) for (let x = 0; x < 16; x++) {
+    if ((ew && (y === 5 || y === 11)) || (ns && (x === 5 || x === 11))) continue; // رِیلِ چرخ دست‌نخورده
+    const gx = gx0 + x, gy = gy0 + y, h = hash2(gx, gy, 76);
+    const n = vnoise(gx * 0.42, gy * 0.42, 71) * 0.78 + bayer4(gx, gy) * 0.22, dn = vnoise(gx * 0.08, gy * 0.08, 73);
+    if (h > 0.975) r.px(sx + x, sy + y, gTone(gx, gy));          // علفِ پراکنده روی خاک (dither ~۲٫۵٪)
+    else if (h < 0.02) r.px(sx + x, sy + y, chip);               // خاشاک/سنگ‌ریزه‌ی تیره ~۲٪
+    else if (n > 0.60 + dn * 0.06) r.px(sx + x, sy + y, lo);     // لکه‌ی کوبیده‌ی تیره
+    else if (n < 0.27 - dn * 0.05) r.px(sx + x, sy + y, hi);     // لکه‌ی روشنِ خاک
+  }
+  // ۲) حاشیه‌ی چمن روی ضلع‌های بی‌همسایهٔ راه: عرض از هشِ مختصاتِ جهانیِ «در طولِ لبه» ⇒ لبه در طولِ راه پیوسته
+  const fringe = (side, horiz, fromStart) => {
+    for (let i = 0; i < 16; i++) {
+      const h = hash2(side * 31 + 7, horiz ? gx0 + i : gy0 + i, 77);          // عرض از هشِ «در طولِ لبه» ⇒ لبه در طولِ راه پیوسته
+      const w = 2 + (h > 0.62 ? 1 : 0);                                        // بریدگیِ ۲–۳px (~۴۰٪ سه‌پیکسلی)
+      for (let d = 0; d < w; d++) {
+        const x = horiz ? i : d, y = horiz ? d : i;
+        r.px(sx + (fromStart ? x : 15 - x), sy + (fromStart ? y : 15 - y), gTone(gx0 + x, gy0 + y));
+      }
+      if (h > 0.25) { // ۳) سایه‌ی تماسِ ۱px زیرِ لبه (راه فرو‌رفته دیده می‌شود)
+        const x = horiz ? i : w, y = horiz ? w : i;
+        r.px(sx + (fromStart ? x : 15 - x), sy + (fromStart ? y : 15 - y), rp('dust', 3));
+      }
+      if (h > 0.90) { // چمنِ پراکنده روی خاکِ مجاورِ لبه (با یک پیکسل فاصله تا «عرضِ حاشیه» نشکند)
+        const x = horiz ? i : w + 2, y = horiz ? w + 2 : i;
+        if (!((ew && (y === 5 || y === 11)) || (ns && (x === 5 || x === 11)))) // رویِ رِیلِ چرخ نگذار
+          r.px(sx + (fromStart ? x : 15 - x), sy + (fromStart ? y : 15 - y), rp('grass', 4));
+      }
+    }
+  };
+  if (!(mk & 1)) fringe(0, true, true);     // N بی‌همسایه
+  if (!(mk & 16)) fringe(1, true, false);   // S
+  if (!(mk & 64)) fringe(2, false, true);   // W
+  if (!(mk & 4)) fringe(3, false, false);   // E
+  // ۴) گوشه‌های داخلیِ پیچِ راه: قطرش راه نیست ⇒ مثلثِ چمن
+  if ((m & 1) && (m & 4) && !(m & 2)) cornerNotch(r, sx, sy, 1, 0, gx0, gy0);
+  if ((m & 4) && (m & 16) && !(m & 8)) cornerNotch(r, sx, sy, 1, 1, gx0, gy0);
+  if ((m & 16) && (m & 64) && !(m & 32)) cornerNotch(r, sx, sy, 0, 1, gx0, gy0);
+  if ((m & 64) && (m & 1) && !(m & 128)) cornerNotch(r, sx, sy, 0, 0, gx0, gy0);
 }

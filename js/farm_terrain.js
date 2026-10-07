@@ -41,13 +41,18 @@ function tuftBake(r, sx, sy, tx, ty) {
     }
   }
 }
+// S2.5: راهِ هم‌جنس (خاک‌راه/دروازه/خانه) — مبنای واریانتِ راه و حاشیه‌ی چمنِ drawPathEdge
+const isRoad = (c) => !!c && (c.kind === 'path' || c.kind === 'gate' || c.kind === 'house');
+const pathVar = (f, tx, ty) => // بیت۰: راهِ افقی (E/W) · بیت۱: راهِ عمودی (N/S) ⇒ ۴ واریانت
+  ((isRoad(f.cell(tx - 1, ty)) || isRoad(f.cell(tx + 1, ty))) ? 1 : 0) |
+  ((isRoad(f.cell(tx, ty - 1)) || isRoad(f.cell(tx, ty + 1))) ? 2 : 0);
 // ترتیب رسمِ قدیمیِ یک تایل استاتیک — عیناً از farm_render منتقل شد
 function bakeTile(f, tx, ty, r, wf = 0) {
   const c = f.cell(tx, ty); if (!c) return;
   const sx = tx * TILE, sy = ty * TILE;
   let base;
   if (c.kind === 'grass') base = groundSprite('grass', (hash2(tx, ty, 31) * 8) | 0); // S2.4: واریانت از hashِ مختصات
-  else if (c.kind === 'path') base = groundSprite('path', c.variant & 1);
+  else if (c.kind === 'path') base = groundSprite('path', pathVar(f, tx, ty)); // S2.5: واریانتِ جهت‌دار
   else if (c.kind === 'tree') base = groundSprite('grass', (hash2(tx, ty, 32) * 8) | 0);
   else if (c.kind === 'soil') base = groundSprite('soil', 0, c.wet);
   else if (c.kind === 'water') base = groundSprite('water', (tx * 5 + ty * 3) & 3, false, wf);

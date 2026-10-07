@@ -61,13 +61,14 @@ export function groundSprite(kind, variant = 0, wet = false, waterFrame = 0, the
       }
       r.px(2 + Math.floor(h2(variant, 3) * 10), 6 + Math.floor(h2(5, variant) * 8), P.stoneHi);
       if (wet) { r.px(4, 3, E.wet); r.px(11, 9, E.wet); r.px(7, 13, E.wet); r.px(14, 5, E.wet); r.px(2, 11, E.wet); }
-    } else if (kind === 'path') { // خاک‌راه کوبیده — پر تا لبه تا تایل‌ها پیوسته شوند؛ حاشیه‌ی چمن per-همسایه در drawPathEdge
-      r.rect(0, 0, 16, 16, E.soilHi);
-      for (let i = 0; i < 22; i++) { // بافت خاک: لکه‌های تیره/روشن قطعی
-        const px = Math.floor(h2(variant * 29 + i, i * 5) * 16), py = Math.floor(h2(i * 7, variant * 11 + i) * 16);
-        r.px(px, py, i % 3 === 0 ? E.soil : (i % 3 === 1 ? E.soilHi : E.soilSh));
-      }
-      r.rect(3 + variant * 4, 7 + variant, 5, 1, E.furrow); // ردّ چرخ/پا
+    } else if (kind === 'path') { // S2.5: خاک‌راهِ کوبیده — ردِّ چرخِ **جهت‌دار** (variant: بیت۰=راهِ افقی E/W · بیت۱=راهِ عمودی N/S)
+      // رِیلِ چرخ هم‌راستا با راه کشیده می‌شود ⇒ بین تایل‌های هم‌جهت پیوسته می‌ماند (variant از farm_terrain می‌آید)
+      const base = rp('dust', 4), rut = rp('dust', 3), ew = variant & 1, ns = variant & 2;
+      r.rect(0, 0, 16, 16, base);
+      if (ew) { r.rect(0, 5, 16, 1, rut); r.rect(0, 11, 16, 1, rut); }
+      if (ns) { r.rect(5, 0, 1, 16, rut); r.rect(11, 0, 1, 16, rut); }
+      // بافتِ سطح **عمداً صفر** است: تُنِ بومیِ تایل فقط base + رِیل است و همه‌ی دانه‌بندی/لکه‌ها
+      // از میدان‌های **جهانی** در drawPathEdge می‌آید ⇒ جهشِ L در مرزِ دو تایلِ راه ≈۰ (پذیرشِ S2.5: ≤۴)
     } else if (kind === 'hedge') {
       r.rect(0, 0, 16, 16, E.hedgeSh);
       for (const [bx, by] of [[2, 3], [7, 2], [12, 4], [4, 8], [10, 9], [13, 12], [2, 12], [7, 12]]) {
