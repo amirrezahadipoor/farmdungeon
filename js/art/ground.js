@@ -6,13 +6,22 @@ import { rp } from './ramps.js';
 const KIND_ID = { grass: 0, soil: 1, path: 2, hedge: 3, water: 4, fence: 5, dfloor: 6, wall: 7, stairs: 8, gateL: 9, gateR: 10, pillar: 11, decor: 12, bush: 13, fencePost: 14 };
 const _gnum = new Array(15 * 32 * 4).fill(null); // ۴ تم دانجن (ن۳۲)
 
-// تم رنگی دانجن (ن۳۲): هر ۵ طبقه عوض می‌شود — تم ۰ = رنگ‌های اصلی (پاریتی کامل)
-const DP0 = { brick: E.brick, brickHi: E.brickHi, brickOut: E.brickOut, stone: E.stone, stoneHi: E.stoneHi, stoneSh: E.stoneSh, warm: [96, 90, 110, 255], mortar: [74, 70, 92, 255], cap: [110, 106, 132, 255], moss: [58, 106, 58, 255], mossD: [46, 86, 48, 255], stairs: E.stairs, stairsSh: E.stairsSh, glint: [96, 90, 118, 255] };
-const DTHEME = [DP0,
-  { brick: [70, 84, 74, 255], brickHi: [94, 112, 90, 255], brickOut: [32, 42, 34, 255], stone: [84, 96, 84, 255], stoneHi: [114, 130, 110, 255], stoneSh: [56, 66, 56, 255], warm: [88, 100, 86, 255], mortar: [62, 74, 62, 255], cap: [112, 126, 108, 255], moss: [88, 150, 74, 255], mossD: [58, 110, 56, 255], stairs: [96, 106, 92, 255], stairsSh: [64, 74, 62, 255], glint: [112, 130, 106, 255] }, // خزه
-  { brick: [104, 74, 66, 255], brickHi: [134, 100, 80, 255], brickOut: [46, 30, 26, 255], stone: [112, 88, 74, 255], stoneHi: [146, 120, 98, 255], stoneSh: [78, 58, 46, 255], warm: [104, 82, 68, 255], mortar: [80, 58, 48, 255], cap: [142, 116, 94, 255], moss: [224, 138, 74, 255], mossD: [188, 106, 48, 255], stairs: [128, 100, 84, 255], stairsSh: [86, 64, 52, 255], glint: [150, 118, 94, 255] }, // گدازه
-  { brick: [64, 76, 102, 255], brickHi: [88, 102, 130, 255], brickOut: [26, 32, 48, 255], stone: [80, 92, 118, 255], stoneHi: [112, 126, 154, 255], stoneSh: [52, 60, 82, 255], warm: [82, 92, 114,  255], mortar: [58, 68, 90, 255], cap: [110, 124, 150, 255], moss: [140, 220, 240, 255], mossD: [100, 170, 200, 255], stairs: [100, 112, 138, 255], stairsSh: [66, 76, 100, 255], glint: [106, 120, 148, 255] }, // یخ
-];
+// تم رنگی دانجن (ن۳۲ → S1.4): هر تم یک رمپ سنگ + رمپِ هویتِ خزه/گدازه/یخ
+// قانون کنتراست S1.4 (اندازه‌گیری‌شده): L کف ≈ ۵۲/۶۵ · نمای دیوار (brick) = ۳۸ → ΔL ۲۰ ✓ · کلاهک (stone) = ۷۸ → ΔL ۲۰ ✓
+// کلیدهای قدیمی DPAL حفظ شده‌اند (brick/brickHi/brickOut/stone/stoneHi/stoneSh/warm/mortar/cap/moss/mossD/stairs/stairsSh/glint) + تازه: floorA/floorB
+const STONE_THEMES = ['stoneCool', 'stoneMoss', 'stoneForge', 'stoneIce'];   // تم ۰..۳
+const MOSS_THEMES = ['leaf', 'leaf', 'fire', 'magicCyan'];                  // هویتِ خزه/گدازه/یخ
+const DTHEME = STONE_THEMES.map((X, t) => {
+  const M = MOSS_THEMES[t];
+  return {
+    brick: rp(X, 2), brickHi: rp(X, 3), brickOut: rp(X, 0), glint: rp(X, 4),      // بدنه‌ی دیوار (تیره) + جلای آجر
+    stone: rp(X, 5), stoneHi: rp(X, 6), stoneSh: rp(X, 3),                        // سنگِ روشن (کلاهک/ستون/دروازه/پله)
+    cap: rp(X, 4), mortar: rp(X, 2),                                              // خطِ کلاهک + درزهای کف
+    floorA: rp(X, 3), floorB: rp(X, 4), warm: rp(X, 4),                           // سنگ‌فرش دو‌تُن کف
+    stairs: rp(X, 5), stairsSh: rp(X, 3),
+    moss: rp(M, 5), mossD: rp(M, 3),                                              // خزه/گدازه/یخ — هویت تم
+  };
+});
 export const DPAL = (t) => DTHEME[t] || DP0;
 
 export function groundSprite(kind, variant = 0, wet = false, waterFrame = 0, theme = 0) {
@@ -85,7 +94,7 @@ export function groundSprite(kind, variant = 0, wet = false, waterFrame = 0, the
       r.rect(6, 1, 4, 1, E.woodHi); r.rect(6, 13, 4, 1, E.woodSh);
     } else if (kind === 'dfloor') {
       // سنگ‌فرش با دو تُن متناوب + درز تیره + جزئیات
-      const warm = variant % 2 ? P.warm : P.stone;
+      const warm = variant % 2 ? P.floorB : P.floorA;
       r.rect(0, 0, 16, 16, warm);
       r.rect(0, 0, 16, 1, P.stoneHi);
       r.rect(0, 0, 1, 16, P.stoneHi);

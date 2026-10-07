@@ -1,9 +1,10 @@
 // art/dungeon_props.js — اجزای صحنه‌ی دانجن: مشعل (با جرقه)، صندوق گنج، قطره‌های گوهر/قلب،
 // ذرات غبار معلق در هوا — همه بدون حالت (تصادفیِ قطعی بر اساس زمان)
 import { E, TILE } from './palette_env.js';
+import { rp } from './ramps.js'; // S1.4: رنگ پراپ‌ها از رمپ (مشعل/صندوق/گوهر/محراب)
 
 // مشعل: شعله‌ی سه‌لایه‌ی نرم (سینوسی، نه موج مربعی) + جرقه‌های بالارونده
-const FLAME_D = [198, 84, 28, 255]; // لبه‌ی تیره‌ی شعله
+const FLAME_D = rp('fire', 6).slice(); FLAME_D[3] = 255; // لبه‌ی تیره‌ی شعله (رمپ آتش)
 export function drawTorches(r, D, cx, cy, time) {
   for (const t of D.torches) {
     const sx = t.x * TILE - cx, sy = t.y * TILE - cy;
@@ -29,7 +30,7 @@ export function drawTorches(r, D, cx, cy, time) {
 }
 
 // صندوق گنج: بند فلزی + قفل طلایی — استاتیک (ن۳۸: هاله/توینکل حذف)
-const IRON = [118, 124, 142, 255], IRON_HI = [158, 164, 182, 255];
+const IRON = rp('metal', 4).slice(); IRON[3] = 255; const IRON_HI = rp('metal', 6).slice(); IRON_HI[3] = 255;
 const _spC = [0, 0, 0, 0]; // اسکرچ جرقه‌ی مشعل
 export function drawChests(r, D, cx, cy, time) {
   for (const c of D.chests) {
@@ -54,15 +55,15 @@ export function drawDrops(r, D, cx, cy) {
       const c = seedCol(d.ty);
       r.rect(px2 - 1, py2 - 1, 3, 3, [c[0], c[1], c[2], 255]);
       r.px(px2 - 1, py2 - 1, [Math.min(255, c[0] + 40), Math.min(255, c[1] + 40), Math.min(255, c[2] + 40), 255]);
-      r.px(px2, py2 - 3, [110, 180, 100, 255]); r.px(px2 + 1, py2 - 4, [140, 210, 120, 255]);
+      r.px(px2, py2 - 3, rp('leaf', 5)); r.px(px2 + 1, py2 - 4, rp('leaf', 6));
     } else if (d.kind === 'coin') { // کیسه‌ی سکه‌ی کوچک
-      r.rect(px2 - 2, py2 - 2, 5, 4, [170, 130, 60, 255]);
-      r.rect(px2 - 2, py2 - 3, 5, 1, [120, 90, 40, 255]);
-      r.px(px2 - 1, py2 - 1, [255, 224, 130, 255]); r.px(px2 + 1, py2, [255, 224, 130, 255]);
+      r.rect(px2 - 2, py2 - 2, 5, 4, rp('gold', 4));
+      r.rect(px2 - 2, py2 - 3, 5, 1, rp('soil', 3));
+      r.px(px2 - 1, py2 - 1, rp('gold', 6)); r.px(px2 + 1, py2, rp('gold', 6));
     } else if (d.kind === 'item') { // جعبه‌ی درخشان با رنگ تیتر
       const t = ITEMS[d.id] ? ITEMS[d.id].tier : 1, tc = tierCol(t);
       const glow = 120 + 60 * Math.round(Math.sin(d.t * 4) + 1);
-      r.rect(px2 - 3, py2 - 3, 7, 6, [60, 50, 80, 255]);
+      r.rect(px2 - 3, py2 - 3, 7, 6, rp('stoneCool', 4));
       r.rect(px2 - 3, py2 - 3, 7, 1, [tc[0], tc[1], tc[2], 255]);
       r.rect(px2 - 3, py2 + 2, 7, 1, [tc[0], tc[1], tc[2], 255]);
       r.rect(px2 - 3, py2 - 3, 1, 6, [tc[0], tc[1], tc[2], 255]);
@@ -73,27 +74,27 @@ export function drawDrops(r, D, cx, cy) {
       r.rect(px2 - 2, py2 - 2, 2, 2, E.heart); r.rect(px2 + 1, py2 - 2, 2, 2, E.heart);
       r.rect(px2 - 2, py2, 6, 2, E.heart); r.rect(px2 - 1, py2 + 2, 4, 1, E.heart);
       r.px(px2, py2 + 3, E.heart);
-      r.px(px2 - 1, py2 - 2, [255, 190, 205, 255]); // براقیت
+      r.px(px2 - 1, py2 - 2, [242, 239, 228, 255]); // براقیت (سفید گرم — رنگ ویژه‌ی پالت)
     } else { // گوهر لوزی با وجه‌ها
-      r.px(px2, py2 - 3, [230, 250, 255, 255]);
+      r.px(px2, py2 - 3, rp('magicCyan', 6));
       r.rect(px2 - 1, py2 - 2, 3, 1, E.essence); r.rect(px2 - 2, py2 - 1, 5, 1, E.essence);
       r.rect(px2 - 2, py2, 5, 1, E.essenceSh); r.rect(px2 - 1, py2 + 1, 3, 1, E.essenceSh);
       r.px(px2, py2 + 2, E.essenceSh);
-      r.px(px2 - 1, py2 - 1, [230, 250, 255, 255]); r.px(px2 + 1, py2, [170, 220, 240, 255]);
+      r.px(px2 - 1, py2 - 1, rp('magicCyan', 6)); r.px(px2 + 1, py2, rp('magicCyan', 5));
     }
   }
 }
 
 // محراب باستانی: سکوی سنگی + گوی جادویی نفس‌کش (بعد از استفاده خاموش)
-const _orbC = [140, 225, 255, 0], _orbD = [90, 170, 210, 0];
+const _orbC = [...rp('magicCyan', 6).slice(0, 3), 0], _orbD = [...rp('magicCyan', 4).slice(0, 3), 0];
 export function drawShrines(r, D, cx, cy, time) {
   const sh = D.shrine;
   if (!sh) return;
   const sx = Math.round(sh.x - cx), sy = Math.round(sh.y - cy);
   if (sx < -24 || sy < -24 || sx > r.w + 8 || sy > r.h + 8) return;
-  r.rect(sx - 5, sy + 2, 10, 3, [74, 70, 92, 255]); // سکو
-  r.rect(sx - 5, sy + 2, 10, 1, [104, 100, 124, 255]); // لبه‌ی روشن
-  r.rect(sx - 3, sy - 1, 6, 3, [58, 54, 74, 255]); // پایه‌ی گوی
+  r.rect(sx - 5, sy + 2, 10, 3, rp('stoneCool', 4)); // سکو
+  r.rect(sx - 5, sy + 2, 10, 1, rp('stoneCool', 6)); // لبه‌ی روشن
+  r.rect(sx - 3, sy - 1, 6, 3, rp('stoneCool', 3)); // پایه‌ی گوی
   if (!sh.used) {
     const b = Math.round((Math.sin(time * 2.4) + 1)); // 0..2 — نفس‌کش کوانتیزه
     _orbC[3] = 190 + 25 * b;
@@ -106,6 +107,6 @@ export function drawShrines(r, D, cx, cy, time) {
     r.px(sx + Math.round(Math.cos(oa) * 5), sy - 3 + Math.round(Math.sin(oa) * 3), _orbC);
     r.px(sx + Math.round(Math.cos(oa + 3.1) * 5), sy - 3 + Math.round(Math.sin(oa + 3.1) * 3), _orbD);
   } else {
-    r.rect(sx - 1, sy - 4, 2, 2, [90, 88, 106, 255]); // گوی خاموش
+    r.rect(sx - 1, sy - 4, 2, 2, rp('stoneCool', 5)); // گوی خاموش
   }
 }
