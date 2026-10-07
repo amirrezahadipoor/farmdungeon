@@ -57,7 +57,7 @@ MEMORY.md را بخوان. در ROADMAP.md اولین نشست ☐ را پیدا
 ## ✅ فهرست نشست‌ها (۵۹ نشست — تیک بزن؛ جزئیات در فایل فاز)
 ### P0 · زیرساخت و اندازه‌گیری → `roadmap/P0.md`
 - [x] S0.1 گیت، ریموت و اولین پوش (baseline)
-- [ ] S0.2 محیط تست: setup_tests + boot_check + baseline رگرسیون
+- [x] S0.2 محیط تست: setup_tests + boot_check + baseline رگرسیون
 - [ ] S0.3 ابزار ممیزی پایدار `art_audit.mjs` + ثبت baseline در Scoreboard
 - [ ] S0.4 شیت‌ساز عمومی + صحنه‌های مرجع + baseline پرفورمنس
 

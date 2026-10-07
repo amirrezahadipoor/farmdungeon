@@ -7,7 +7,7 @@
 ## 🚨 اول هر نوبت
 0. **رودمپ**: `ROADMAP.md` ← اولین `- [ ]` = نشست جاری؛ فقط فایل فاز همان نشست (`roadmap/P?.md`) را بخوان. env: `GITHUB_TOKEN`, `GH_REPO` ست باشند (مقدارشان را هرگز چاپ نکن)
 1. سرور: `curl -s -o /dev/null -w "%{http_code}" http://localhost:8080/game.html` — اگر 000: `start_process` با `cd /home/user/farm-dungeon && node serve.mjs`
-2. /tmp پاک شده — بازسازی: `mkdir -p /tmp/realtest && cd /tmp/realtest && npm init -y && npm install jsdom canvas`
+2. /tmp پاک شده — بازسازی: `bash tools/setup_tests.sh` (idempotent؛ فقط اگر /tmp/realtest نبود نصب می‌کند)
 3. بعد از هر `node tools/build_single.mjs` **حتماً بوت jsdom** — بیلدر بی‌سینتکس‌چک است و exportها را در اسکوپ مشترک می‌ریزد (ن۳۴ دوباره گرفت!)
 
 ## 🗺 نقشه‌ی فایل‌ها (سورس حقیقت — ۱۰۸ ماژول JS؛ شمار خط واقعی در ⟨⟩؛ سقف ۲۸۰)
@@ -17,7 +17,7 @@ farm-dungeon/   (کل ورک‌اسپیس ۲٫۵MB — بیرون فقط uploads
 ├── index.html (ورودی بیلدر: شل + اسکریپت main_app) · css/style.css (تنها CSS) · serve.mjs (:8080 no-store) · MEMORY.md
 ├── ROADMAP.md (فهرست ۵۹ نشست + قواعد + Scoreboard) · roadmap/P0…P8.md (جزئیات هر فاز) · .gitignore
 ├── shots/ (۶): stage47_elites.gif · stage47_montage.png · art48_review.png (ممیزی آرت) · mobs44_sheet.png · tiles43_sheet.png · font41_sheet.png
-├── tools/ (۱۰ + push.sh + secret_guard.sh؛ دائمی‌های بعدی در S0.2–S0.4): build_single.mjs (باندلر: BASE پشت‌سرهم، فقط export const/function؛ entry جدا: bundle('index.html','game.html','main_app'))
+├── tools/ (۱۰ پایه + push.sh · secret_guard.sh · setup_tests.sh · boot_check.mjs · run_all.sh؛ دائمی‌های بعدی S0.3–S0.4): build_single.mjs (باندلر: BASE پشت‌سرهم، فقط export const/function؛ entry جدا: bundle('index.html','game.html','main_app'))
 │   · render5.mjs ⟨۱۵ رگرسیون⟩ · render6.mjs ⟨۲۷ پولیش⟩ · elite47.mjs ⟨۴ تست تاج+GIF نخبه → /tmp/qa47⟩
 │   · build_bp42.py (مولد/ولیداتور نقشه‌ها) · author_font41.py (منبع حقیقت فونت) · mobs44_sheet.mjs · tiles43_sheet.mjs · png.mjs · bench.mjs
 └── js/
@@ -44,8 +44,8 @@ farm-dungeon/   (کل ورک‌اسپیس ۲٫۵MB — بیرون فقط uploads
 ```
 
 ## ✅ وضعیت (هر نوبت یک خط — جزئیات در شیت/اسکریپت همان نوبت)
-- **ن۵۱: S0.1 ✅ گیت/baseline** — مخزن با توکن کلون شد، `farm-dungeon-roadmap.zip` آنزیپ و ساختار پروژه در ریشه‌ی ریپو (`farm-dungeon/`) قرار گرفت؛ zip حذف؛ `secret_guard: clean`؛ پوش اول `3f61d4c` (local==remote)؛ تگ `art-baseline` لوکال+ریموت؛ نشست بعدی: S0.2 (محیط تست)
-- **ن۵۰: رودمپ آرت v2 تدوین شد** (۵۹ نشست/۹ فاز: P0 زیرساخت · P1 رنگ · P2 تایل مزرعه · P3 تایل دانجن · P4 نور · P5 جزئیات مزرعه · P6 موجودات · P7 UI · P8 پولیش) — کد بازی دست‌نخورده، فقط `.gitignore` + `tools/push.sh` + `tools/secret_guard.sh` + ROADMAP/roadmap اضافه شد · نشست بعدی: S0.2 · هدف امتیاز آرت ۵٫۵ → ≥ ۸٫۵ (Scoreboard در ROADMAP.md)
+- **ن۵۱: S0.1 ✅ + S0.2 ✅** — مخزن با توکن کلون شد، `farm-dungeon-roadmap.zip` آنزیپ و ساختار پروژه در ریشه‌ی ریپو (`farm-dungeon/`) قرار گرفت؛ zip حذف؛ `secret_guard: clean`؛ پوش اول `3f61d4c` (local==remote)؛ تگ `art-baseline` لوکال+ریموت · **S0.2**: `tools/setup_tests.sh` + `tools/boot_check.mjs` (۱۰ سناریو jsdom) + `tools/run_all.sh` → `ALL GREEN` در ۲۲ث (boot ۱۰/۱۰ در ۱۹٬۲ث · render5 ۱۵/۱۵ · render6 ۲۷/۲۷) و **بیلد بایت‌برابر با game.html موجود (Parity)** · نشست بعدی: S0.3 (art_audit)
+- **ن۵۰: رودمپ آرت v2 تدوین شد** (۵۹ نشست/۹ فاز: P0 زیرساخت · P1 رنگ · P2 تایل مزرعه · P3 تایل دانجن · P4 نور · P5 جزئیات مزرعه · P6 موجودات · P7 UI · P8 پولیش) — کد بازی دست‌نخورده، فقط `.gitignore` + `tools/push.sh` + `tools/secret_guard.sh` + ROADMAP/roadmap اضافه شد · نشست بعدی: S0.3 · هدف امتیاز آرت ۵٫۵ → ≥ ۸٫۵ (Scoreboard در ROADMAP.md)
 - قابل بازی: game.html روی :8080 · نوبت جاری: **ن۴۸ آرت-ممیزی سنجه‌محور ~۵٫۵/۱۰ سخت‌گیرانه** — کمبودها: **P1 خوانایی** bat ΔL=۳ و فقط ۱۵px، bandit ΔL=۵، spider ۲۱، ghost ۱۰ (نیمه‌عمدی)، outline اسکلت/کماندار L~۸۶=حاشیه نه outline · **P2 سبک** پالت قهرمان ۸۲ رنگ↔موب‌ها ۵-۹ (ژاکارد ۰٫۰۱۷)، outline غیریکدست (انحراف ۴۲)، اسکلت/کماندار ۲ باند سایه، صفر بافت/dither (فاصله‌ی اصلی با استاردیو) · **P3** محصول ۴ مرحله (استاردیو ۵) و رسیده ۷-۱۳px، حمله‌ی اسکلت ۱۵٪/کماندار ۱۹٪ کم‌خوانا، idle hare/golem/boss ۱۱-۱۴٪ یخ‌زده، اسکلت ۲٫۳t>قهرمان ۱٫۸t، گلیف ص/ض/ط/ظ ۸px در شبکه‌ی ۷ · قوت‌ها: خط لوله‌ی منظم، انیمیشن ۴حالته، فونت ۹۵ گلیف، باس≠گولم، صحنه ۱۰۸-۱۷۰ رنگ · سنجه‌ها: shots/art48_review.png (اسکریپت اندازه‌گیری /tmp/artaudit48.mjs — سنجه‌ها: پالت کوانتیزه >>۴، خوشه‌ی روشنایی ≥۸٪، ΔL در برابر کفِ L=۷۲، ژاکارد، diffRatio)
 - ن۴۹: **باگ‌های ظاهری + پولیش** — (۱) تایل‌های fence/fencePost شفاف بودند (بدون چمن زیرشان → سیاهی/ردّ فریم قبل روی بوم) → چمن زیرشان در farm_render · (۲) خاک‌راه: تایل‌های «نان‌مانند» جدا → تایل پر + حاشیه‌ی دندانه‌ای per-همسایه `drawPathEdge` (farm_decor) + سنگ‌ریزه‌ی پراکنده · (۳) دروازه‌ی ۲×۲ دو در روی هم بود → طاق یکپارچه (variant 0 سردر / 1 آستانه) · (۴) گندم رسیده شبیه «میز» → سه سنبله‌ی طلایی با ریشک · (۵) فونت font2: حروف کوچک لاتین «؟» می‌شدند (Floor→F????) → نگاشت به بزرگ؛ نیم‌فاصله‌ی U+200C «؟» رسم می‌شد → حذف؛ ارقام داخل جمله‌ی فارسی برعکس بودند (۱۲۳→۳۲۱) → bidi ردیف‌های LTR؛ alias آ/أ/ي/ك/٪/—/→ و گلیف ( ) = ·؛ ۳ شبیه «؟» بود → سه‌قوسی · بیلد+بوت jsdom صفر خطا · شفافیت: صفر پیکسل alpha=0 در مزرعه و ۵ طبقه‌ی دانجن
 - ن۴۷: ۶ فیکس — تاج نخبه MHEAD per-kind (۱۴ جور کالیبره از رندر واقعی) + تاج بعد از اسپرایت (خز وسطش را می‌خورد) + اسپلش زیر موجودیت‌ها + صدای shoot/fire + chill ریست + monster_registry (همه ≤۲۸۰ خط) · wire سخت‌گیر BASE∪entry 108/108 (۲ صدا import می‌شدند ولی باندل نبودند!) · qa_all 52 · elite47 4/4 · stage47_elites.gif+montage
@@ -62,7 +62,7 @@ farm-dungeon/   (کل ورک‌اسپیس ۲٫۵MB — بیرون فقط uploads
 - باگ باز: — (فهرست ن۴۸ = بهبود آرت، نه باگ) | داستان/NPC عمداً نیست
 
 ## 🗺 رودمپ آرت v2 (از ن۵۰)
-- **منبع حقیقت پیشرفت**: چک‌باکس‌های `ROADMAP.md`؛ جزئیات/پذیرش هر نشست در `roadmap/P?.md`. **نشست بعدی: S0.2** (S0.1 ✅).
+- **منبع حقیقت پیشرفت**: چک‌باکس‌های `ROADMAP.md`؛ جزئیات/پذیرش هر نشست در `roadmap/P?.md`. **نشست بعدی: S0.3** (S0.1 ✅، S0.2 ✅).
 - **ترتیب فازها**: P0 زیرساخت/اندازه‌گیری → P1 رنگ و رمپ‌ها (بزرگ‌ترین جهش) → P2 تایل مزرعه → P3 تایل دانجن → P4 نور/سایه → P5 جزئیات مزرعه → P6 موجودات → P7 UI/آیکون/فونت → P8 پولیش. ایست‌های بازبینی کاربر 🛑: R1 (بعد P1)، R2 (بعد P3)، R3 (بعد P5)، R4 (پایان).
 - **پروتکل نشست** (کوتاه): MEMORY + فایل فاز را بخوان → اجرا (≤ ۱ ماژول جدید + ≤ ۳ فایل ویرایشی، هر ماژول ≤ ۲۸۰ خط، ≲ ۳۵ فراخوانی ابزار) → `node tools/build_single.mjs` + بوت jsdom + تست‌های فاز + audit → `bash tools/push.sh "art(Sx.y): …"` → تیک چک‌باکس‌ها (فایل فاز + ROADMAP) + یک خط در §وضعیت → **بایست**. بزرگ شد؟ WIP را push کن، زیرنشست `Sx.yb` بساز، ادامه نده.
 - **پروتکل گیت**: فقط `tools/push.sh` (secret_guard + commit + push با URL موقت؛ توکن در remote/فایل/لاگ نمی‌ماند). تگ پایان فازها: `art-baseline`, `art-P1`, `art-P3`, `art-P5`, `art-v2`. هرگز `--force` مگر کاربر بگوید.
@@ -139,7 +139,8 @@ farm-dungeon/   (کل ورک‌اسپیس ۲٫۵MB — بیرون فقط uploads
 node tools/build_single.mjs && node tools/render5.mjs && node tools/render6.mjs  # ۱۵+۲۷ (×۲ برای فلیک)
 node tools/elite47.mjs            # ۴ تست تاج + فریم GIF نخبه → /tmp/qa47
 node /tmp/qa_all.mjs              # ۵۲: seam/pix/font+i18n/logic/bp/tile/mobs(۱۳)/noise — هر نوبت بازنویسی
-node /tmp/realtest/boot42.mjs     # ۱۰ بوت jsdom (نصب: npm i jsdom canvas · Date.now→seed · AC استاب)
+bash tools/run_all.sh             # ← یک‌فرمانی: setup+build+boot+render5+render6 → ALL GREEN (ن۵۱: ۲۲ث)
+node tools/boot_check.mjs         # ۱۰ سناریو jsdom (Date.now→seed · AC استاب · resize صفر · موبایل · شب+باران · سیو/زبان)
 node tools/bench.mjs              # فقط میانه‌ی هم‌پروسه
 ```
 - بعد از هر ماژول جدید: چک wire «BASE∪entry» (الگوی ن۴۷) + بوت jsdom
