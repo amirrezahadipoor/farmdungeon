@@ -5,6 +5,8 @@ import { Raster, rot } from '../raster.js';
 import { ik, GAITS } from '../skeleton.js';
 import { SPR, OX, OY, DIRS, GEO, ACT, actionPose, gaitPose, poseLerp, mapPts } from './hero_pose.js';
 import { drawEquipHat, drawEquipBody, drawEquipBoots, swordPal } from './equipment.js';
+import { applyRim } from './rim.js';                     // S1.6: جلای لبه پیش از snap
+import { lockPAL } from './palette_snap.js';             // S1.6: قفل پالت (بدون رنگ سرِخود)
 
 // ---------- قطعات ----------
 const TRIP = {
@@ -208,26 +210,41 @@ export function drawHeroFrame(opts) {
   drawArm(body, dir, P.arms.near, true);
   if (tool !== 'none' && toolAng !== null)
     drawTool(body, tool, Math.round(P.arms.near.hand[0]), Math.round(P.arms.near.hand[1]) + 1, toolAng, equip && equip.sword);
-  body.outline(C.out);
-
-  const out = new Raster(SPR, SPR);          // سایه‌ی بیضی با اندازه‌ی ثابت
-  out.ellipse(OX, OY + 2, 13, 4, [8, 6, 14, 80]);
+  // S1.6: outline دیگر اینجا (مقیاس ۱۲۸) کشیده نمی‌شود — در halfSprite پس از کاهش‌اندازه، ۱px یکدست
+  const out = new Raster(SPR, SPR);          // سایه‌ی بیضی — ۵ لایه (هم‌سبک موب‌ها؛ M4)
+  const sc = (a) => [8, 6, 14, a];         // ۵ باند تُودرتو — همان پاصفحهٔ قبلی (۱۳×۴ روی OY+2)
+  out.ellipse(OX, OY + 2, 13, 4, sc(24)); out.ellipse(OX, OY + 2, 11, 3, sc(44)); out.ellipse(OX, OY + 2, 9, 3, sc(74));
+  out.ellipse(OX, OY + 2, 7, 2, sc(118)); out.ellipse(OX, OY + 2, 5, 2, sc(168));
   body.over(out);
   return out;
 }
 
-// نصف‌مقیاس ۲:۱ (ن۳۵): میانگین جعبه‌ای ۲×۲ — رنگ‌های تخت دست‌نخورده، لبه‌ها یکنواخت
+// نصف‌مقیاس ۲:۱ (ن۳۵) — S1.6: «رأی اکثریت ۲×۲» جای میانگین جعبه‌ای (تساوی ← تیره‌تر)
+// ⇒ هیچ رنگ تازه‌ای ساخته نمی‌شود؛ سپس outline (۱px در مقیاس نهایی) → rim → snap پالت
 export function halfSprite(s) {
   const t = new Raster(s.w >> 1, s.h >> 1);
   const td = t.d, sd = s.d, w2 = s.w;
+  const cnt = new Map();
   for (let y = 0; y < t.h; y++) for (let x = 0; x < t.w; x++) {
-    let r = 0, g = 0, b = 0, n = 0, al = 0;
+    cnt.clear();
+    let al = 0, best = -1, bestN = 0, bestL = 1e9;
     for (let dy = 0; dy < 2; dy++) for (let dx = 0; dx < 2; dx++) {
       const i = ((y * 2 + dy) * w2 + x * 2 + dx) * 4;
-      if (sd[i + 3] > 8) { r += sd[i]; g += sd[i + 1]; b += sd[i + 2]; if (sd[i + 3] > al) al = sd[i + 3]; n++; }
+      if (sd[i + 3] <= 8) continue;
+      if (sd[i + 3] > al) al = sd[i + 3];
+      const k = (sd[i] << 16) | (sd[i + 1] << 8) | sd[i + 2];
+      const n = (cnt.get(k) || 0) + 1; cnt.set(k, n);
+      const L = sd[i] * 0.299 + sd[i + 1] * 0.587 + sd[i + 2] * 0.114;
+      if (n > bestN || (n === bestN && L < bestL)) { bestN = n; bestL = L; best = i; }
     }
-    if (n) { const j = (y * t.w + x) * 4; td[j] = (r / n + 0.5) | 0; td[j + 1] = (g / n + 0.5) | 0; td[j + 2] = (b / n + 0.5) | 0; td[j + 3] = al; }
+    if (best < 0) continue;
+    const j = (y * t.w + x) * 4;
+    td[j] = sd[best]; td[j + 1] = sd[best + 1]; td[j + 2] = sd[best + 2]; td[j + 3] = al;
   }
+  t.outline(C.out);       // S1.6: outline در مقیاس نهایی — یکدست ۱px
+  applyRim(t, null, 0.62); // جلای لبه‌ی بالا — هم‌قدر موب‌ها (default rim.js)
+  lockPAL(t);             // قفل پالت: خروجی ⊆ ۲۶ رنگ
+  t.rimDone = true;       // تماس‌های بعدیِ applyRim بی‌اثرند (farm_render/run_render)
   return t;
 }
 

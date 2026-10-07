@@ -1,6 +1,7 @@
 // art/rim.js — جلای لبه‌ی بالا (rim-light) مشترک بین هیولاها/قهرمان — حجم و جلا
 // hi = رنگ روشن هدف؛ اگر null بود فقط خود پیکسل روشن می‌شود
 export function applyRim(body, hi, lift = 0.62, minA = 120) {
+  if (body.rimDone) return body; // S1.6: اسپرایتی که پیش‌تر rim+snap خورده (قهرمان/کارگر) دوباره روشن نشود
   // ن۳۹: دسترسی مستقیم به بافر — قبلاً هر پیکسل با get() دو آرایه می‌ساخت (منبع GC)
   const d = body.d, w = body.w, h = body.h, row = w * 4;
   const tr = hi ? hi[0] : 255, tg = hi ? hi[1] : 255, tb = hi ? hi[2] : 255;

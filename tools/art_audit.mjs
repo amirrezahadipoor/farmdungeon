@@ -13,6 +13,7 @@ import { heroSprite } from '../js/run_render.js';
 import { groundSprite } from '../js/art/ground.js';
 import { cropSprite } from '../js/art/crops.js';
 import { MONSTER_KINDS, MOX, MOY } from '../js/art/monster_parts.js';
+import { HOY } from '../js/art/hero_pose.js'; // S1.6: خط پای قهرمان (بوم ۶۴px)
 import { drawText } from '../js/art/font2.js';
 import { PM_SIZE, PM_COVER, inPM } from '../js/art/palette_master.js';
 
@@ -44,10 +45,10 @@ function spriteStatsFB(s) {
   if (maxAlpha(s) < 250) { const b = spriteStats(s, 100, MOY + 3); b.sem = true; return b; }
   return spriteStats(s, 200);
 }
-function shadowBands(s) {
+function shadowBands(s, footY = MOY) {
   // باندهای سایه = مقادیر آلفای پله‌ای در نوار زیر پا (y ≥ MOY-1) — بدنه‌ی نیمه‌شفاف (روح/باس) نباید باندهای خودش را جای سایه جا بزند
   const set = new Set();
-  for (let y = Math.max(0, MOY - 1); y < s.h; y++) for (let x = 0; x < s.w; x++) { const a = s.d[(y * s.w + x) * 4 + 3]; if (a > 8 && a <= 200) set.add(a); }
+  for (let y = Math.max(0, footY - 1); y < s.h; y++) for (let x = 0; x < s.w; x++) { const a = s.d[(y * s.w + x) * 4 + 3]; if (a > 8 && a <= 200) set.add(a); }
   return set.size;
 }
 
@@ -208,7 +209,7 @@ const meanOL = outL.reduce((a, b) => a + b, 0) / outL.length;
 const sdOL = Math.sqrt(outL.reduce((a, b) => a + (b - meanOL) ** 2, 0) / outL.length);
 M.M2 = { sd: rnd(sdOL, 1), mean: rnd(meanOL), hero: rnd(stHero.outlineL), worst: [...stAll].sort((a, b) => Math.abs(b[1].outlineL - meanOL) - Math.abs(a[1].outlineL - meanOL)).slice(0, 3).map(([k, st]) => [k, rnd(st.outlineL)]) };
 M.M3 = { hero: stHero.colors, mobsMin: Math.min(...stAll.map(([, st]) => st.colors)), mobsMax: Math.max(...stAll.map(([, st]) => st.colors)), mobs: stAll.map(([k, st]) => [k, st.colors]) };
-const heroBands = shadowBands(HERO);
+const heroBands = shadowBands(HERO, HOY); // قهرمان بوم ۶۴px دارد؛ خط پای او HOY (۴۶) است نه MOY
 const mobBands = SPRITES.map(([k, s]) => [k, shadowBands(s)]);
 M.M4 = { minBands: Math.min(heroBands, ...mobBands.map(([, b]) => b)), heroBands, mobs: mobBands };
 
