@@ -19,12 +19,16 @@ function dMummy(r, f) {
   g.rect(bx - 7, by - 12, 14, 26, MC.mummy);
   g.rect(bx - 7, by - 12, 14, 2, MC.mummyHi);
   for (const y of [by - 8, by - 2, by + 4, by + 10]) g.rect(bx - 7, y, 14, 1, MC.mummySh); // باند افقی
+  g.rect(bx - 7, by - 10, 14, 1, MC.mummyDeep); g.rect(bx - 7, by + 7, 14, 1, MC.mummyDeep); // S1.5b: درزهای عمیق
+  g.rect(bx - 6, by - 5, 5, 1, MC.mummyMid); g.rect(bx - 1, by + 1, 6, 1, MC.mummyMid); // باند میانی
+  g.rect(bx + 2, by - 4, 3, 2, MC.mummyStain); g.rect(bx - 5 + lean * 0.3, by - 14, 11, 1, MC.mummyMid); // لکه + باند سر
+  g.rect(bx - 6, by + 2, 4, 1, MC.mummyBand); g.rect(bx - 4 + lean * 0.3, by - 17, 9, 1, MC.mummyBand); // S1.5b: باند تیره‌ی سر/تنه
   g.rect(bx + 4, by - 12, 3, 26, MC.mummySh); // نوار سایه کنار
   // سر: کلاه‌خود باند با چشم درخشان
   g.rect(bx - 5 + lean * 0.3, by - 19, 11, 8, MC.mummy);
   g.rect(bx - 5 + lean * 0.3, by - 19, 11, 2, MC.mummyHi);
   g.rect(bx - 4 + lean * 0.3, by - 16, 3, 2, MC.dark); g.rect(bx + 1 + lean * 0.3, by - 16, 3, 2, MC.dark);
-  if (f.state !== 'die') { g.px(bx - 3 + lean * 0.3, by - 15, [255, 214, 92, 255]); g.px(bx + 2 + lean * 0.3, by - 15, [255, 214, 92, 255]); }
+  if (f.state !== 'die') { g.px(bx - 3 + lean * 0.3, by - 15, MC.mummyGlow); g.px(bx + 2 + lean * 0.3, by - 15, MC.mummyGlow); }
   // بازوهای باند‌پیچ (حمله: تاب رو به جلو)
   const ax = bx + 6, swing = f.state === 'attack' ? arm * 10 : 0;
   g.lineW(ax, by - 6, ax + 4 + swing, by + 2 - arm * 6, 3, MC.mummySh);
@@ -56,6 +60,8 @@ function dArcher(r, f) {
   // اسکلت (هم‌زبان dSkeleton): دنده + لگن + جمجمه
   g.rect(bx - 2, by + 8, 4, 4, a(MC.bone)); // لگن
   for (let i = 0; i < 3; i++) g.rect(bx - 4, by - 2 + i * 4, 8, 1, a(MC.bone)); // دنده
+  g.rect(bx - 3, by + 1, 6, 1, a(MC.archerMid)); g.rect(bx - 4, by - 4, 8, 1, a(MC.archerDeep)); // S1.5b: بافت تنه
+  g.rect(bx - 2, by + 11, 5, 1, a(MC.archerWorn)); g.px(bx + 3, by + 9, a(MC.archerDeep));
   g.lineW(bx, by + 9, bx + (f.state === 'move' ? sin(f.ph * PI * 2) * 3 : 0), MOY - 2, 1, a(MC.boneSh)); // پا
   g.rect(bx - 4, by - 10, 9, 8, a(MC.bone)); // جمجمه
   g.rect(bx - 4, by - 10, 9, 2, a(MC.boneHi));
@@ -65,6 +71,7 @@ function dArcher(r, f) {
   const hx = bx + 8 - recoil * 2; // دست کمان
   const bowX = hx + 3 + pull * -2;
   g.lineW(bowX, by - 12, bowX, by + 4, 1, a(MC.archerBow)); // قوس ساده
+  g.px(bowX, by - 6, a(MC.archerQuiver)); g.px(bowX, by + 1, a(MC.archerQuiver)); // S1.5b: چنگک قوس
   g.px(bowX - 1, by - 13, a(MC.archerBowHi)); g.px(bowX - 1, by + 5, a(MC.archerBowHi)); // نوک‌ها
   g.line(bowX, by - 12, bowX - pull * 5, by - 4, a(MC.boneOut)); g.line(bowX, by + 4, bowX - pull * 5, by - 4, a(MC.boneOut)); // زه
   if (pull > 0.1) g.lineW(bowX - pull * 5, by - 4, bowX + 4, by - 4, 1, a(MC.archerBowHi)); // تیر روی زه
@@ -96,9 +103,11 @@ function dRam(r, f) {
     }
   }
   g.ellipse(bx - 3, by - 6, 6, 4, MC.ramHi); // پشمالویی روشن بالا
+  g.rect(bx - 9, by - 2, 5, 1, MC.ramMid); g.rect(bx + 5, by + 3, 5, 1, MC.ramDeep); g.rect(bx - 1, by + 5, 4, 1, MC.ramMid); // S1.5b: بافت پشم
   // پاها
   const st = f.state === 'move' ? sin(f.ph * PI * 2) * 3 : 0;
   g.rect(bx - 6 + st, MOY - 4, 3, 4, MC.ramSh); g.rect(bx + 3 - st, MOY - 4, 3, 4, MC.ramSh);
+  g.rect(bx - 6 + st, MOY - 2, 3, 2, MC.ramHoof); g.rect(bx + 3 - st, MOY - 2, 3, 2, MC.ramHoof); // S1.5b: سم
   // سر پایین‌آمده + شاخ حلزونی
   const hx = bx + 10 + stretch * 5, hy = headY + 2;
   g.rect(hx - 3, hy - 4, 8, 8, MC.ramSh);
@@ -132,6 +141,9 @@ function dYeti(r, f) {
   g.ellipse(bx, by, 13, 15, a(MC.yeti));
   g.ellipse(bx - 3, by - 6, 7, 6, a(MC.white));        // پشتی روشن
   g.ellipse(bx, by + 8, 10, 5, a(MC.yetiSh));          // پایین تیره
+  g.ellipse(bx + 7, by + 1, 5, 4, a(MC.yetiSh2)); g.rect(bx - 4, by + 6, 4, 1, a(MC.yetiDeep)); g.px(bx - 1, by - 18, a(MC.yetiMid)); // S1.5b: بافت یخ
+  g.rect(bx - 9, by + 3, 5, 1, a(MC.yetiSh2)); g.rect(bx + 2, by - 6, 4, 1, a(MC.yetiDeep)); g.rect(bx - 2, by + 10, 5, 1, a(MC.yetiMid)); // لایه‌های یخی
+  g.rect(bx - 11, by + 7, 4, 1, a(MC.yetiDark)); g.rect(bx + 3, by + 12, 4, 1, a(MC.yetiIce)); // S1.5b: شکاف/یخ‌زده
   // سر کوچک بالا
   g.ellipse(bx + 2, by - 15, 7, 6, a(MC.yeti));
   g.ellipse(bx + 2, by - 17, 4, 3, a(MC.white));
@@ -142,10 +154,11 @@ function dYeti(r, f) {
   g.lineW(bx - 10, by + 2, bx - 14, ay, 4, a(MC.yeti));
   g.lineW(bx + 10, by + 2, bx + 14, ay, 4, a(MC.yeti));
   g.ellipse(bx - 14, ay, 4, 4, a(MC.yetiSh)); g.ellipse(bx + 14, ay, 4, 4, a(MC.yetiSh)); // مشت‌ها
+  g.px(bx - 16, ay - 2, a(MC.yetiClaw)); g.px(bx - 13, ay - 3, a(MC.yetiClaw)); g.px(bx + 13, ay - 3, a(MC.yetiClaw)); g.px(bx + 16, ay - 2, a(MC.yetiClaw)); // S1.5b: پنجه
   // پاها
   g.rect(bx - 7, MOY - 5, 5, 5, a(MC.yetiSh)); g.rect(bx + 2, MOY - 5, 5, 5, a(MC.yetiSh));
   // خشم: نفس سرد (ذرات یخ ثابت هنگام باداُپ)
-  if (rage > 0.5 && f.state === 'attack' && f.t < 0.5) { g.px(bx - 5, by - 20, [190, 230, 250, 180]); g.px(bx + 8, by - 22, [190, 230, 250, 140]); }
+  if (rage > 0.5 && f.state === 'attack' && f.t < 0.5) { g.px(bx - 5, by - 20, [242, 239, 228, 180]); g.px(bx + 8, by - 22, [242, 239, 228, 140]); } // S1.5b: ذرات از پالت
 }
 
 // ---------- آتش‌جان: روح شعله کوچک — تف‌کردن گلوله‌ی آتش ---------- 
@@ -168,11 +181,15 @@ function dImp(r, f) {
     const col = dy < -8 ? a(MC.impSh) : dy > 4 ? a(MC.imp) : a(MC.impHi);
     for (let dx = -w2; dx <= w2; dx++) if ((dx * 5 + dy * 3) % 7 !== 0) g.px(bx + dx, by + dy, col); // سوراخ‌های شعله
   }
+  g.rect(bx - 2, by + 5, 4, 1, a(MC.impMid)); g.px(bx - 1, by - 12, a(MC.impDeep)); g.px(bx + 2, by - 12, a(MC.impDeep)); // S1.5b: بافت شعله
+  g.rect(bx - 3, by + 2, 6, 1, a(MC.impDeep)); g.rect(bx - 6, by - 1, 2, 2, a(MC.impOut)); g.rect(bx + 5, by - 3, 2, 2, a(MC.impOut)); // لبه‌های تیره
+  g.rect(bx - 1, by + 3, 3, 1, a(MC.impGold)); // هسته‌ی زرین
+  g.rect(bx - 5, by - 8, 2, 1, a(MC.impHorn)); g.rect(bx + 4, by - 8, 2, 1, a(MC.impHorn)); // ابروی تیره
   // زبانه‌ی سر (موج آرام)
   const fl = sin(f.time * 3) * 2;
   g.px(bx, by - 16, a(MC.impSh)); g.px(bx - 1 + fl * 0.5, by - 18, a(MC.impHi)); g.px(bx + 1, by - 15, a(MC.imp));
   // چشم‌های شرور + دهان
-  g.rect(bx - 5, by - 6, 3, 2, a(MC.dark)); g.rect(bx + 2, by - 6, 3, 2, a(MC.dark));
+  g.rect(bx - 5, by - 6, 3, 2, a(MC.impEye)); g.rect(bx + 2, by - 6, 3, 2, a(MC.impEye)); // S1.5b: چشم قرمز
   if (scowl > 0.3) { g.px(bx - 4, by - 7, a(MC.dark)); g.px(bx + 3, by - 7, a(MC.dark)); }
   g.rect(bx - 2 + spit * 3, by - 1, 5, 2, a(MC.dark)); // دهان (هنگام تف جلو)
   // ذره‌ی آتش داخل (هسته)
@@ -203,19 +220,24 @@ function dBandit(r, f) {
   g.ellipse(bx + 1, by - 11, 6, 5, a(MC.bandit));
   g.rect(bx - 3, by - 12, 8, 3, a(MC.banditSh));
   // صورت زیر کلاه: فقط چشم‌ها
-  g.rect(bx + 1, by - 10, 2, 2, a(MC.white)); g.px(bx + 4, by - 10, a(MC.white));
+  g.rect(bx + 1, by - 10, 2, 2, a(MC.banditEdge)); g.px(bx + 4, by - 10, a(MC.banditBlade)); // چشم‌های براق
   // خنجر (حمله: ضربه به جلو)
   const kx = bx + 8 + stab * 8;
-  g.lineW(bx + 5, by + 2, kx, by - 1 + stab * 2, 1, a(MC.boneHi));
+  g.lineW(bx + 5, by + 2, kx, by - 1 + stab * 2, 1, a(MC.banditBlade));
+  g.rect(bx - 5, by + 1, 10, 1, a(MC.banditSash)); g.rect(bx - 1, by + 3, 2, 2, a(MC.banditBuckle)); // S1.5b: کمربند + سگک
+  g.rect(bx + 1, by - 9, 3, 1, a(MC.banditSkin)); // لکه‌ی صورت زیر کلاه
+  g.rect(bx - 8, by + 6, 4, 1, a(MC.banditDeep)); g.rect(bx + 5, by + 8, 4, 1, a(MC.banditDeep));
+  g.rect(bx - 6, by - 4, 4, 1, a(MC.banditMid)); g.rect(bx + 3, by - 2, 4, 1, a(MC.banditMid));
+  g.px(bx - 9, by + 9, a(MC.banditEdge)); g.px(bx - 8, by + 9, a(MC.banditEdge));
   g.px(kx + 1, by - 1 + stab * 2, a(MC.white));
   // کیسه‌ی دزدی (بعد از دزدیدن: برآمدگی طلایی) — bulge از فیلد a.f? از time نمی‌شود؛ از اینجا: کیسه همیشه، طلاییِ آن با نگاه دیده می‌شود
   g.ellipse(bx - 7, by + 4, 3, 3, a(MC.banditSh));
-  g.px(bx - 7, by + 3, a(MC.bossGold));
+  g.px(bx - 7, by + 3, a(MC.banditBuckle));
   // پاها
   const st = f.state === 'move' ? sin(f.ph * PI * 2) * 4 : 0;
   g.rect(bx - 4 + st, MOY - 4, 3, 4, a(MC.banditSh)); g.rect(bx + 2 - st, MOY - 4, 3, 4, a(MC.banditSh));
   if (dead > 0.4) { // سکه‌های ریخته
-    g.px(bx - 9, MOY - 2, a(MC.bossGold)); g.px(bx + 7, MOY - 3, a(MC.bossGold));
+    g.px(bx - 9, MOY - 2, a(MC.banditBuckle)); g.px(bx + 7, MOY - 3, a(MC.banditBuckle));
   }
 }
 
@@ -239,12 +261,15 @@ function dHare(r, f) {
   g.ellipse(cx, cy, w / 2, h / 2, MC.hare);
   g.ellipse(cx - w * 0.15, cy - h * 0.2, w * 0.28, h * 0.26, MC.hareHi);
   g.ellipse(cx + w * 0.2, cy + h * 0.15, w * 0.24, h * 0.2, MC.hareSh);
+  g.ellipse(cx - w * 0.05, cy + h * 0.3, w * 0.18, h * 0.1, MC.hareMid); // S1.5b: بافت خز
+  g.rect(cx - 5, cy + 2, 3, 1, MC.hareDeep); g.rect(cx + 2, cy + 1, 3, 1, MC.hareDeep);
+  g.rect(cx - 6, MOY - 4, 3, 2, MC.hareFoot); g.rect(cx + 3, MOY - 4, 3, 2, MC.hareFoot); // پنجه‌ها
   // سر جلو
   const hx = cx + w * 0.38, hy = cy - h * 0.25;
   g.ellipse(hx, hy, 6, 5.5, MC.hare);
   g.ellipse(hx + 1, hy - 2, 3, 2.5, MC.hareHi);
   g.px(hx + 4, hy - 1, MC.dark); // چشم
-  g.px(hx + 6, hy + 1, MC.hareIn); // بینی
+  g.rect(hx - 2, hy + 3, 4, 1, MC.hareMid); g.px(hx + 6, hy + 1, MC.hareNose); // S1.5b: بینی + چانه
   // گوش‌های بلند (عقب‌خم هنگام جهش)
   for (const ex of [hx - 3, hx + 1]) {
     g.lineW(ex, hy - 4, ex - 2 + earT * 0.4, hy - 20 + earT, 2, MC.hare);

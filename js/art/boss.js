@@ -2,6 +2,7 @@
 import { Raster } from '../raster.js';
 import { MC } from './monster_parts.js';
 import { ease } from '../skeleton.js';
+import { rp } from './ramps.js'; // S1.5b: سایه از رمپ جوهری
 
 const BSPR = 128;
 const OX = 64, OY = 112; // باس بزرگ است: مبدأ پایین‌تر تا داخل بوم جا شود
@@ -71,6 +72,9 @@ export function drawBossFrame(o) {
   g.rect(sx - 8, ty + 6, 16, 22, B.sh);                       // صفحه‌ی سینه
   g.rect(sx - 7, ty + 7, 14, 3, B.hi);
   for (let i = 0; i < 4; i++) g.px(sx - 20 + i * 13, ty + 16, B.out); // پرچ‌های زره
+  g.rect(sx - 24, ty + 14, 48, 2, MC.bossMid); g.rect(sx - 22, ty + 30, 8, 2, MC.bossDeep); g.rect(sx + 8, ty + 22, 10, 2, MC.bossDeep); // S1.5b: صفحه‌های سنگی
+  g.rect(sx - 16, ty + 22, 6, 1, MC.bossCrack); g.rect(sx + 6, ty + 12, 5, 1, MC.bossCrack);
+  g.rect(sx - 18, ty + 6, 3, 2, MC.ember); g.rect(sx + 15, ty + 6, 3, 2, MC.ember); g.rect(sx - 2, ty + 26, 6, 1, MC.bossRed); // S1.5b: دریچه‌های گدازه‌ی همیشه‌روشن
   if (phase >= 2) { // فاز ۲: ترک‌های گداخته
     g.line(sx - 18, ty + 8, sx - 12, ty + 24, B.red); g.line(sx + 14, ty + 6, sx + 10, ty + 26, B.red);
     if (phase === 3) { // فاز ۳: خشم — ترک مرکزی + برق‌های گداخته
@@ -123,7 +127,10 @@ export function drawBossFrame(o) {
   r.outline(B.out);
   if (o.hit) for (let y = 0; y < BSPR; y++) for (let x = 0; x < BSPR; x++) { const c = r.get(x, y); if (c && c[3] > 120) r.px(x, y, MC.white); }
   const out = new Raster(BSPR, BSPR);
-  out.ellipse(OX, OY + 2, 20, 6, [8, 6, 14, 70]);
+  // S1.5b: سایه‌ی ۵ لایه (هم‌سبک موب‌ها) — ۵ باند آلفا برای M4
+  const inkC = rp('ink', 0); const shC = (a) => [inkC[0], inkC[1], inkC[2], a];
+  out.ellipse(OX, OY + 4, 26, 9, shC(24)); out.ellipse(OX, OY + 3, 24, 8, shC(44)); out.ellipse(OX, OY + 3, 22, 7, shC(74));
+  out.ellipse(OX, OY + 2, 20, 6, shC(118)); out.ellipse(OX, OY + 1, 18, 5, shC(168));
   r.over(out);
   return out;
 }

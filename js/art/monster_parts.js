@@ -44,6 +44,16 @@ const MC_RAMP = {
   spider: ['clothPurple', 1], spiderHi: ['clothPurple', 2], spiderMid: ['clothPurple', 3], spiderDeep: ['ink', 1], spiderEdge: ['ink', 3], spiderSh: ['ink', 2], spiderOut: ['ink', 0],
   ghost: ['__w', 0], ghostHi: ['__w', 0], ghostSh: ['magicCyan', 5], ghostMid: ['magicCyan', 6], ghostDe2: ['magicCyan', 4], ghostDeep: ['magicCyan', 3], ghostVeil: ['__w', 0],
   eyeRed: ['clothRed', 6], fang: ['__w', 0], white: ['__w', 0], gold: ['gold', 6],
+  // ---------- S1.5b: ۷ موب جدید + باس ← رمپ (همان قواعد S1.5a) ----------
+  mummy: ['__w', 0], mummyHi: ['sand', 6], mummyMid: ['sand', 5], mummySh: ['sand', 4], mummyDeep: ['bone', 3], mummyStain: ['soil', 4], mummyGlow: ['fire', 6], mummyBand: ['sand', 3], mummyOut: ['ink', 1],
+  archerMid: ['sand', 6], archerDeep: ['sand', 4], archerWorn: ['bone', 3], archerBow: ['soil', 4], archerBowHi: ['soil', 6], archerQuiver: ['soil', 3], archerFeather: ['clothRed', 5],
+  ram: ['metal', 6], ramHi: ['__w', 0], ramMid: ['metal', 5], ramSh: ['metal', 4], ramDeep: ['metal', 3], ramHorn: ['gold', 6], ramHornSh: ['gold', 4], ramHoof: ['metal', 2], ramOut: ['ink', 1],
+  yeti: ['__w', 0], yetiMid: ['stoneCool', 6], yetiSh: ['stoneCool', 5], yetiSh2: ['stoneCool', 4], yetiDeep: ['stoneCool', 3], yetiSkin: ['clothRed', 5], yetiClaw: ['bone', 3], yetiOut: ['magicCyan', 1], yetiDark: ['stoneCool', 2], yetiIce: ['magicCyan', 6],
+  imp: ['fire', 6], impHi: ['__w', 0], impMid: ['fire', 5], impSh: ['fire', 4], impDeep: ['fire', 3], impHorn: ['ink', 3], impOut: ['ink', 1], impEye: ['clothRed', 5], impGold: ['gold', 6],
+  bandit: ['clothPurple', 1], banditHi: ['clothPurple', 2], banditMid: ['clothPurple', 3], banditSh: ['ink', 1], banditDeep: ['ink', 0], banditEdge: ['ink', 3], banditOut: ['ink', 0],
+  banditSkin: ['sand', 5], banditBuckle: ['gold', 6], banditBlade: ['metal', 6], banditSash: ['clothRed', 5],
+  hare: ['bone', 6], hareHi: ['__w', 0], hareMid: ['bone', 5], hareSh: ['bone', 4], hareDeep: ['bone', 3], hareIn: ['clothRed', 6], hareNose: ['clothRed', 4], hareFoot: ['sand', 6], hareOut: ['ink', 1],
+  boss: ['stoneCool', 6], bossHi: ['__w', 0], bossMid: ['stoneCool', 5], bossSh: ['stoneCool', 4], bossDeep: ['stoneCool', 3], bossCrack: ['stoneCool', 2], bossRed: ['clothRed', 6], bossRedHi: ['clothRed', 5], bossGold: ['gold', 6], bossOut: ['ink', 1],
 };
 for (const k in MC_RAMP) { const m = MC_RAMP[k]; MC[k] = m[0] === '__w' ? PM_W.slice() : rp(m[0], m[1]).slice(); }
 // نیمه‌شفافیت عمدی روح (شفاف‌بودنش بخشی از هویت است — n48)
