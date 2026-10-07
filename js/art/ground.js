@@ -1,10 +1,11 @@
 // art/ground.js — تایل‌های زمین مزرعه: چمن/خاک/آب/پرچین/حصار/دروازه/بوته
 import { TILE, E, sprite, h2 } from './palette_env.js';
 import { rp } from './ramps.js';
+import { hash2 } from './noise.js'; // S2.4: خوشه‌های چمنِ قطعی
 // ---------- تایل‌های زمین ----------
 // کش عددی — حلقه‌ی رندر ~۶۰۰ بار/فریم صدا می‌زند؛ کلید رشته‌ای = زبال‌ساز پنهان
 export const KIND_ID = { grass: 0, soil: 1, path: 2, hedge: 3, water: 4, fence: 5, dfloor: 6, wall: 7, stairs: 8, gateL: 9, gateR: 10, pillar: 11, decor: 12, bush: 13, fencePost: 14 };
-const _gnum = new Array(15 * 32 * 4).fill(null); // ۴ تم دانجن (ن۳۲)
+const _gnum = new Array(15 * 64 * 4).fill(null); // S2.4: ۸ واریانت → ۶۴ اسلات به‌ازای هر کیند؛ ۴ تم دانجن (ن۳۲)
 
 // تم رنگی دانجن (ن۳۲ → S1.4): هر تم یک رمپ سنگ + رمپِ هویتِ خزه/گدازه/یخ
 // قانون کنتراست S1.4 (اندازه‌گیری‌شده): L کف ≈ ۵۲/۶۵ · نمای دیوار (brick) = ۳۸ → ΔL ۲۰ ✓ · کلاهک (stone) = ۷۸ → ΔL ۲۰ ✓
@@ -25,21 +26,28 @@ const DTHEME = STONE_THEMES.map((X, t) => {
 export const DPAL = (t) => DTHEME[t] || DP0;
 
 export function groundSprite(kind, variant = 0, wet = false, waterFrame = 0, theme = 0) {
-  const nk = theme * 480 + KIND_ID[kind] * 32 + (variant & 3) * 8 + (wet ? 4 : 0) + (waterFrame & 3);
+  const nk = theme * 960 + KIND_ID[kind] * 64 + (variant & 7) * 8 + (wet ? 4 : 0) + (waterFrame & 3); // S2.4: ۸ واریانت
   let cached = _gnum[nk];
   if (cached) return cached;
   const P = DPAL(theme); // پالت سنگ دانجن — تم ۰ همان E است
   const key = `g|${kind}|${variant}|${wet ? 1 : 0}|${waterFrame}|${theme}`;
   return _gnum[nk] = sprite(key, (r) => {
-    if (kind === 'grass') {
-      r.rect(0, 0, 16, 16, E.grass);
-      for (let i = 0; i < 7; i++) {
-        const px = Math.floor(h2(variant * 31 + i, i * 17) * 16), py = Math.floor(h2(i * 13, variant * 7 + i) * 16);
-        r.px(px, py, i % 3 === 0 ? E.grassSh : E.grass);
-        if (i % 2 === 0) r.px(px, py - 1, E.grassBlade);
+    if (kind === 'grass') { // S2.4: ۸ واریانت — تُن پایه + تافت‌های ۲–۳px (L/خطی). بدون گل (گل = دکال S2.9)
+      const base = rp('grass', 4), side = (variant & 1) ? rp('grass', 5) : rp('grass', 3); // هر تایل فقط یک سمتِ ±۱ پله (ΔL درون‌تایل ≈ ۱۳ ✓)
+      r.rect(0, 0, 16, 16, base);
+      for (let sl = 0; sl < 6; sl++) { // ۶ اسلات (۲×۳) → خوشه‌های ۲–۳px بدون تلنبار
+        const hh = (k) => hash2(variant * 31 + sl, k * 7 + 3, 7);
+        if (hh(0) < 0.14) continue; // تایلِ تُنُک‌تر
+        const px = 1 + (sl % 3) * 5 + ((hh(1) * 3) | 0), py = 1 + ((sl / 3) | 0) * 8 + ((hh(2) * 4) | 0);
+        const len = 2 + ((hh(3) * 2) | 0); // ۲ یا ۳
+        if (hh(4) < 0.5) { // خطیِ افقی
+          r.rect(px, py, len, 1, side);
+          if (hh(5) < 0.55) r.px(px + (hh(6) < 0.5 ? 0 : len - 1), py + 1, side); // خمِ L
+        } else {           // خطیِ عمودی
+          r.rect(px, py, 1, len, side);
+          if (hh(5) < 0.55) r.px(px + 1, py + (hh(6) < 0.5 ? 0 : len - 1), side);
+        }
       }
-      if (variant === 2) { r.rect(4, 5, 2, 2, E.flowerW); r.px(5, 6, E.flowerY); }
-      if (variant === 3) { r.rect(10, 10, 2, 2, E.flowerY); r.px(11, 11, E.flowerW); }
     } else if (kind === 'soil') {
       const base = wet ? E.soilWet : E.soil, hi = wet ? E.soilWetHi : E.soilHi, sh = wet ? E.soilWetSh : E.soilSh;
       r.rect(0, 0, 16, 16, base);

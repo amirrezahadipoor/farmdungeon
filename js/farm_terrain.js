@@ -5,24 +5,50 @@
 import { Raster } from './raster.js';
 import { groundSprite, E, TILE, COLS, ROWS, WORLD_W, WORLD_H } from './tiles.js';
 import { drawPathEdge } from './art/farm_decor.js';
+import { fbm, hash2, vnoise } from './art/noise.js';
+import { bayer4 } from './art/dither.js';
+import { rp } from './art/ramps.js';
 
 let cache = null;      // Raster کل دنیا (۴۸۰×۳۲۰)
 let bound = null;      // فارمِ متصل به کش (هر Game کش خودش را دارد)
 const dirty = new Set();
 const changed = new Set(); // بازاستفاده در هر فریم (بدون تخصیص در مسیر داغ)
 const W = WORLD_W; // عرضِ کش به پیکسل
+const MACRO_F = 0.025;   // ≈ ۱/۴۰px — فرکانسِ نویزِ ماکرو (لکه‌های روشن/تیره)
+const GRASS_TINT = new Map(); // رنگِ پله‌ی چمن → اندیسِ پله (برای جابه‌جاییِ ماکرو)
+for (let i = 0; i < 7; i++) { const c = rp('grass', i); GRASS_TINT.set((c[0] << 16) | (c[1] << 8) | c[2], i); }
 const KIND = { grass: 1, path: 2, tree: 3, soil: 4, water: 5, hedge: 6, gate: 7, sign: 8, house: 9, scarecrow: 10, fence: 11 };
 let sigs = null;       // امضای استاتیک هر سلول (تورِ اطمینان: هر جهشِ بی‌هوک را هم می‌گیرد)
 export const OPAQUE = new Uint8Array(COLS * ROWS); // آیا همه‌ی پیکسل‌های تایلِ کش مات‌اند؟ (⇒ blit فوق‌سریع)
 
+// بافتِ ماکرو (S2.4): جهت و چگالیِ «تافت»های چمن از fbmِ جهانی (≈۱/۴۰px).
+// چگالی در مرزِ لکه‌ها → صفر، پس هیچ بلوک/شطرنجِ تایلی دیده نمی‌شود و تایل همیشه فقط ۲ تُنِ **مجاور** دارد (ΔL≈۱۴).
+function tuftBake(r, sx, sy, tx, ty) {
+  const m = fbm((tx * TILE + 8) * MACRO_F, (ty * TILE + 8) * MACRO_F, 51, 2) - 0.5; // −۰٫۵..۰٫۵
+  const p = 0.14 + Math.min(0.58, Math.abs(m) * 1.7); // احتمالِ نگه‌داشتنِ تافت: کفِ ۰٫۱۴ (تا تایلِ تختِ یکسانِ همسایه پیش نیاید ⇒ M7)
+  const upC = rp('grass', 5), dnC = rp('grass', 3), baseC = rp('grass', 4);
+  const d = r.d;
+  for (let y = 0; y < TILE; y++) {
+    const gy = ty * TILE + y;
+    let i = ((sy + y) * r.w + sx) * 4;
+    for (let x = 0; x < TILE; x++, i += 4) {
+      const idx = GRASS_TINT.get((d[i] << 16) | (d[i + 1] << 8) | d[i + 2]);
+      if (idx !== 3 && idx !== 5) continue;        // فقط پیکسل‌های تافتِ اسپرایت
+      const gx = tx * TILE + x;
+      const keep = (vnoise(gx * 0.3, gy * 0.3, 62) * 0.6 + bayer4(gx, gy) * 0.4) < p; // خوشه‌های ۲–۳px + مرزِ dither
+      const nc = keep ? (m > 0 ? upC : dnC) : baseC;
+      d[i] = nc[0]; d[i + 1] = nc[1]; d[i + 2] = nc[2];
+    }
+  }
+}
 // ترتیب رسمِ قدیمیِ یک تایل استاتیک — عیناً از farm_render منتقل شد
 function bakeTile(f, tx, ty, r, wf = 0) {
   const c = f.cell(tx, ty); if (!c) return;
   const sx = tx * TILE, sy = ty * TILE;
   let base;
-  if (c.kind === 'grass') base = groundSprite('grass', c.variant);
+  if (c.kind === 'grass') base = groundSprite('grass', (hash2(tx, ty, 31) * 8) | 0); // S2.4: واریانت از hashِ مختصات
   else if (c.kind === 'path') base = groundSprite('path', c.variant & 1);
-  else if (c.kind === 'tree') base = groundSprite('grass', 0);
+  else if (c.kind === 'tree') base = groundSprite('grass', (hash2(tx, ty, 32) * 8) | 0);
   else if (c.kind === 'soil') base = groundSprite('soil', 0, c.wet);
   else if (c.kind === 'water') base = groundSprite('water', (tx * 5 + ty * 3) & 3, false, wf);
   else if (c.kind === 'hedge') base = groundSprite('hedge');
@@ -32,6 +58,8 @@ function bakeTile(f, tx, ty, r, wf = 0) {
   else if (c.kind === 'scarecrow') base = groundSprite('grass', 0);
   else { groundSprite('grass', (tx * 5 + ty * 3) & 3).over(r, sx, sy); base = groundSprite(c.fenceH ? 'fence' : 'fencePost'); }
   base.over(r, sx, sy);
+  // S2.4: تُنِ ماکرو روی زمینِ چمنی (سازه‌ها هم چون پایه‌شان چمن است یکدست می‌مانند)
+  if (c.kind === 'grass' || c.kind === 'tree' || c.kind === 'sign' || c.kind === 'house' || c.kind === 'scarecrow') tuftBake(r, sx, sy, tx, ty);
   if (c.kind === 'path') drawPathEdge(r, sx, sy, tx, ty, f);
   if (c.kind === 'water') bakeWater(r, f, tx, ty, sx, sy, wf);
   // بوته‌ی مرز روی زمین قفل‌شده (تایل زیرین آزاد است)

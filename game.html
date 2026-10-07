@@ -970,14 +970,91 @@ function sprite(key, fn) {
 return {TILE, COLS, ROWS, WORLD_W, WORLD_H, E, h2, sprite};
 })();
 const {TILE, COLS, ROWS, WORLD_W, WORLD_H, E, h2, sprite} = __m_art_palette_env;
+const __m_art_noise = (() => {
+// art/noise.js — نویزِ قطعی برای بافتِ تایل (S2.3): hash2 · vnoise · fbm · tileNoise (قابل‌دوخت)
+// قاعده: صفر تصادفیِ زمانِ‌اجرا — همه‌چیز فقط از مختصات جهانی + seed مشتق می‌شود
+// (درس ۷: خروجی باید بین پروسه‌ها/فریم‌ها یکسان باشد وگرنه تست و کش می‌لرزد).
+// مقیاس: x/y بر حسب **پیکسل صحنه**؛ شبکه‌ی نویز ۱ پیکسل است (period = اندازه‌ی تایل).
+function hash2(x, y, seed = 0) { // [0,1) — هشِ صحیحِ ۳۲بیتی (یکنواخت، بدون هم‌بستگی مکانی)
+  let h = (Math.imul(x | 0, 374761393) + Math.imul(y | 0, 668265263) + Math.imul(seed | 0, 1442695041)) | 0;
+  h = Math.imul(h ^ (h >>> 13), 1274126177);
+  return ((h ^ (h >>> 16)) >>> 0) / 4294967296;
+}
+const smooth = (t) => t * t * (3 - 2 * t); // smoothstep — نویز بدون شکستگی در گره‌ها
+const mix = (a, b, t) => a + (b - a) * t;
+const wrap = (v, p) => ((v % p) + p) % p;  // حلقوی (برای ورودی منفی هم درست)
+function vnoise(x, y, seed = 0) { // value-noise هموار، [0,1)
+  const xi = Math.floor(x), yi = Math.floor(y);
+  const u = smooth(x - xi), v = smooth(y - yi);
+  const a = hash2(xi, yi, seed), b = hash2(xi + 1, yi, seed);
+  const c = hash2(xi, yi + 1, seed), d = hash2(xi + 1, yi + 1, seed);
+  return mix(mix(a, b, u), mix(c, d, u), v);
+}
+function fbm(x, y, seed = 0, oct = 2) { // چنداکتاوی نرمال‌شده، [0,1)
+  let s = 0, amp = 1, f = 1, norm = 0;
+  for (let i = 0; i < oct; i++) {
+    s += amp * vnoise(x * f, y * f, (seed + i * 1013) | 0);
+    norm += amp; amp *= 0.5; f *= 2;
+  }
+  return s / norm;
+}
+function tileNoise(x, y, period, seed = 0) { // **قابل‌دوخت**: شبکه modulo period ⇒ تایلِ ۱۶×۱۶ بی‌درز
+  const xi = Math.floor(x), yi = Math.floor(y);
+  const u = smooth(x - xi), v = smooth(y - yi);
+  const x0 = wrap(xi, period), y0 = wrap(yi, period);
+  const x1 = wrap(xi + 1, period), y1 = wrap(yi + 1, period);
+  const a = hash2(x0, y0, seed), b = hash2(x1, y0, seed);
+  const c = hash2(x0, y1, seed), d = hash2(x1, y1, seed);
+  return mix(mix(a, b, u), mix(c, d, u), v); // پیوسته روی درز: n(x+period) ≡ n(x) دقیقاً
+}
+function tileFbm(x, y, period, seed = 0, oct = 2) { // همان، چنداکتاوی (هر اکتاو period خودش)
+  let s = 0, amp = 1, f = 1, norm = 0;
+  for (let i = 0; i < oct; i++) {
+    s += amp * tileNoise(x * f, y * f, period * f, (seed + i * 1013) | 0);
+    norm += amp; amp *= 0.5; f *= 2;
+  }
+  return s / norm;
+}
+
+return {hash2, vnoise, fbm, tileNoise, tileFbm};
+})();
+const {hash2, vnoise, fbm, tileNoise, tileFbm} = __m_art_noise;
+const __m_art_dither = (() => {
+// art/dither.js — کوانتیزه‌ی ترتیبی (S2.3): ماتریس‌های Bayer 2/4/8 + ditherStep
+// مختصات **جهانی** (پیکسل صحنه) نه محلیِ تایل ⇒ الگو بین تایل‌های مجاور پیوسته می‌ماند (درس ۴۰).
+// آستانه‌ها در بازه‌ی (۰،۱) هستند (مرکز خانه‌ها: (i+۰٫۵)/N²) تا نه ۰ نه ۱ تولید شود.
+const _B2 = new Uint8Array([0, 2, 3, 1]); // ۲×۲ استاندارد
+function expand(Bn, n) {                  // ساخت بازگشتی: B_2n = ۴·B_n + الگوی B2 در هر ربع
+  const m = n * 2, out = new Uint8Array(m * m);
+  for (let y = 0; y < m; y++) for (let x = 0; x < m; x++)
+    out[y * m + x] = 4 * Bn[(y % n) * n + (x % n)] + _B2[((y / n) | 0) * 2 + ((x / n) | 0)];
+  return out;
+}
+const BAYER2 = _B2;
+const BAYER4 = expand(_B2, 2);
+const BAYER8 = expand(BAYER4, 4);
+function bayer2(x, y) { return (BAYER2[((y & 1) * 2) + (x & 1)] + 0.5) / 4; }
+function bayer4(x, y) { return (BAYER4[((y & 3) * 4) + (x & 3)] + 0.5) / 16; }
+function bayer8(x, y) { return (BAYER8[((y & 7) * 8) + (x & 7)] + 0.5) / 64; }
+// کوانتیزه‌ی ترتیبی: v∈[0,1] → **اندیسِ پله** ۰..levels-1 (مثلاً پله‌ی رمپ: ±۱ پله با مرزِ dither)
+function ditherStep(v, levels, x, y) {
+  const s = Math.min(1, Math.max(0, v)) * (levels - 1);
+  const f = Math.floor(s);
+  return Math.min(levels - 1, f + (s - f > bayer4(x, y) ? 1 : 0));
+}
+
+return {BAYER2, BAYER4, BAYER8, bayer2, bayer4, bayer8, ditherStep};
+})();
+const {BAYER2, BAYER4, BAYER8, bayer2, bayer4, bayer8, ditherStep} = __m_art_dither;
 const __m_art_ground = (() => {
 // art/ground.js — تایل‌های زمین مزرعه: چمن/خاک/آب/پرچین/حصار/دروازه/بوته
+
 
 
 // ---------- تایل‌های زمین ----------
 // کش عددی — حلقه‌ی رندر ~۶۰۰ بار/فریم صدا می‌زند؛ کلید رشته‌ای = زبال‌ساز پنهان
 const KIND_ID = { grass: 0, soil: 1, path: 2, hedge: 3, water: 4, fence: 5, dfloor: 6, wall: 7, stairs: 8, gateL: 9, gateR: 10, pillar: 11, decor: 12, bush: 13, fencePost: 14 };
-const _gnum = new Array(15 * 32 * 4).fill(null); // ۴ تم دانجن (ن۳۲)
+const _gnum = new Array(15 * 64 * 4).fill(null); // S2.4: ۸ واریانت → ۶۴ اسلات به‌ازای هر کیند؛ ۴ تم دانجن (ن۳۲)
 
 // تم رنگی دانجن (ن۳۲ → S1.4): هر تم یک رمپ سنگ + رمپِ هویتِ خزه/گدازه/یخ
 // قانون کنتراست S1.4 (اندازه‌گیری‌شده): L کف ≈ ۵۲/۶۵ · نمای دیوار (brick) = ۳۸ → ΔL ۲۰ ✓ · کلاهک (stone) = ۷۸ → ΔL ۲۰ ✓
@@ -998,21 +1075,28 @@ const DTHEME = STONE_THEMES.map((X, t) => {
 const DPAL = (t) => DTHEME[t] || DP0;
 
 function groundSprite(kind, variant = 0, wet = false, waterFrame = 0, theme = 0) {
-  const nk = theme * 480 + KIND_ID[kind] * 32 + (variant & 3) * 8 + (wet ? 4 : 0) + (waterFrame & 3);
+  const nk = theme * 960 + KIND_ID[kind] * 64 + (variant & 7) * 8 + (wet ? 4 : 0) + (waterFrame & 3); // S2.4: ۸ واریانت
   let cached = _gnum[nk];
   if (cached) return cached;
   const P = DPAL(theme); // پالت سنگ دانجن — تم ۰ همان E است
   const key = `g|${kind}|${variant}|${wet ? 1 : 0}|${waterFrame}|${theme}`;
   return _gnum[nk] = sprite(key, (r) => {
-    if (kind === 'grass') {
-      r.rect(0, 0, 16, 16, E.grass);
-      for (let i = 0; i < 7; i++) {
-        const px = Math.floor(h2(variant * 31 + i, i * 17) * 16), py = Math.floor(h2(i * 13, variant * 7 + i) * 16);
-        r.px(px, py, i % 3 === 0 ? E.grassSh : E.grass);
-        if (i % 2 === 0) r.px(px, py - 1, E.grassBlade);
+    if (kind === 'grass') { // S2.4: ۸ واریانت — تُن پایه + تافت‌های ۲–۳px (L/خطی). بدون گل (گل = دکال S2.9)
+      const base = rp('grass', 4), side = (variant & 1) ? rp('grass', 5) : rp('grass', 3); // هر تایل فقط یک سمتِ ±۱ پله (ΔL درون‌تایل ≈ ۱۳ ✓)
+      r.rect(0, 0, 16, 16, base);
+      for (let sl = 0; sl < 6; sl++) { // ۶ اسلات (۲×۳) → خوشه‌های ۲–۳px بدون تلنبار
+        const hh = (k) => hash2(variant * 31 + sl, k * 7 + 3, 7);
+        if (hh(0) < 0.14) continue; // تایلِ تُنُک‌تر
+        const px = 1 + (sl % 3) * 5 + ((hh(1) * 3) | 0), py = 1 + ((sl / 3) | 0) * 8 + ((hh(2) * 4) | 0);
+        const len = 2 + ((hh(3) * 2) | 0); // ۲ یا ۳
+        if (hh(4) < 0.5) { // خطیِ افقی
+          r.rect(px, py, len, 1, side);
+          if (hh(5) < 0.55) r.px(px + (hh(6) < 0.5 ? 0 : len - 1), py + 1, side); // خمِ L
+        } else {           // خطیِ عمودی
+          r.rect(px, py, 1, len, side);
+          if (hh(5) < 0.55) r.px(px + 1, py + (hh(6) < 0.5 ? 0 : len - 1), side);
+        }
       }
-      if (variant === 2) { r.rect(4, 5, 2, 2, E.flowerW); r.px(5, 6, E.flowerY); }
-      if (variant === 3) { r.rect(10, 10, 2, 2, E.flowerY); r.px(11, 11, E.flowerW); }
     } else if (kind === 'soil') {
       const base = wet ? E.soilWet : E.soil, hi = wet ? E.soilWetHi : E.soilHi, sh = wet ? E.soilWetSh : E.soilSh;
       r.rect(0, 0, 16, 16, base);
@@ -1313,82 +1397,6 @@ const autoCacheSize = () => _cache.size;
 return {BLOB47, IDX_MASK, BLOB_MIRROR, autoCacheSize, mask4, mask8, mirror8, canon8, blob47, setAutoBuilder, autoSprite};
 })();
 const {BLOB47, IDX_MASK, BLOB_MIRROR, autoCacheSize, mask4, mask8, mirror8, canon8, blob47, setAutoBuilder, autoSprite} = __m_art_autotile;
-const __m_art_noise = (() => {
-// art/noise.js — نویزِ قطعی برای بافتِ تایل (S2.3): hash2 · vnoise · fbm · tileNoise (قابل‌دوخت)
-// قاعده: صفر تصادفیِ زمانِ‌اجرا — همه‌چیز فقط از مختصات جهانی + seed مشتق می‌شود
-// (درس ۷: خروجی باید بین پروسه‌ها/فریم‌ها یکسان باشد وگرنه تست و کش می‌لرزد).
-// مقیاس: x/y بر حسب **پیکسل صحنه**؛ شبکه‌ی نویز ۱ پیکسل است (period = اندازه‌ی تایل).
-function hash2(x, y, seed = 0) { // [0,1) — هشِ صحیحِ ۳۲بیتی (یکنواخت، بدون هم‌بستگی مکانی)
-  let h = (Math.imul(x | 0, 374761393) + Math.imul(y | 0, 668265263) + Math.imul(seed | 0, 1442695041)) | 0;
-  h = Math.imul(h ^ (h >>> 13), 1274126177);
-  return ((h ^ (h >>> 16)) >>> 0) / 4294967296;
-}
-const smooth = (t) => t * t * (3 - 2 * t); // smoothstep — نویز بدون شکستگی در گره‌ها
-const mix = (a, b, t) => a + (b - a) * t;
-const wrap = (v, p) => ((v % p) + p) % p;  // حلقوی (برای ورودی منفی هم درست)
-function vnoise(x, y, seed = 0) { // value-noise هموار، [0,1)
-  const xi = Math.floor(x), yi = Math.floor(y);
-  const u = smooth(x - xi), v = smooth(y - yi);
-  const a = hash2(xi, yi, seed), b = hash2(xi + 1, yi, seed);
-  const c = hash2(xi, yi + 1, seed), d = hash2(xi + 1, yi + 1, seed);
-  return mix(mix(a, b, u), mix(c, d, u), v);
-}
-function fbm(x, y, seed = 0, oct = 2) { // چنداکتاوی نرمال‌شده، [0,1)
-  let s = 0, amp = 1, f = 1, norm = 0;
-  for (let i = 0; i < oct; i++) {
-    s += amp * vnoise(x * f, y * f, (seed + i * 1013) | 0);
-    norm += amp; amp *= 0.5; f *= 2;
-  }
-  return s / norm;
-}
-function tileNoise(x, y, period, seed = 0) { // **قابل‌دوخت**: شبکه modulo period ⇒ تایلِ ۱۶×۱۶ بی‌درز
-  const xi = Math.floor(x), yi = Math.floor(y);
-  const u = smooth(x - xi), v = smooth(y - yi);
-  const x0 = wrap(xi, period), y0 = wrap(yi, period);
-  const x1 = wrap(xi + 1, period), y1 = wrap(yi + 1, period);
-  const a = hash2(x0, y0, seed), b = hash2(x1, y0, seed);
-  const c = hash2(x0, y1, seed), d = hash2(x1, y1, seed);
-  return mix(mix(a, b, u), mix(c, d, u), v); // پیوسته روی درز: n(x+period) ≡ n(x) دقیقاً
-}
-function tileFbm(x, y, period, seed = 0, oct = 2) { // همان، چنداکتاوی (هر اکتاو period خودش)
-  let s = 0, amp = 1, f = 1, norm = 0;
-  for (let i = 0; i < oct; i++) {
-    s += amp * tileNoise(x * f, y * f, period * f, (seed + i * 1013) | 0);
-    norm += amp; amp *= 0.5; f *= 2;
-  }
-  return s / norm;
-}
-
-return {hash2, vnoise, fbm, tileNoise, tileFbm};
-})();
-const {hash2, vnoise, fbm, tileNoise, tileFbm} = __m_art_noise;
-const __m_art_dither = (() => {
-// art/dither.js — کوانتیزه‌ی ترتیبی (S2.3): ماتریس‌های Bayer 2/4/8 + ditherStep
-// مختصات **جهانی** (پیکسل صحنه) نه محلیِ تایل ⇒ الگو بین تایل‌های مجاور پیوسته می‌ماند (درس ۴۰).
-// آستانه‌ها در بازه‌ی (۰،۱) هستند (مرکز خانه‌ها: (i+۰٫۵)/N²) تا نه ۰ نه ۱ تولید شود.
-const _B2 = new Uint8Array([0, 2, 3, 1]); // ۲×۲ استاندارد
-function expand(Bn, n) {                  // ساخت بازگشتی: B_2n = ۴·B_n + الگوی B2 در هر ربع
-  const m = n * 2, out = new Uint8Array(m * m);
-  for (let y = 0; y < m; y++) for (let x = 0; x < m; x++)
-    out[y * m + x] = 4 * Bn[(y % n) * n + (x % n)] + _B2[((y / n) | 0) * 2 + ((x / n) | 0)];
-  return out;
-}
-const BAYER2 = _B2;
-const BAYER4 = expand(_B2, 2);
-const BAYER8 = expand(BAYER4, 4);
-function bayer2(x, y) { return (BAYER2[((y & 1) * 2) + (x & 1)] + 0.5) / 4; }
-function bayer4(x, y) { return (BAYER4[((y & 3) * 4) + (x & 3)] + 0.5) / 16; }
-function bayer8(x, y) { return (BAYER8[((y & 7) * 8) + (x & 7)] + 0.5) / 64; }
-// کوانتیزه‌ی ترتیبی: v∈[0,1] → **اندیسِ پله** ۰..levels-1 (مثلاً پله‌ی رمپ: ±۱ پله با مرزِ dither)
-function ditherStep(v, levels, x, y) {
-  const s = Math.min(1, Math.max(0, v)) * (levels - 1);
-  const f = Math.floor(s);
-  return Math.min(levels - 1, f + (s - f > bayer4(x, y) ? 1 : 0));
-}
-
-return {BAYER2, BAYER4, BAYER8, bayer2, bayer4, bayer8, ditherStep};
-})();
-const {BAYER2, BAYER4, BAYER8, bayer2, bayer4, bayer8, ditherStep} = __m_art_dither;
 const __m_art_crops = (() => {
 // art/crops.js — اسپرایت محصولات ۴ مرحله‌ای (هویج/گندم/کدو)
 
@@ -2466,23 +2474,49 @@ const __m_farm_terrain = (() => {
 
 
 
+
+
+
 let cache = null;      // Raster کل دنیا (۴۸۰×۳۲۰)
 let bound = null;      // فارمِ متصل به کش (هر Game کش خودش را دارد)
 const dirty = new Set();
 const changed = new Set(); // بازاستفاده در هر فریم (بدون تخصیص در مسیر داغ)
 const W = WORLD_W; // عرضِ کش به پیکسل
+const MACRO_F = 0.025;   // ≈ ۱/۴۰px — فرکانسِ نویزِ ماکرو (لکه‌های روشن/تیره)
+const GRASS_TINT = new Map(); // رنگِ پله‌ی چمن → اندیسِ پله (برای جابه‌جاییِ ماکرو)
+for (let i = 0; i < 7; i++) { const c = rp('grass', i); GRASS_TINT.set((c[0] << 16) | (c[1] << 8) | c[2], i); }
 const KIND = { grass: 1, path: 2, tree: 3, soil: 4, water: 5, hedge: 6, gate: 7, sign: 8, house: 9, scarecrow: 10, fence: 11 };
 let sigs = null;       // امضای استاتیک هر سلول (تورِ اطمینان: هر جهشِ بی‌هوک را هم می‌گیرد)
 const OPAQUE = new Uint8Array(COLS * ROWS); // آیا همه‌ی پیکسل‌های تایلِ کش مات‌اند؟ (⇒ blit فوق‌سریع)
 
+// بافتِ ماکرو (S2.4): جهت و چگالیِ «تافت»های چمن از fbmِ جهانی (≈۱/۴۰px).
+// چگالی در مرزِ لکه‌ها → صفر، پس هیچ بلوک/شطرنجِ تایلی دیده نمی‌شود و تایل همیشه فقط ۲ تُنِ **مجاور** دارد (ΔL≈۱۴).
+function tuftBake(r, sx, sy, tx, ty) {
+  const m = fbm((tx * TILE + 8) * MACRO_F, (ty * TILE + 8) * MACRO_F, 51, 2) - 0.5; // −۰٫۵..۰٫۵
+  const p = 0.14 + Math.min(0.58, Math.abs(m) * 1.7); // احتمالِ نگه‌داشتنِ تافت: کفِ ۰٫۱۴ (تا تایلِ تختِ یکسانِ همسایه پیش نیاید ⇒ M7)
+  const upC = rp('grass', 5), dnC = rp('grass', 3), baseC = rp('grass', 4);
+  const d = r.d;
+  for (let y = 0; y < TILE; y++) {
+    const gy = ty * TILE + y;
+    let i = ((sy + y) * r.w + sx) * 4;
+    for (let x = 0; x < TILE; x++, i += 4) {
+      const idx = GRASS_TINT.get((d[i] << 16) | (d[i + 1] << 8) | d[i + 2]);
+      if (idx !== 3 && idx !== 5) continue;        // فقط پیکسل‌های تافتِ اسپرایت
+      const gx = tx * TILE + x;
+      const keep = (vnoise(gx * 0.3, gy * 0.3, 62) * 0.6 + bayer4(gx, gy) * 0.4) < p; // خوشه‌های ۲–۳px + مرزِ dither
+      const nc = keep ? (m > 0 ? upC : dnC) : baseC;
+      d[i] = nc[0]; d[i + 1] = nc[1]; d[i + 2] = nc[2];
+    }
+  }
+}
 // ترتیب رسمِ قدیمیِ یک تایل استاتیک — عیناً از farm_render منتقل شد
 function bakeTile(f, tx, ty, r, wf = 0) {
   const c = f.cell(tx, ty); if (!c) return;
   const sx = tx * TILE, sy = ty * TILE;
   let base;
-  if (c.kind === 'grass') base = groundSprite('grass', c.variant);
+  if (c.kind === 'grass') base = groundSprite('grass', (hash2(tx, ty, 31) * 8) | 0); // S2.4: واریانت از hashِ مختصات
   else if (c.kind === 'path') base = groundSprite('path', c.variant & 1);
-  else if (c.kind === 'tree') base = groundSprite('grass', 0);
+  else if (c.kind === 'tree') base = groundSprite('grass', (hash2(tx, ty, 32) * 8) | 0);
   else if (c.kind === 'soil') base = groundSprite('soil', 0, c.wet);
   else if (c.kind === 'water') base = groundSprite('water', (tx * 5 + ty * 3) & 3, false, wf);
   else if (c.kind === 'hedge') base = groundSprite('hedge');
@@ -2492,6 +2526,8 @@ function bakeTile(f, tx, ty, r, wf = 0) {
   else if (c.kind === 'scarecrow') base = groundSprite('grass', 0);
   else { groundSprite('grass', (tx * 5 + ty * 3) & 3).over(r, sx, sy); base = groundSprite(c.fenceH ? 'fence' : 'fencePost'); }
   base.over(r, sx, sy);
+  // S2.4: تُنِ ماکرو روی زمینِ چمنی (سازه‌ها هم چون پایه‌شان چمن است یکدست می‌مانند)
+  if (c.kind === 'grass' || c.kind === 'tree' || c.kind === 'sign' || c.kind === 'house' || c.kind === 'scarecrow') tuftBake(r, sx, sy, tx, ty);
   if (c.kind === 'path') drawPathEdge(r, sx, sy, tx, ty, f);
   if (c.kind === 'water') bakeWater(r, f, tx, ty, sx, sy, wf);
   // بوته‌ی مرز روی زمین قفل‌شده (تایل زیرین آزاد است)
