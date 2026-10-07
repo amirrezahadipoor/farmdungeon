@@ -76,7 +76,7 @@ MEMORY.md را بخوان. در ROADMAP.md اولین نشست ☐ را پیدا
 ### P2 · تایل‌ست مزرعه → `roadmap/P2.md`
 - [x] S2.1 کش زمین مزرعه + dirty-tile (Parity-first) — ✅ ن۶۲: برابری ۱۸/۱۸ · مزرعه −۴۹٫۸٪
 - [x] S2.2 `art/autotile.js` (mask4/mask8/blob47) — ✅ ن۶۳: ۲۵۶→۴۷ یکتا · تقارن آینه · صفر تخصیص
-- [ ] S2.3 `art/noise.js` + `art/dither.js`
+- [x] S2.3 `art/noise.js` + `art/dither.js` — ✅ ن۶۴: tileNoise بی‌درز (درز ≤ داخل) · Bayer 2/4/8
 - [ ] S2.4 چمن: ۸ واریانت + نویز ماکرو
 - [ ] S2.5 خاک‌راه و ترنزیشن چمن↔راه
 - [ ] S2.6 خاک شخم‌خورده‌ی متصل + خاک خیس

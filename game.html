@@ -1313,6 +1313,82 @@ const autoCacheSize = () => _cache.size;
 return {BLOB47, IDX_MASK, BLOB_MIRROR, autoCacheSize, mask4, mask8, mirror8, canon8, blob47, setAutoBuilder, autoSprite};
 })();
 const {BLOB47, IDX_MASK, BLOB_MIRROR, autoCacheSize, mask4, mask8, mirror8, canon8, blob47, setAutoBuilder, autoSprite} = __m_art_autotile;
+const __m_art_noise = (() => {
+// art/noise.js — نویزِ قطعی برای بافتِ تایل (S2.3): hash2 · vnoise · fbm · tileNoise (قابل‌دوخت)
+// قاعده: صفر تصادفیِ زمانِ‌اجرا — همه‌چیز فقط از مختصات جهانی + seed مشتق می‌شود
+// (درس ۷: خروجی باید بین پروسه‌ها/فریم‌ها یکسان باشد وگرنه تست و کش می‌لرزد).
+// مقیاس: x/y بر حسب **پیکسل صحنه**؛ شبکه‌ی نویز ۱ پیکسل است (period = اندازه‌ی تایل).
+function hash2(x, y, seed = 0) { // [0,1) — هشِ صحیحِ ۳۲بیتی (یکنواخت، بدون هم‌بستگی مکانی)
+  let h = (Math.imul(x | 0, 374761393) + Math.imul(y | 0, 668265263) + Math.imul(seed | 0, 1442695041)) | 0;
+  h = Math.imul(h ^ (h >>> 13), 1274126177);
+  return ((h ^ (h >>> 16)) >>> 0) / 4294967296;
+}
+const smooth = (t) => t * t * (3 - 2 * t); // smoothstep — نویز بدون شکستگی در گره‌ها
+const mix = (a, b, t) => a + (b - a) * t;
+const wrap = (v, p) => ((v % p) + p) % p;  // حلقوی (برای ورودی منفی هم درست)
+function vnoise(x, y, seed = 0) { // value-noise هموار، [0,1)
+  const xi = Math.floor(x), yi = Math.floor(y);
+  const u = smooth(x - xi), v = smooth(y - yi);
+  const a = hash2(xi, yi, seed), b = hash2(xi + 1, yi, seed);
+  const c = hash2(xi, yi + 1, seed), d = hash2(xi + 1, yi + 1, seed);
+  return mix(mix(a, b, u), mix(c, d, u), v);
+}
+function fbm(x, y, seed = 0, oct = 2) { // چنداکتاوی نرمال‌شده، [0,1)
+  let s = 0, amp = 1, f = 1, norm = 0;
+  for (let i = 0; i < oct; i++) {
+    s += amp * vnoise(x * f, y * f, (seed + i * 1013) | 0);
+    norm += amp; amp *= 0.5; f *= 2;
+  }
+  return s / norm;
+}
+function tileNoise(x, y, period, seed = 0) { // **قابل‌دوخت**: شبکه modulo period ⇒ تایلِ ۱۶×۱۶ بی‌درز
+  const xi = Math.floor(x), yi = Math.floor(y);
+  const u = smooth(x - xi), v = smooth(y - yi);
+  const x0 = wrap(xi, period), y0 = wrap(yi, period);
+  const x1 = wrap(xi + 1, period), y1 = wrap(yi + 1, period);
+  const a = hash2(x0, y0, seed), b = hash2(x1, y0, seed);
+  const c = hash2(x0, y1, seed), d = hash2(x1, y1, seed);
+  return mix(mix(a, b, u), mix(c, d, u), v); // پیوسته روی درز: n(x+period) ≡ n(x) دقیقاً
+}
+function tileFbm(x, y, period, seed = 0, oct = 2) { // همان، چنداکتاوی (هر اکتاو period خودش)
+  let s = 0, amp = 1, f = 1, norm = 0;
+  for (let i = 0; i < oct; i++) {
+    s += amp * tileNoise(x * f, y * f, period * f, (seed + i * 1013) | 0);
+    norm += amp; amp *= 0.5; f *= 2;
+  }
+  return s / norm;
+}
+
+return {hash2, vnoise, fbm, tileNoise, tileFbm};
+})();
+const {hash2, vnoise, fbm, tileNoise, tileFbm} = __m_art_noise;
+const __m_art_dither = (() => {
+// art/dither.js — کوانتیزه‌ی ترتیبی (S2.3): ماتریس‌های Bayer 2/4/8 + ditherStep
+// مختصات **جهانی** (پیکسل صحنه) نه محلیِ تایل ⇒ الگو بین تایل‌های مجاور پیوسته می‌ماند (درس ۴۰).
+// آستانه‌ها در بازه‌ی (۰،۱) هستند (مرکز خانه‌ها: (i+۰٫۵)/N²) تا نه ۰ نه ۱ تولید شود.
+const _B2 = new Uint8Array([0, 2, 3, 1]); // ۲×۲ استاندارد
+function expand(Bn, n) {                  // ساخت بازگشتی: B_2n = ۴·B_n + الگوی B2 در هر ربع
+  const m = n * 2, out = new Uint8Array(m * m);
+  for (let y = 0; y < m; y++) for (let x = 0; x < m; x++)
+    out[y * m + x] = 4 * Bn[(y % n) * n + (x % n)] + _B2[((y / n) | 0) * 2 + ((x / n) | 0)];
+  return out;
+}
+const BAYER2 = _B2;
+const BAYER4 = expand(_B2, 2);
+const BAYER8 = expand(BAYER4, 4);
+function bayer2(x, y) { return (BAYER2[((y & 1) * 2) + (x & 1)] + 0.5) / 4; }
+function bayer4(x, y) { return (BAYER4[((y & 3) * 4) + (x & 3)] + 0.5) / 16; }
+function bayer8(x, y) { return (BAYER8[((y & 7) * 8) + (x & 7)] + 0.5) / 64; }
+// کوانتیزه‌ی ترتیبی: v∈[0,1] → **اندیسِ پله** ۰..levels-1 (مثلاً پله‌ی رمپ: ±۱ پله با مرزِ dither)
+function ditherStep(v, levels, x, y) {
+  const s = Math.min(1, Math.max(0, v)) * (levels - 1);
+  const f = Math.floor(s);
+  return Math.min(levels - 1, f + (s - f > bayer4(x, y) ? 1 : 0));
+}
+
+return {BAYER2, BAYER4, BAYER8, bayer2, bayer4, bayer8, ditherStep};
+})();
+const {BAYER2, BAYER4, BAYER8, bayer2, bayer4, bayer8, ditherStep} = __m_art_dither;
 const __m_art_crops = (() => {
 // art/crops.js — اسپرایت محصولات ۴ مرحله‌ای (هویج/گندم/کدو)
 
