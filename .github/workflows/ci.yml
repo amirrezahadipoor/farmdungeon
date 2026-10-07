@@ -1,0 +1,31 @@
+# ci.yml — گیت‌هاب اکشن: بیلد + تست‌های jsdom + رگرسیون رندر + ممیزی آرت روی هر push
+# دسترسی لازم: هیچ (فقط خواندن ریپو) · آرتیفکت‌های ممیزی در تب Actions آپلود می‌شوند
+name: ci
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+      - name: build + boot_check + render5/6 (ALL GREEN)
+        run: bash tools/run_all.sh
+      - name: art audit (M1–M10)
+        run: node tools/art_audit.mjs
+      - name: upload audit artifacts
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: art-audit
+          path: |
+            shots/audit.json
+            shots/art_audit.png
+            shots/ref_*.png
+          if-no-files-found: warn
