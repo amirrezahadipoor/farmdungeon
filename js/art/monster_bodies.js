@@ -24,7 +24,9 @@ function dSlime(r, f) {
   const cy = MOY - h / 2 - yOff;
   g.ellipse(xOff, cy, w / 2, h / 2, MC.slime);
   g.ellipse(xOff, cy - h * 0.18, w * 0.3, h * 0.26, MC.slimeHi);
+  g.ellipse(xOff, cy + h * 0.06, w * 0.42, h * 0.12, MC.slimeMid); // S1.5a: پله‌ی میانی
   g.ellipse(xOff, MOY - h * 0.18 - yOff, w * 0.4, h * 0.3, MC.slimeSh);
+  g.ellipse(xOff, MOY - 2 - yOff, w * 0.34, 2.5, MC.slimeDeep); // S1.5a: پله‌ی عمیق زیر بدن
   if (dead < 0.7) { // چشم‌های جدا
     for (const ex of [xOff - 4, xOff + 4]) {
       g.rect(ex - 1, cy - 4, 3, 3, MC.dark);
@@ -32,6 +34,9 @@ function dSlime(r, f) {
       else g.px(ex, cy - 4, MC.white);
     }
     g.rect(xOff - 1, cy + 2, 3, 1, MC.dark); // دهان
+    g.rect(xOff - 2, cy + 3, 4, 1, MC.slimeDark); // S1.5a: خوشه‌ی سایه‌ی زیر دهان
+    g.px(xOff - 5, MOY - 4 - yOff, MC.slimeDeep); g.px(xOff + 4, MOY - 4 - yOff, MC.slimeDeep);
+    g.rect(xOff - 8, MOY - 3 - yOff, 4, 1, MC.slimeEdge); // S1.5a: لبه‌ی عمیقِ کف‌چسب
   }
 }
 
@@ -57,11 +62,15 @@ function dBat(r, f) {
     g.lineW(bx + sgn * 3, by - 3, bx + sgn * 10, midY, 2, MC.batSh);
     g.lineW(bx + sgn * 15, tipY, bx + sgn * 10, midY, 1, MC.bat);
     g.lineW(bx + sgn * 3, by - 1, bx + sgn * 9, by - 3 - flap * 2, 1, MC.bat); // غشای داخلی
+    g.lineW(bx + sgn * 6, by, bx + sgn * 12, tipY + 3, 1, MC.batMid); // S1.5a: پله‌ی میانی بال
+    g.px(bx + sgn * 8, by - 1, MC.batDeep); g.px(bx + sgn * 9, by, MC.batDeep); // تیره‌ی مفصل بال
   };
   wing(1); wing(-1);
   g.rect(bx - 4, by - 5, 9, 9, MC.bat);          // بدن
   g.rect(bx - 3, by - 5, 7, 2, MC.batHi);
   g.px(bx - 4, by - 7, MC.bat); g.px(bx + 4, by - 7, MC.bat); // گوش‌ها
+  g.rect(bx - 2, by + 3, 4, 1, MC.batEdge); // S1.5a: ته بدن — خوشه
+  g.px(bx - 4, by + 1, MC.batEdge); g.px(bx + 4, by + 1, MC.batEdge);
   if (f.state !== 'die') {
     g.px(bx - 2, by - 2, MC.eyeRed); g.px(bx + 2, by - 2, MC.eyeRed);
     if (f.state === 'attack' && f.t > 0.4 && f.t < 0.7) { g.px(bx, by + 3, MC.fang); g.px(bx - 2, by + 3, MC.fang); }
@@ -94,20 +103,29 @@ function dWolf(r, f) {
       fx = hx + sw; fy = MOY - lift;
     } else if (dead) { fx = hx + back; fy = MOY - 2; }
     else { fx = hx + back + (hx > 0 ? 2 : -2); }
+    g.lineW(hx + back, bodyY + 3, fx, fy - 1, 3, MC.wolf);   // S1.5a: پای روشن (خوانایی روی کف تیره)
     g.lineW(hx + back, bodyY + 3, fx, fy - 1, 3, MC.wolfSh);
     g.px(fx + 1, fy - 1, MC.wolfDark);
   }
   // بدن
   g.lineW(back - 11, bodyY, back + 9, bodyY, 8, MC.wolf);
   g.lineW(back - 10, bodyY - 3, back + 8, bodyY - 3, 2, MC.wolfHi);
-  g.lineW(back - 8, bodyY + 3, back + 7, bodyY + 3, 2, MC.wolfSh);
+  g.lineW(back - 8, bodyY + 2, back + 7, bodyY + 2, 1, MC.wolfSh);   // شکم روشن
+  g.lineW(back - 8, bodyY + 3, back + 7, bodyY + 3, 1, MC.wolfDeep); // S1.5a: لبه‌ی تیره‌ی شکم (حجم)
+  g.lineW(back - 10, bodyY - 1, back + 7, bodyY - 1, 1, MC.wolfMid); // S1.5a: پله‌ی میانی
+  g.lineW(back - 7, bodyY - 4, back + 2, bodyY - 4, 1, MC.wolfDeep); // رگه‌ی خز
+  g.px(back - 5, bodyY - 6, MC.wolfDeep); g.px(back - 4, bodyY - 6, MC.wolfDeep); g.px(back + 1, bodyY - 8, MC.wolfDeep);
+  g.px(back - 4, bodyY + 1, MC.wolfDark); g.px(back - 3, bodyY + 1, MC.wolfDark); g.px(back + 3, bodyY + 2, MC.wolfDark);
   // سر + پوزه
   const hx = back + 11, hy = bodyY - 4 - crouch * 1 + lunge * 1;
   g.rect(hx, hy - 5, 9, 7, MC.wolf);
   g.rect(hx + 8, hy - 2, 5, 3, MC.wolfHi);                     // پوزه
+  g.rect(hx + 8, hy - 2, 5, 1, MC.wolfCream); // S1.5a: پوزه‌ی گرم‌رنگ
+  g.rect(hx + 1, hy - 6, 2, 2, MC.wolfCream);
+  g.rect(hx, hy + 1, 9, 1, MC.wolfCream); // S1.5a: چانه/گونه — حجم سر
   g.rect(hx + 12, hy - 1 + jaw, 2, 1, MC.dark);                // بینی/دهان باز
   if (jaw) { g.rect(hx + 8, hy + 1, 5, 2, MC.wolfDark); g.px(hx + 9, hy + 1, MC.white); g.px(hx + 12, hy + 1, MC.white); }
-  g.rect(hx + 1, hy - 8, 2, 4, MC.wolf); g.px(hx + 4, hy - 7, MC.wolfSh); // گوش‌ها
+  g.rect(hx + 1, hy - 8, 2, 4, MC.wolf); g.px(hx + 4, hy - 7, MC.wolfDeep); // گوش‌ها
   if (dead > 0.4) { g.px(hx + 4, hy - 3, MC.dark); g.px(hx + 6, hy - 1, MC.dark); } // چشم ×
   else g.px(hx + 4, hy - 3, f.state === 'attack' && jaw ? MC.eyeRed : MC.dark);
 }
@@ -136,13 +154,21 @@ function dSkeleton(r, f) {
   }
   // ستون فقرات + لگن + دنده‌ها
   g.lineW(cx, pelY, cx, pelY - 11, 2, MC.bone);
+  g.lineW(cx + 1, pelY, cx + 1, pelY - 11, 1, MC.boneDeep); // S1.5a: سایه‌ی ستون فقرات
   g.rect(cx - 3, pelY - 1, 7, 2, MC.bone);
+  g.rect(cx - 2, pelY + 1, 5, 1, MC.boneDeep); // S1.5a: خوشه‌ی سایه‌ی لگن
+  g.rect(cx - 4, pelY - 9, 3, 1, MC.boneWorn); g.px(cx + 3, pelY - 8, MC.boneWorn);
+  g.px(cx - 3, pelY + 4, MC.boneDark); g.px(cx - 2, pelY + 4, MC.boneDark); g.px(cx + 2, pelY + 4, MC.boneDark);
+  g.px(cx - 4, pelY - 12, MC.boneMid); g.px(cx + 4, pelY - 12, MC.boneMid); g.px(cx - 3, pelY - 11, MC.boneMid);
   const ribGap = 3 + fall * 2;
   for (let i = 0; i < 3; i++) g.lineW(cx - 5 + fall * i, pelY - 4 - i * ribGap, cx + 5 - fall * i, pelY - 4 - i * ribGap, 1, MC.bone);
+  for (let i = 0; i < 3; i++) g.lineW(cx - 5 + fall * i, pelY - 3 - i * ribGap, cx + 5 - fall * i, pelY - 3 - i * ribGap, 1, MC.boneMid); // S1.5a: سایه‌ی دنده
   // جمجمه
   const skullY = pelY - 15 - fall * (fall > 0.4 ? (fall - 0.4) * 26 : 0);
   g.rect(cx - 3, skullY - 4, 8, 8, MC.bone);
   g.rect(cx - 3, skullY - 4, 8, 1, MC.boneHi);
+  g.rect(cx - 3, skullY + 3, 8, 1, MC.boneMid); // فک/سایه‌ی جمجمه
+  g.px(cx - 4, skullY + 4, MC.boneEdge); g.px(cx + 4, skullY + 4, MC.boneEdge); g.px(cx - 4, skullY + 5, MC.boneEdge); // S1.5a: لبه‌ی فک
   g.px(cx - 1, skullY - 1, MC.dark); g.px(cx + 2, skullY - 1, MC.dark);
   g.rect(cx, skullY + 2, 2, 1, MC.dark);
   // بازوها: دور آزاد + نزدیک با شمشیر
@@ -156,8 +182,11 @@ function dSkeleton(r, f) {
   const T = (x2, y2) => [hand[0] + x2 * cos(ang) - y2 * sin(ang), hand[1] + x2 * sin(ang) + y2 * cos(ang)];
   const t1 = T(2, 0), t2 = T(13, 0);
   r.lineW(g.m(hand[0]), hand[1], g.m(t1[0]), t1[1], 2, MC.rust);
+  r.px(g.m(hand[0]), hand[1] - 1, MC.rustHi); r.px(g.m(hand[0]) + (f.face >= 0 ? 1 : -1), hand[1] - 1, MC.rustHi); // S1.5a: چرم دسته
+  r.px(g.m(t1[0]), t1[1], MC.gold); r.px(g.m(t1[0]) + (f.face >= 0 ? 1 : -1), t1[1], MC.gold); // نگین
   r.lineW(g.m(t1[0]), t1[1], g.m(t2[0]), t2[1], 3, MC.boneSh);
   r.lineW(g.m(t1[0]), t1[1] - 1, g.m(t2[0]), t2[1] - 1, 1, MC.boneHi);
+  r.lineW(g.m(t1[0]), t1[1] + 1, g.m(t2[0]), t2[1] + 1, 1, MC.boneDeep); // لبه‌ی تیره‌ی تیغه
 }
 
 // ---------- گولم سنگی: سنگین و کند + تکان زمین ----------
@@ -178,13 +207,16 @@ function dGolem(r, f) {
   // بدن (بلوک‌های سنگی)
   const ty = gy - 44;
   g.rect(sx - 15, ty, 30, 30, MC.golem);
-  g.rect(sx - 15, ty, 30, 3, MC.golemHi); g.rect(sx - 15, ty + 27, 30, 3, MC.golemSh);
+  g.rect(sx - 15, ty, 30, 3, MC.golemHi); g.rect(sx - 15, ty + 3, 30, 1, MC.golemMid); /* S1.5a */ g.rect(sx - 15, ty + 27, 30, 3, MC.golemSh);
+  g.rect(sx - 8, ty + 22, 6, 2, MC.golemDeep); g.rect(sx + 2, ty + 16, 5, 2, MC.golemDeep); // حفره‌های سنگ
+  g.px(sx - 12, ty + 12, MC.golemCrack); g.px(sx - 11, ty + 12, MC.golemCrack); g.px(sx + 9, ty + 8, MC.golemCrack); g.px(sx + 10, ty + 8, MC.golemCrack);
+  g.px(sx - 10, ty + 10, MC.mossD); g.px(sx - 9, ty + 10, MC.mossD);
   g.line(sx - 6, ty + 4, sx - 6, ty + 26, MC.golemSh); g.line(sx + 7, ty + 4, sx + 7, ty + 26, MC.golemSh);
   g.px(sx - 11, ty + 8, MC.moss); g.px(sx - 10, ty + 9, MC.moss); g.px(sx + 12, ty + 20, MC.moss);
   // بازوها (بالا/پایین بسته به armUp)
   for (const sgn of [-1, 1]) {
     const ay = ty + 4 - armUp * 16;
-    g.rect(sx + sgn * 19 - 4, ay, 8, 16, MC.golem);
+    g.rect(sx + sgn * 19 - 4, ay, 8, 16, MC.golem); g.rect(sx + sgn * 19 - 4, ay + 2, 8, 1, MC.golemMid);
     g.rect(sx + sgn * 19 - 4, ay + (armUp > 0.3 ? -6 : 12), 9, 9, MC.golemSh); // مشت
   }
   // سر + چشم
@@ -236,6 +268,9 @@ function dSpider(r, f) {
   // بدن: شکم + سر
   g.ellipse(cx - 6, bodyY, 8, 6, MC.spider);
   g.ellipse(cx - 7, bodyY - 2, 5, 3, MC.spiderHi);
+  g.ellipse(cx - 6, bodyY + 2, 6, 2, MC.spiderMid); // S1.5a: شکم — پله‌ی میانی
+  g.ellipse(cx - 6, bodyY + 4, 3, 1, MC.spiderDeep); // نوک شکم تیره
+  g.px(cx - 9, bodyY + 1, MC.spiderEdge); g.px(cx - 8, bodyY + 1, MC.spiderEdge); g.px(cx + 3, bodyY - 5, MC.spiderMid); g.px(cx + 4, bodyY - 5, MC.spiderMid);
   g.rect(cx + 2, bodyY - 4, 7, 6, MC.spiderSh);
   if (!curl) {
     for (const [ex, ey] of [[5, -2], [7, -2], [4, 0], [7, 0]]) g.px(cx + ex, bodyY + ey, MC.eyeRed);
@@ -262,7 +297,7 @@ function dGhost(r, f) {
     let w2 = dy < 0 ? Math.round(10 * Math.sqrt(1 - (dy / 15) ** 2)) : Math.round(10 - dy * 0.35);
     if (dy > 4) { const k = (dy - 4) / 6; w2 = Math.round((10 - dy * 0.35) * (0.75 + 0.25 * Math.abs(sin(f.time * 4 + k * 6))) * (1 - k * 0.5)); }
     if (w2 < 1) continue;
-    const row = a(dy < -6 ? hi : dy > 6 ? sh : body);
+    const row = a(dy < -6 ? hi : dy > 8 ? MC.ghostDeep : dy > 6 ? sh : dy > 4 ? MC.ghostDe2 : dy > 2 ? MC.ghostMid : dy > -1 ? MC.ghostVeil : body); // S1.5a: پله‌های روشنایی روح
     for (let dx = -w2; dx <= w2; dx++) g.px(cx + dx, cy + dy, row);
   }
   // چشم‌ها + دهان

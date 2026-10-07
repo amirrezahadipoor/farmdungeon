@@ -38,14 +38,21 @@ const SPRITES = KINDS.map((k) => [k, mobSprite(k)]);
 // ---------- آماره‌های پیکسلی ----------
 const isOpq = (d, i, th = 200) => d[i + 3] > th;
 // ghost نیمه‌شفاف است (هیچ پیکسل α>200 ندارد) → فالبک آستانه‌ی ۶۰ با پرچم sem
+function maxAlpha(s) { let m = 0; for (let i = 3; i < s.d.length; i += 4) if (s.d[i] > m) m = s.d[i]; return m; }
 function spriteStatsFB(s) {
-  const a = spriteStats(s, 200);
-  if (a.n > 0) return a;
-  const b = spriteStats(s, 60); b.sem = true;
-  return b;
+  // هیولای نیمه‌شفاف (روح): بدنه هیچ پیکسل کاملاً ماتی ندارد → آستانه ۱۰۰ و فقط بدنه (y < MOY+3؛ سایه زیر پا نباید خوانایی را خراب کند)
+  if (maxAlpha(s) < 250) { const b = spriteStats(s, 100, MOY + 3); b.sem = true; return b; }
+  return spriteStats(s, 200);
 }
-function spriteStats(s, th = 200) {
-  const d = s.d, W = s.w, H = s.h;
+function shadowBands(s) {
+  // باندهای سایه = مقادیر آلفای پله‌ای در نوار زیر پا (y ≥ MOY-1) — بدنه‌ی نیمه‌شفاف (روح/باس) نباید باندهای خودش را جای سایه جا بزند
+  const set = new Set();
+  for (let y = Math.max(0, MOY - 1); y < s.h; y++) for (let x = 0; x < s.w; x++) { const a = s.d[(y * s.w + x) * 4 + 3]; if (a > 8 && a <= 200) set.add(a); }
+  return set.size;
+}
+
+function spriteStats(s, th = 200, yMax = 1e9) {
+  const d = s.d, W = s.w, H = Math.min(s.h, yMax);
   let n = 0, sumL = 0, oSum = 0, oN = 0, shN = 0;
   const colors = new Set(), bands = new Set();
   let x0 = 1e9, x1 = -1, y0 = 1e9, y1 = -1;
@@ -201,7 +208,9 @@ const meanOL = outL.reduce((a, b) => a + b, 0) / outL.length;
 const sdOL = Math.sqrt(outL.reduce((a, b) => a + (b - meanOL) ** 2, 0) / outL.length);
 M.M2 = { sd: rnd(sdOL, 1), mean: rnd(meanOL), hero: rnd(stHero.outlineL), worst: [...stAll].sort((a, b) => Math.abs(b[1].outlineL - meanOL) - Math.abs(a[1].outlineL - meanOL)).slice(0, 3).map(([k, st]) => [k, rnd(st.outlineL)]) };
 M.M3 = { hero: stHero.colors, mobsMin: Math.min(...stAll.map(([, st]) => st.colors)), mobsMax: Math.max(...stAll.map(([, st]) => st.colors)), mobs: stAll.map(([k, st]) => [k, st.colors]) };
-M.M4 = { minBands: Math.min(stHero.bands, ...stAll.map(([, st]) => st.bands)), heroBands: stHero.bands, mobs: stAll.map(([k, st]) => [k, st.bands]) };
+const heroBands = shadowBands(HERO);
+const mobBands = SPRITES.map(([k, s]) => [k, shadowBands(s)]);
+M.M4 = { minBands: Math.min(heroBands, ...mobBands.map(([, b]) => b)), heroBands, mobs: mobBands };
 
 // صحنه‌های مرجع (برای M5–M8 + شیت)
 const farmScene = (dayT) => fixedRnd(() => farmSceneReal(dayT));
