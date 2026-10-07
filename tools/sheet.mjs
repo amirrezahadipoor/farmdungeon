@@ -12,6 +12,7 @@ import { groundSprite } from '../js/art/ground.js';
 import { cropSprite } from '../js/art/crops.js';
 import { drawText } from '../js/art/font2.js';
 import { MONSTER_KINDS, MOX, MOY } from '../js/art/monster_parts.js';
+import { RAMP, RAMP_NAMES, RAMP_BASE_NAMES } from '../js/art/ramps.js';
 
 const ROOT = path.resolve(path.dirname(new URL(import.meta.url).pathname), '..');
 const SHOTS = path.join(ROOT, 'shots');
@@ -148,6 +149,32 @@ function sheetDungeon() {
   console.log('ref_dungeon_f01/f06/f11/f16.png');
 }
 
+// ================= ramps (S1.1 — پالت مواد برای بازبینی چشمی) =================
+function sheetRamps() {
+  const Z = 3, SW = 16 * Z, GAP = 4, LAB = 132, HEAD = 44;
+  const H = HEAD + RAMP_NAMES.length * (SW + 8) + 30;
+  const W = LAB + 7 * (SW + GAP) + 130;
+  const r = new Raster(W, H);
+  r.rect(0, 0, W, H, BG);
+  drawText(r, 'رمپ‌های مواد (S1.1) — ۷ پله: تیره → روشن', 12, 8, [240, 233, 200, 255], 2);
+  drawText(r, 'پایه', LAB + 8, HEAD - 14, [150, 220, 150, 255], 1);
+  drawText(r, 'هم‌نام → ماده‌ی پایه', LAB + 7 * (SW + GAP) + 24, HEAD - 14, [210, 180, 140, 255], 1);
+  RAMP_NAMES.forEach((n, i) => {
+    const y = HEAD + i * (SW + 8);
+    const base = RAMP_BASE_NAMES.includes(n);
+    drawText(r, n, 12, y + SW / 2 - 4, base ? [230, 226, 200, 255] : [170, 160, 190, 255], 1);
+    for (let k = 0; k < 7; k++) { const c = RAMP[n][k]; r.rect(LAB + k * (SW + GAP), y, SW, SW, [c[0], c[1], c[2], 255]); }
+    if (!base) {
+      const src = RAMP_BASE_NAMES.find((b) => RAMP[b] === RAMP[n]);
+      drawText(r, '→ ' + src, LAB + 7 * (SW + GAP) + 24, y + SW / 2 - 4, [200, 170, 130, 255], 1);
+    }
+    drawText(r, '#' + RAMP[n][3].slice(0, 3).map((v) => v.toString(16).padStart(2, '0')).join(''), LAB + 7 * (SW + GAP) + 24, y + SW / 2 + 8, [150, 150, 175, 255], 1);
+  });
+  savePNG(path.join(SHOTS, 'sheet_ramps.png'), r);
+  console.log('sheet_ramps.png', r.w + 'x' + r.h, '(' + RAMP_BASE_NAMES.length + ' پایه / ' + RAMP_NAMES.length + ' نام)');
+}
+
+if (MODE === 'ramps' || MODE === 'all') sheetRamps();
 if (MODE === 'tiles' || MODE === 'all') sheetTiles();
 if (MODE === 'mobs' || MODE === 'all') sheetMobs();
 if (MODE === 'farm' || MODE === 'all') sheetFarm();
