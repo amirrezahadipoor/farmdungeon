@@ -18,7 +18,7 @@ const DTHEME = STONE_THEMES.map((X, t) => {
   return {
     brick: rp(X, 2), brickHi: rp(X, 3), brickOut: rp(X, 0), glint: rp(X, 4),      // بدنه‌ی دیوار (تیره) + جلای آجر
     stone: rp(X, 5), stoneHi: rp(X, 6), stoneSh: rp(X, 3),                        // سنگِ روشن (کلاهک/ستون/دروازه/پله)
-    cap: rp(X, 4), mortar: rp(X, 2),                                              // خطِ کلاهک + درزهای کف
+    cap: rp(X, 4), mortar: rp(X, 2), deep: rp(X, 1),                              // خطِ کلاهک + درزهای کف + **رویِ توده‌ی دیوار (S3.2: L۲۶)**
     floorA: rp(X, 3), floorB: rp(X, 4), warm: rp(X, 4),                           // سنگ‌فرش دو‌تُن کف
     stairs: rp(X, 5), stairsSh: rp(X, 3),
     moss: rp(M, 5), mossD: rp(M, 3),                                              // خزه/گدازه/یخ — هویت تم
@@ -130,7 +130,9 @@ export function groundSprite(kind, variant = 0, wet = false, waterFrame = 0, the
       for (let i = 0; i < 4; i++) {
         r.rect(2 + i, 2 + i * 3, 12 - i * 2, 3, i % 2 ? P.stairs : P.stairsSh);
         r.rect(2 + i, 2 + i * 3, 12 - i * 2, 1, P.stoneHi);
-      }
+      } // S3.2: پخِ هم‌تراز با کف (بالا/چپ روشن، پایین/راست سایه) ⇒ مرزِ دیوار↔پله هم بی‌درز
+      r.rect(0, 0, 16, 1, P.stoneHi); r.rect(0, 0, 1, 16, P.stoneHi);
+      r.rect(15, 0, 1, 16, P.stoneSh); r.rect(0, 15, 16, 1, P.stoneSh);
     } else if (kind === 'gateL' || kind === 'gateR') { // دروازه‌ی دانجن ۲×۲: variant 0 = ردیف بالا (سردر)، 1 = ردیف پایین (آستانه) — یک طاق یکپارچه
       const L2 = kind === 'gateL', top = variant === 0;
       const ox = L2 ? 4 : 0, ow = 12; // دهانه‌ی بنفش (سمت داخلی هر نیمه)
