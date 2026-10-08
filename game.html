@@ -3419,6 +3419,92 @@ function _blit(m, dst, ox, oy) {
 return {SHADOW, shadowState, shadowUpdate, castShadow, castShadowDraw};
 })();
 const {SHADOW, shadowState, shadowUpdate, castShadow, castShadowDraw} = __m_art_shadow;
+const __m_art_glow = (() => {
+// art/glow.js — S4.6: درخششِ ارزان (emissive stamp) — هاله‌ی شعاعیِ **پیش‌پخته** در ۳ اندازه،
+// ترکیبِ **افزودنی با clamp** و **پس از تاریکی** رسم می‌شود ⇒ منبعِ نور در تاریکی «سوراخ» می‌کند.
+// رنگ‌ها همه دقیقاً از رمپ‌های پالت‌اند (M5)؛ سقفِ ۸ درخشش روی صفحه + آستانه‌ی فاصله از دوربین.
+// در Q.level=0 (کیفیتِ تطبیقی) کاملاً خاموش است. بدون تخصیص در حلقه‌ی رسم (استامپ‌ها یک‌بار پخته می‌شوند).
+
+
+
+const GLOW = { on: true };                                  // توگل (QA/A-B)
+const GLOW_DEBUG = { n: 0, far: 0, over: 0, cap: 0 };       // شمارشِ آخرین فریم (QA/sheet)
+
+const CAP = 8;                     // سقفِ درخشش روی صفحه (پذیرش S4.6)
+const RAD = [9, 15, 24];           // ۳ اندازه (شعاعِ پیکسلی)
+const FALL = 1.45;                 // توانِ افتِ شعاعی (۱ = خطی، بالاتر = هسته‌ی تنگ‌تر)
+const MARGIN = 4;                  // آستانه‌ی فاصله از دوربین (پیکسل بیرونِ فریم)
+
+// جدولِ رنگ‌ها — شناسه = اندیس (همه از رمپ‌ها)
+const GCOL = [
+  rp('fire', 6),        // 0 مشعل/پنجره/گویِ آتش — گرم
+  rp('magicCyan', 6),   // 1 اسانس/چشمِ روح
+  rp('gold', 6),        // 2 پله/صندوق
+  rp('clothPurple', 6), // 3 محراب
+  rp('fire', 5),        // 4 گدازه/باسِ آتشین
+  rp('clothRed', 6),    // 5 تیترِ خطر (باسِ غیرآتشین)
+];
+
+// استامپ‌های پیش‌پخته: ماسکِ تک‌کاناله (۰..۲۵۵) برای هر اندازه — رنگ در زمانِ رسم ضرب می‌شود
+const STAMP = RAD.map((R) => {
+  const w = 2 * R + 1, m = new Uint8Array(w * w);
+  for (let dy = -R; dy <= R; dy++) for (let dx = -R; dx <= R; dx++) {
+    const q = Math.sqrt(dx * dx + dy * dy) / R;
+    if (q >= 1) continue;
+    m[(dy + R) * w + dx + R] = Math.round(Math.pow(1 - q, FALL) * 255);
+  }
+  return { R, w, m };
+});
+
+// صفِ ثابت (بدون تخصیص): x, y, رنگ, اندازه, شدت, اولویت
+const _x = new Int32Array(CAP), _y = new Int32Array(CAP), _c = new Uint8Array(CAP);
+const _s = new Uint8Array(CAP), _i = new Uint8Array(CAP), _p = new Uint8Array(CAP);
+let _n = 0;
+
+function glowBegin() { _n = 0; GLOW_DEBUG.cap = 0; }
+function glowCount() { return _n; }
+
+// افزودنِ منبع؛ prio بالاتر = مهم‌تر (در سقفِ ۸ جای کم‌اولویت را می‌گیرد)
+function glowAdd(x, y, col, size, inten, prio = 1) {
+  const xi = Math.round(x), yi = Math.round(y);
+  if (_n < CAP) { _x[_n] = xi; _y[_n] = yi; _c[_n] = col; _s[_n] = size; _i[_n] = inten; _p[_n] = prio; _n++; return true; }
+  let lo = 0;
+  for (let k = 1; k < CAP; k++) if (_p[k] < _p[lo]) lo = k;
+  if (prio <= _p[lo]) { GLOW_DEBUG.over++; return false; }
+  _x[lo] = xi; _y[lo] = yi; _c[lo] = col; _s[lo] = size; _i[lo] = inten; _p[lo] = prio;
+  GLOW_DEBUG.cap++; return true;
+}
+
+// رسم — پس از تاریکی (افزودنی + clamp). در Q.level=0 هیچ کاری نمی‌کند.
+function glowDraw(r) {
+  GLOW_DEBUG.n = 0; GLOW_DEBUG.far = 0;
+  if (!GLOW.on || !Q.level) return;
+  const d = r.d, W = r.w, H = r.h;
+  for (let k = 0; k < _n; k++) {
+    const st = STAMP[_s[k]], R = st.R, w = st.w, m = st.m, cc = GCOL[_c[k]], inten = _i[k];
+    const gx = _x[k], gy = _y[k];
+    if (gx < -R - MARGIN || gy < -R - MARGIN || gx > W + R + MARGIN || gy > H + R + MARGIN) { GLOW_DEBUG.far++; continue; }
+    GLOW_DEBUG.n++;
+    const cr = cc[0], cg = cc[1], cb = cc[2];
+    for (let dy = -R; dy <= R; dy++) {
+      const py = gy + dy; if (py < 0 || py >= H) continue;
+      const row = py * W, mi = (dy + R) * w;
+      for (let dx = -R; dx <= R; dx++) {
+        const px = gx + dx; if (px < 0 || px >= W) continue;
+        const mm = m[mi + dx + R]; if (mm === 0) continue;
+        const kk = (mm * inten) >> 8; if (kk === 0) continue;
+        const o = (row + px) * 4;
+        if (d[o + 3] < 8) continue;                                     // شفاف = بیرونِ نقشه
+        const nr = d[o] + ((cr * kk) >> 8), ng = d[o + 1] + ((cg * kk) >> 8), nb = d[o + 2] + ((cb * kk) >> 8);
+        d[o] = nr > 255 ? 255 : nr; d[o + 1] = ng > 255 ? 255 : ng; d[o + 2] = nb > 255 ? 255 : nb;
+      }
+    }
+  }
+}
+
+return {GLOW, GLOW_DEBUG, GCOL, glowBegin, glowCount, glowAdd, glowDraw};
+})();
+const {GLOW, GLOW_DEBUG, GCOL, glowBegin, glowCount, glowAdd, glowDraw} = __m_art_glow;
 const __m_art_farm_buildings = (() => {
 // art/farm_buildings.js — ساختمان‌ها و سازه‌های مزرعه: هر کدام دلیل دارند —
 // خانه: جای زندگی قهرمان/کارگران + آشپزخانه‌ی وعده‌ها (پنجره شب روشن = کسی خانه است)
@@ -4191,6 +4277,7 @@ const __m_farm_render = (() => {
 
 
 
+
 const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
 const FENTS = []; // pool موجودات مزرعه
 const _gP = [255, 210, 90, 0]; // درخشش طلایی — اسکرچ
@@ -4314,7 +4401,11 @@ function renderFarm(game, r) {
     game.fx.render(r, cx, cy);
     // ---- شب: تینت آبی + شب‌تاب‌ها ----
     applyNight(r, game.dayT, raining); // تینت شب×باران در یک گذر (ن۳۶: بدون شب‌تاب)
-    drawFarmhouseGlow(r, HOUSE.x * TILE - cx, HOUSE.y * TILE - cy, game.time, nightFactor(game.dayT)); // پنجره‌ی خانه: نور واقعی در تاریکی
+    const nfG = nightFactor(game.dayT);
+    drawFarmhouseGlow(r, HOUSE.x * TILE - cx, HOUSE.y * TILE - cy, game.time, nfG); // پنجره‌ی خانه: نور واقعی در تاریکی
+    glowBegin();                                        // S4.6: هاله‌ی گرمِ پنجره در شب (افزودنی، پس از LUT)
+    if (nfG > 0.45) glowAdd(HOUSE.x * TILE - cx + 8, HOUSE.y * TILE - cy + 21, 0, 1, 74, 2);
+    glowDraw(r);
     game.fish.draw(r, cx, cy, game.time, f);
     // ---- آب‌وهوا ----
     const nf = nightFactor(game.dayT);
@@ -8757,6 +8848,7 @@ const __m_run_render = (() => {
 
 
 
+
 const _sprCache = new Map(); // کش اسپرایت قهرمان (LRU)
 const ENTS = []; // لیست موجودات قابل رندر — بازمصرف بین فریم‌ها
 const _lights = []; // لیست تخت نورها — بدون تخصیص آبجکت
@@ -8764,6 +8856,7 @@ const _clights = []; // S4.1: لیست تختِ نورهای **رنگی** [x,y,r
 const TORCH_COL_ST = 132; // شدتِ تزریقِ رنگِ مشعل (رنگِ رمپیِ تیره‌تر ⇒ شدتِ بیشتر برای همان گرمی)
 const MINI_BG = [12, 10, 24, 175], MINI_FLOOR = [82, 78, 100, 200], MINI_PILLAR = [50, 46, 66, 220], MINI_WATER = [90, 160, 180, 190], BOSS_DOT = [220, 80, 80, 255];
 const SKILL_HALO = [140, 220, 255, 90], IFRAME_GLOW = [255, 255, 255, 60], IFRAME_BOX = [255, 255, 255, 26];
+const EYE_GLOW = { ghost: 1, imp: 0, golem: 4, mummy: 2, skeleton: 1, bat: 5, spider: 5 }; // S4.6: جور→شناسه‌ی رنگِ درخششِ چشم
 const _spC2 = [255, 224, 130, 255], _bossC = [226, 120, 120, 255]; // ن۴۱: رنگ اسپلش طبقه/باس — اسکرچ
 const BY_Y = (a, b) => a.y - b.y; // مقایسه‌گر y-sort — ثابت ماژول
 const _ho = { dir: 'down', anim: 'idle', phase: 0, breath: 0, moveW: 0, tool: 'sword', actP: -1, blink: false, equip: null }; // اسکرچ بدون تخصیص هر فریم
@@ -8925,8 +9018,23 @@ function renderRun(run, r) {
       pushC(D.stairs.x * TILE + 8 - cx, D.stairs.y * TILE + 8 - cy, 14, 52, 5);
       pushC(h.x - cx, h.y - 14 - cy, 22, 44, 4);           // هالهٔ گرمِ ملایمِ قهرمان (آخر ⇒ بودجه‌ی باقی‌مانده)
     }
+    // ---- S4.6: درخشش‌های افزایشی (استامپِ پیش‌پخته) — پس از تاریکی رسم می‌شوند ----
+    glowBegin();
+    if (GLOW.on) {
+      for (const t2 of D.torches) glowAdd(t2.x * TILE + 8 - cx, t2.y * TILE + TORCH_LIGHT.yOff - cy, 0, 2, 96, 4); // مشعل
+      for (const d2 of D.drops) if (d2.kind === 'essence') glowAdd(d2.x - cx, d2.y - cy, 1, 0, 74, 3);           // اسانس
+      if (D.shrine && !D.shrine.used) glowAdd(D.shrine.x - cx, D.shrine.y - cy, 3, 1, 58 + (Math.sin(run.time * 2.4) > 0 ? 12 : 0), 3); // محراب
+      glowAdd(D.stairs.x * TILE + 8 - cx, D.stairs.y * TILE + 8 - cy, 2, 0, 40, 2);                              // پله‌ی خروج
+      for (const pr of run.projs || []) if (pr.kind === 'fire') glowAdd(pr.x - cx, pr.y - cy, 0, 0, 78, 3);       // گویِ آتش
+      for (const e2 of D.enemies) {                                                                              // چشمِ روح/آتش‌جان + هاله‌ی باس
+        if (e2.dead) continue;
+        if (e2.isBoss) glowAdd(e2.x - cx, e2.y - 44 - cy, 4, 2, 58, 2);
+        else if (EYE_GLOW[e2.kind]) glowAdd(e2.x - cx, e2.y - (MHEAD[e2.kind] ?? 76) - cy, EYE_GLOW[e2.kind], 0, 44, 1);
+      }
+    }
     setThemeGrade(GRADE.off ? -1 : D.theme);                     // S4.3: گریدینگِ رنگیِ تم (LUT یک‌بار در هر تغییرِ تم)
     applyDarkness(r, run._dark, L, C, cx, cy); // S4.2: دوربین برای دیترِ جهانی
+    glowDraw(r);                               // S4.6: هاله‌ها روی تاریکی (افزودنی + clamp)
     // افکت‌ها روی تاریکی (می‌درخشند)
     run.fx.render(r, cx, cy);
     // ---- نوار جان + علامت حمله + کمبو: بعد از تاریکی (خوانا حتی در تاریکی) ----

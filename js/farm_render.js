@@ -15,6 +15,7 @@ import { drawWater, SHORE_FARM } from './art/water.js'; // S2.7: آب و کرا�
 import { HOX, HOY } from './art/hero_pose.js';
 import { applyRim } from './art/rim.js';
 import { shadowUpdate, castShadowDraw } from './art/shadow.js'; // S4.4: سایه‌ی پرتابیِ ساعتی
+import { glowBegin, glowAdd, glowDraw } from './art/glow.js'; // S4.6: درخششِ ارزان
 
 const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
 const FENTS = []; // pool موجودات مزرعه
@@ -139,7 +140,11 @@ export function renderFarm(game, r) {
     game.fx.render(r, cx, cy);
     // ---- شب: تینت آبی + شب‌تاب‌ها ----
     applyNight(r, game.dayT, raining); // تینت شب×باران در یک گذر (ن۳۶: بدون شب‌تاب)
-    drawFarmhouseGlow(r, HOUSE.x * TILE - cx, HOUSE.y * TILE - cy, game.time, nightFactor(game.dayT)); // پنجره‌ی خانه: نور واقعی در تاریکی
+    const nfG = nightFactor(game.dayT);
+    drawFarmhouseGlow(r, HOUSE.x * TILE - cx, HOUSE.y * TILE - cy, game.time, nfG); // پنجره‌ی خانه: نور واقعی در تاریکی
+    glowBegin();                                        // S4.6: هاله‌ی گرمِ پنجره در شب (افزودنی، پس از LUT)
+    if (nfG > 0.45) glowAdd(HOUSE.x * TILE - cx + 8, HOUSE.y * TILE - cy + 21, 0, 1, 74, 2);
+    glowDraw(r);
     game.fish.draw(r, cx, cy, game.time, f);
     // ---- آب‌وهوا ----
     const nf = nightFactor(game.dayT);

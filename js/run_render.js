@@ -12,6 +12,7 @@ import { drawWater, dungeonShore } from './art/water.js'; // S2.7: آب و کر�
 import { drawPillarHead } from './art/ground.js'; // S3.8: سرستونِ بیرون‌زده (بعد از موجودات ⇒ y-sort)
 import { drawProjs } from './projectiles.js'; // ن۴۴
 import { applyDarkness, COLOR_LIGHTS, C_RAD_CAP, C_MAX, setThemeGrade, GRADE } from './art/light.js'; // S4.1: پاسِ نورِ رنگی
+import { glowBegin, glowAdd, glowDraw, GLOW } from './art/glow.js'; // S4.6: درخششِ ارزان
 import { t, faNum } from './i18n.js';
 
 const _sprCache = new Map(); // کش اسپرایت قهرمان (LRU)
@@ -21,6 +22,7 @@ const _clights = []; // S4.1: لیست تختِ نورهای **رنگی** [x,y,r
 const TORCH_COL_ST = 132; // شدتِ تزریقِ رنگِ مشعل (رنگِ رمپیِ تیره‌تر ⇒ شدتِ بیشتر برای همان گرمی)
 const MINI_BG = [12, 10, 24, 175], MINI_FLOOR = [82, 78, 100, 200], MINI_PILLAR = [50, 46, 66, 220], MINI_WATER = [90, 160, 180, 190], BOSS_DOT = [220, 80, 80, 255];
 const SKILL_HALO = [140, 220, 255, 90], IFRAME_GLOW = [255, 255, 255, 60], IFRAME_BOX = [255, 255, 255, 26];
+const EYE_GLOW = { ghost: 1, imp: 0, golem: 4, mummy: 2, skeleton: 1, bat: 5, spider: 5 }; // S4.6: جور→شناسه‌ی رنگِ درخششِ چشم
 const _spC2 = [255, 224, 130, 255], _bossC = [226, 120, 120, 255]; // ن۴۱: رنگ اسپلش طبقه/باس — اسکرچ
 const BY_Y = (a, b) => a.y - b.y; // مقایسه‌گر y-sort — ثابت ماژول
 const _ho = { dir: 'down', anim: 'idle', phase: 0, breath: 0, moveW: 0, tool: 'sword', actP: -1, blink: false, equip: null }; // اسکرچ بدون تخصیص هر فریم
@@ -182,8 +184,23 @@ export function renderRun(run, r) {
       pushC(D.stairs.x * TILE + 8 - cx, D.stairs.y * TILE + 8 - cy, 14, 52, 5);
       pushC(h.x - cx, h.y - 14 - cy, 22, 44, 4);           // هالهٔ گرمِ ملایمِ قهرمان (آخر ⇒ بودجه‌ی باقی‌مانده)
     }
+    // ---- S4.6: درخشش‌های افزایشی (استامپِ پیش‌پخته) — پس از تاریکی رسم می‌شوند ----
+    glowBegin();
+    if (GLOW.on) {
+      for (const t2 of D.torches) glowAdd(t2.x * TILE + 8 - cx, t2.y * TILE + TORCH_LIGHT.yOff - cy, 0, 2, 96, 4); // مشعل
+      for (const d2 of D.drops) if (d2.kind === 'essence') glowAdd(d2.x - cx, d2.y - cy, 1, 0, 74, 3);           // اسانس
+      if (D.shrine && !D.shrine.used) glowAdd(D.shrine.x - cx, D.shrine.y - cy, 3, 1, 58 + (Math.sin(run.time * 2.4) > 0 ? 12 : 0), 3); // محراب
+      glowAdd(D.stairs.x * TILE + 8 - cx, D.stairs.y * TILE + 8 - cy, 2, 0, 40, 2);                              // پله‌ی خروج
+      for (const pr of run.projs || []) if (pr.kind === 'fire') glowAdd(pr.x - cx, pr.y - cy, 0, 0, 78, 3);       // گویِ آتش
+      for (const e2 of D.enemies) {                                                                              // چشمِ روح/آتش‌جان + هاله‌ی باس
+        if (e2.dead) continue;
+        if (e2.isBoss) glowAdd(e2.x - cx, e2.y - 44 - cy, 4, 2, 58, 2);
+        else if (EYE_GLOW[e2.kind]) glowAdd(e2.x - cx, e2.y - (MHEAD[e2.kind] ?? 76) - cy, EYE_GLOW[e2.kind], 0, 44, 1);
+      }
+    }
     setThemeGrade(GRADE.off ? -1 : D.theme);                     // S4.3: گریدینگِ رنگیِ تم (LUT یک‌بار در هر تغییرِ تم)
     applyDarkness(r, run._dark, L, C, cx, cy); // S4.2: دوربین برای دیترِ جهانی
+    glowDraw(r);                               // S4.6: هاله‌ها روی تاریکی (افزودنی + clamp)
     // افکت‌ها روی تاریکی (می‌درخشند)
     run.fx.render(r, cx, cy);
     // ---- نوار جان + علامت حمله + کمبو: بعد از تاریکی (خوانا حتی در تاریکی) ----
