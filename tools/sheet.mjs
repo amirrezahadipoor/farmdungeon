@@ -55,7 +55,7 @@ function dungeonScene(seed, f) {
   });
 }
 const REF_FARM = [['day', 100], ['rain', 410], ['night', 2220]];
-const REF_DUN = [[1, 'f01'], [6, 'f06'], [11, 'f11'], [16, 'f16']];
+const REF_DUN = [[1, 'f01'], [6, 'f06'], [11, 'f11'], [16, 'f16'], [22, 'f22'], [27, 'f27']]; // S3.10: تم‌های ۴/۵
 
 // ================= tiles =================
 function sheetTiles() {
@@ -143,7 +143,7 @@ function sheetFarm() {
   console.log('ref_farm_day/rain/night.png');
 }
 function sheetDungeon() {
-  const scenes = REF_DUN.map(([f]) => [`دانجن — طبقه ${f} (تم ${Math.floor((f - 1) / 5) % 4})`, dungeonScene(13, f)]);
+  const scenes = REF_DUN.map(([f]) => [`دانجن — طبقه ${f} (تم ${Math.floor((f - 1) / 5) % 6})`, dungeonScene(13, f)]);
   stack(scenes, 'صحنه‌های مرجع دانجن — ۴ تم (زوم ×۲)', 'sheet_dungeon.png');
   for (const [f, tag] of REF_DUN) savePNG(path.join(SHOTS, `ref_dungeon_${tag}.png`), dungeonScene(13, f));
   console.log('ref_dungeon_f01/f06/f11/f16.png');
