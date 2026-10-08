@@ -6859,40 +6859,76 @@ function drawBossFrame(o) {
     shake = dead < 0.3 ? 1 : 0;
   }
   const gy = OY + bob + (dead > 0.5 ? (dead - 0.5) * 20 : 0);
-  const sx = shake ? (Math.floor(f.time * 40) % 2 ? 1.5 : -1.5) : 0;
+  const phaseFlash = o.phaseFlash ? 1 : 0; // S6.6: دو فریمِ نخستِ فازِ تازه (لرزش + جرقه + فلش)
+  const sx = shake ? (Math.floor(f.time * 40) % 2 ? 1.5 : -1.5) : (phaseFlash ? (Math.floor(f.time * 60) % 2 ? 2.5 : -2.5) : 0);
 
   // --- پاها (ستون‌های سنگی) ---
   for (const dx of [-14, 5]) {
     g.rect(sx + dx, gy - 26, 11, 26, B.sh);
     g.rect(sx + dx, gy - 26, 11, 3, B.body);
     g.rect(sx + dx + 8, gy - 24, 3, 22, B.out);
+    if (phase === 2) { g.lineW(sx + dx + 2, gy - 22, sx + dx + 6, gy - 8, 2, B.red); g.px(sx + dx + 4, gy - 14, MC.ember); } // فاز ۲: ترکِ پا
     if (phase === 3) { g.rect(sx + dx + 2, gy - 20, 3, 1, B.red); g.rect(sx + dx + 4, gy - 12, 2, 1, B.ember); } // گداختگی
   }
-  // --- تنه + شظايا (زره) ---
+  // --- تنه + شظايا (زره) — S6.6: سه فازِ بصریِ متمایز ---
   const ty = gy - 66;
-  g.rect(sx - 24, ty, 48, 40, B.body);
-  g.rect(sx - 24, ty, 48, 4, B.hi); g.rect(sx - 24, ty + 36, 48, 4, B.sh);
+  const tw = phase === 3 ? 34 : 48;                            // فاز ۳: نیمی از تنه فروریخته
+  g.rect(sx - 24, ty, tw, 40, B.body);
+  g.rect(sx - 24, ty, tw, 4, B.hi); g.rect(sx - 24, ty + 36, tw, 4, B.sh);
   g.rect(sx - 8, ty + 6, 16, 22, B.sh);                       // صفحه‌ی سینه
   g.rect(sx - 7, ty + 7, 14, 3, B.hi);
-  for (let i = 0; i < 4; i++) g.px(sx - 20 + i * 13, ty + 16, B.out); // پرچ‌های زره
-  g.rect(sx - 24, ty + 14, 48, 2, MC.bossMid); g.rect(sx - 22, ty + 30, 8, 2, MC.bossDeep); g.rect(sx + 8, ty + 22, 10, 2, MC.bossDeep); // S1.5b: صفحه‌های سنگی
-  g.rect(sx - 16, ty + 22, 6, 1, MC.bossCrack); g.rect(sx + 6, ty + 12, 5, 1, MC.bossCrack);
-  g.rect(sx - 18, ty + 6, 3, 2, MC.ember); g.rect(sx + 15, ty + 6, 3, 2, MC.ember); g.rect(sx - 2, ty + 26, 6, 1, MC.bossRed); // S1.5b: دریچه‌های گدازه‌ی همیشه‌روشن
-  if (phase >= 2) { // فاز ۲: ترک‌های گداخته
-    g.line(sx - 18, ty + 8, sx - 12, ty + 24, B.red); g.line(sx + 14, ty + 6, sx + 10, ty + 26, B.red);
-    if (phase === 3) { // فاز ۳: خشم — ترک مرکزی + برق‌های گداخته
-      g.line(sx - 4, ty + 4, sx + 2, ty + 30, B.red); g.px(sx, ty + 12, B.ember); g.px(sx - 2, ty + 20, B.ember);
-      g.rect(sx - 12, ty + 28, 4, 2, B.ember); g.rect(sx + 9, ty + 10, 3, 2, B.ember);
-    }
+  for (let i = 0; i < (phase === 3 ? 3 : 4); i++) g.px(sx - 20 + i * 13, ty + 16, B.out); // پرچ‌های زره
+  g.rect(sx - 24, ty + 14, tw, 2, MC.bossMid); g.rect(sx - 22, ty + 30, 8, 2, MC.bossDeep);
+  if (phase !== 3) g.rect(sx + 8, ty + 22, 10, 2, MC.bossDeep); // S1.5b: صفحه‌های سنگی
+  g.rect(sx - 16, ty + 22, 6, 1, MC.bossCrack); if (phase !== 3) g.rect(sx + 6, ty + 12, 5, 1, MC.bossCrack);
+  g.rect(sx - 18, ty + 6, 3, 2, MC.ember); if (phase !== 3) g.rect(sx + 15, ty + 6, 3, 2, MC.ember);
+  g.rect(sx - 2, ty + 26, 6, 1, MC.bossRed);                    // S1.5b: دریچه‌ی گدازه‌ی همیشه‌روشن
+  if (phase === 2) { // فاز ۲: لب‌پریدگی + شبکه‌ی ترکِ گداخته‌ی پهن (هسته‌ی اخگری روی لبه‌ی تیره)
+    g.rect(sx + 14, ty, 10, 6, B.out); g.rect(sx + 12, ty + 5, 3, 3, B.out);      // شانه‌ی لب‌پریده
+    g.rect(sx - 26, ty + 26, 4, 6, B.out); g.rect(sx - 24, ty + 17, 3, 4, B.out); // لب‌پریدگیِ پهلو
+    const crack = (x1, y1, x2, y2) => {                                           // ترکِ سه‌لایه
+      g.lineW(x1, y1, x2, y2, 3, B.out); g.lineW(x1, y1, x2, y2, 2, B.red); g.line(x1, y1, x2, y2, MC.ember);
+    };
+    crack(sx - 18, ty + 8, sx - 12, ty + 26); crack(sx + 12, ty + 6, sx + 8, ty + 28);
+    crack(sx - 12, ty + 26, sx - 2, ty + 36); crack(sx + 8, ty + 28, sx + 2, ty + 38);
+    crack(sx - 22, ty + 22, sx - 18, ty + 38); crack(sx + 2, ty + 4, sx - 6, ty + 18);
+    crack(sx - 6, ty + 6, sx + 4, ty + 20); crack(sx - 20, ty + 12, sx - 14, ty + 30); // ترک‌های میانی
+    g.rect(sx - 24, ty, 4, 9, B.out); g.rect(sx - 23, ty + 9, 3, 3, B.out);            // گوشه‌ی لب‌پریده
+    g.rect(sx - 8, ty + 11, 14, 7, B.out); g.rect(sx - 6, ty + 12, 10, 5, B.red); g.rect(sx - 4, ty + 13, 6, 3, MC.ember); // حفره‌ی سینه
+    for (let i = 0; i < 3; i++) g.rect(sx - 20 + i * 16, ty + 40 + (i % 2) * 2, 3, 7 + (i % 2) * 3, MC.ember);             // چکه‌ی گدازه
+    g.rect(sx - 19, ty + 48, 2, 3, B.red); g.rect(sx + 13, ty + 49, 2, 3, B.red);                                            // چاله‌ی گدازه
+    g.px(sx - 19, ty + 47, B.red); g.px(sx - 3, ty + 46, B.red); g.px(sx + 13, ty + 48, B.red);
+  }
+  if (phase === 3) { // فاز ۳: لبه‌ی شکسته + هسته‌ی گداخته‌ی نمایان + خرده‌سنگ
+    for (let i = 0; i < 10; i++) g.px(sx + 10 - (i % 3), ty + 3 + i * 4, B.out);   // لبه‌ی دندانه‌دارِ شکستگی
+    g.rect(sx + 2, ty + 12, 8, 12, B.red); g.rect(sx + 3, ty + 14, 6, 8, MC.ember); // هسته
+    g.px(sx + 1, ty + 28, B.ember); g.px(sx + 9, ty + 30, B.red); g.px(sx + 6, ty + 6, MC.ember);
+    g.rect(sx - 4, ty + 4, 6, 2, B.out);                                            // ترکِ بالای تنه
+    g.rect(sx - 26, gy - 5, 7, 4, B.sh); g.px(sx - 25, gy - 6, B.body); g.px(sx - 21, gy - 2, B.out);
+    g.rect(sx + 16, gy - 4, 8, 3, B.sh); g.px(sx + 18, gy - 5, B.body); g.px(sx + 23, gy - 2, B.out); // خرده‌سنگِ ریخته
+    g.rect(sx + 26, gy - 3, 4, 2, B.sh);
   }
   // --- بازوی دور ---
   g.lineW(sx - 20, ty + 8, sx - 26, ty + 30, 8, B.sh);
-  // --- سر + کلاه‌تاج ---
-  const hy = ty - 16 - inhale * 2;
-  g.rect(sx - 9, hy, 18, 16, B.body);
-  g.rect(sx - 9, hy, 18, 3, B.hi);
-  g.rect(sx - 5, hy + 6, 11, 3, warn > 0.2 || jaw > 0.2 ? B.red : B.sh); // چشم
-  for (let i = 0; i < 3; i++) g.rect(sx - 7 + i * 6, hy - 5, 3, 5, B.gold); // تاج
+  // --- سر + کلاه‌تاج (S6.6: فاز ۲ تاجِ شکسته · فاز ۳ کج + خشم) ---
+  const hTilt = phase === 3 ? 3 : 0, hy = ty - 16 - inhale * 2 + (phase === 3 ? 2 : 0);
+  g.rect(sx - 9 + hTilt, hy, 18, 16, B.body);
+  g.rect(sx - 9 + hTilt, hy, 18, 3, B.hi);
+  g.rect(sx - 5 + hTilt, hy + 6, 11, 3, warn > 0.2 || jaw > 0.2 || phase === 3 ? B.red : B.sh); // چشم
+  if (phase === 3) { g.rect(sx - 3 + hTilt, hy + 6, 5, 3, MC.ember); g.px(sx + 2 + hTilt, hy + 7, B.white); }
+  const crownN = phase === 3 ? 2 : 3;                                   // تاج: سالم → شکسته
+  for (let i = 0; i < crownN; i++) {
+    const cx2 = sx - 7 + i * 6 + (phase === 3 ? 4 : 0), cy2 = hy - 5 + (phase === 3 ? 2 : 0);
+    g.rect(cx2, cy2, 3, phase === 3 ? 4 : 5, B.gold);
+    if (phase === 3) g.px(cx2, cy2 - 1, B.gold);                         // میخِ کج
+  }
+  if (phase >= 2) { g.rect(sx + 22, gy - 7, 3, 5, B.gold); if (phase === 3) g.rect(sx + 27, gy - 5, 3, 4, B.gold); } // میخ‌های افتاده
+  if (phase === 2) { // فاز ۲: ترکِ سر هم‌زبانِ تنه
+    g.lineW(sx - 9 + hTilt, hy + 1, sx - 2 + hTilt, hy + 9, 2, B.red); g.px(sx - 6 + hTilt, hy + 4, MC.ember);
+  }
+  if (phase === 3) { // هاله‌ی خشم: اخگرهای شناور دورِ سر/شانه
+    for (const [ex2, ey2] of [[-15, -8], [13, -12], [-19, 4], [17, 6], [-9, -15], [8, -16]]) g.px(sx + ex2, hy + ey2, MC.ember);
+  }
   if (jaw > 0.3) { g.rect(sx - 4, hy + 12, 9, 3 + Math.round(jaw * 3), B.dark); g.px(sx - 2, hy + 13, B.ember); } // غرش
   // --- بازوی نزدیک + چکش بزرگ ---
   const shx = sx + 20, shy = ty + 8;
@@ -6918,6 +6954,13 @@ function drawBossFrame(o) {
     const rr = Math.round((f.t - 0.55) * 40);
     for (let a = -1.4; a <= 1.4; a += 0.22) g.px(sx + cos(a) * rr, OY + 1 - Math.abs(sin(a)) * 3, B.ember);
   }
+  // S6.6: جرقه‌های گذارِ فاز (اخگر + سفید دورِ سیلوئت)
+  if (phaseFlash) {
+    for (let i = 0; i < 10; i++) {
+      const a2 = (i / 10) * PI * 2 + f.time;
+      g.px(sx + cos(a2) * (36 + (i % 3) * 7), ty + 22 + sin(a2) * (32 + (i % 2) * 9), i % 2 ? MC.ember : B.white);
+    }
+  }
   // --- مرگ: ترک‌ها + فروپاشی + افتادن تاج ---
   if (dead > 0) {
     g.line(sx - 16, ty, sx - 4, ty + 20 * Math.min(1, dead * 2), B.out);
@@ -6930,7 +6973,7 @@ function drawBossFrame(o) {
   // S6.1: outline → flash → سایهٔ ۵ باندی → snap پالت، همه از خط لولهٔ واحد
   const steps = [];
   if (!o.hit) steps.push({ op: 'outline', mode: 'sel' }); // S1.7: به‌جای B.out ثابت — تُنِ ماده، L≈۱۹
-  if (o.hit) steps.push({ op: 'flash', color: MC.white });
+  if (o.hit || phaseFlash) steps.push({ op: 'flash', color: MC.white }); // S6.6: فلشِ سفید در گذارِ فاز هم
   steps.push({ op: 'shadow', spec: 'boss', x: OX, y: OY, color: rp('ink', 0) }); // S1.5b: ۵ باند آلفا (M4)
   steps.push({ op: 'snap' });                                                    // S4.6c
   drawMotionFx(r0, 'boss', f, mv, OX, OY); // S6.3: خاکسترِ معلق
@@ -7199,6 +7242,7 @@ const ALL_KINDS = [...MONSTER_KINDS, 'boss'];
 class Monster {
   constructor(kind, x, y, phase = 1, muls = {}) {
     this.kind = kind; this.x = x; this.y = y; this.phase = phase;
+    this._phaseShown = phase; this._phaseFlash = 0; // S6.6: وضعیتِ نمایشیِ گذارِ فاز (فقط ظاهر)
     const s = STATS[kind];
     this.isElite = !!muls.elite; // تاج‌دار: قوی‌تر، غنیمت بیشتر (منبع واحد ضریب)
     this.dmg = s.dmg * (muls.dmgMul ?? 1) * (this.isElite ? 1.35 : 1);
@@ -7286,11 +7330,17 @@ class Monster {
   // اسپرایت کش‌شده (۸ فریم فاز/زمان)
   sprite() {
     const q = (v) => Math.floor(v * 8) / 8;
-    const key = `${this.kind}|${this.state}|${q(this.t)}|${q(this.ph)}|${this.face}|${this.flash > 0 ? 1 : 0}|${this.atk}|${this.phase}`;
+    // S6.6: گذارِ فاز — فقط ظاهر (مدل/گیم‌پلی دست‌نخورده): دو فریمِ نخستِ فازِ تازه = لرزش + جرقه + فلشِ سفید
+    let phaseFlash = 0;
+    if (this.isBoss) {
+      if (this._phaseShown !== this.phase) { this._phaseShown = this.phase; this._phaseFlash = 2; }
+      if (this._phaseFlash > 0) { phaseFlash = 1; this._phaseFlash--; }
+    }
+    const key = `${this.kind}|${this.state}|${q(this.t)}|${q(this.ph)}|${this.face}|${this.flash > 0 ? 1 : 0}|${this.atk}|${this.phase}|${phaseFlash}`;
     let s = Monster._cache.get(key);
     if (!s) {
       const o = { state: this.state, t: q(this.t), ph: q(this.ph), face: this.face, time: this.time, hit: this.flash > 0 };
-      s = this.isBoss ? drawBossFrame({ ...o, atk: this.atk, phase: this.phase }) : drawMonsterFrame(this.kind, o);
+      s = this.isBoss ? drawBossFrame({ ...o, atk: this.atk, phase: this.phase, phaseFlash }) : drawMonsterFrame(this.kind, o);
       Monster._cache.set(key, s); // snap پالت داخلِ draw*Frame (خط لولهٔ S6.1) — سقف حافظه در makeSpriteCache
     }
     return s;
@@ -9972,7 +10022,14 @@ function renderRun(run, r) {
     drawShrines(r, D, cx, cy, run.time);
     // هاله‌ی تهدید باس (نبض قرمز زیر پا)
     const bossRef = D.enemies.find((e) => e.isBoss) || null; // یک find برای هاله + مینی‌مپ
-    if (bossRef && bossRef.state !== 'die') r.ellipse(Math.round(bossRef.x) - cx, Math.round(bossRef.y) + 2 - cy, 26 + Math.round(Math.sin(run.time * 3) * 3), 8, [190, 60, 60, 42]);
+    if (bossRef && bossRef.state !== 'die') {
+      // S6.6: هاله‌ی تهدیدِ فاز‌محور — فاز ۲ گرم‌تر · فاز ۳ «هاله‌ی خشم» (دو حلقه، تندتر)
+      const bph = bossRef.phase || 1, pw = bph === 3 ? 1.35 : bph === 2 ? 1.15 : 1;
+      const pulse = Math.sin(run.time * (bph === 3 ? 6 : 3));
+      const col = bph === 3 ? [236, 74, 52, 66] : bph === 2 ? [214, 92, 60, 52] : [190, 60, 60, 42];
+      r.ellipse(Math.round(bossRef.x) - cx, Math.round(bossRef.y) + 2 - cy, Math.round((26 + pulse * 3) * pw), Math.round(8 * pw), col);
+      if (bph === 3) r.ellipse(Math.round(bossRef.x) - cx, Math.round(bossRef.y) + 2 - cy, Math.round(34 + pulse * 5), 11, [236, 74, 52, 30]);
+    }
     // رد دوج: شبح‌های آبی محوشونده
     if (run._trail) for (const g of run._trail) {
       const a = Math.round(70 * (1 - g.t / 0.3));
