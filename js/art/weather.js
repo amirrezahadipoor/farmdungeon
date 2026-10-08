@@ -1,5 +1,8 @@
 // art/weather.js — آب‌وهوای مزرعه: باران + رعد و برق (ن۳۶: سایه‌ی ابرِ متحرک و برگِ همیشه‌ریزان حذف شدند — نویز/لکه‌ی تاریک)
 import { Q } from './quality.js';
+import { rp } from './ramps.js';       // S4.7: رنگ‌های گودال/چکه از رمپِ آب (پالت‌محور)
+import { hash2 } from './noise.js';    // S4.7: جای قطعیِ گودال/چکه
+import { TILE } from '../tiles.js';
 // باران دوره‌ایِ قطعی است: هر ۶۰۰ ثانیه، ۷۵ ثانیه باران — و محصول‌ها را رایگان آبیاری می‌کند!
 
 export const RAIN_PERIOD = 600, RAIN_LEN = 75;
@@ -88,4 +91,38 @@ export function drawPondRipples(r, time) {
     r.px(sx - dx2, sy - dy2, _ripC); r.px(sx + dx2, sy - dy2, _ripC);
     r.px(sx - dx2, sy + dy2, _ripC); r.px(sx + dx2, sy + dy2, _ripC);
   }
+}
+
+// ---------- S4.7: زمینِ خیس — گودال‌های ثابتِ خاک‌راه + حلقه‌های چکه‌ی ۳ فریمی (قطعی، ≤۸ روی صفحه) ----------
+const _pd = [...rp('water', 5).slice(0, 3), 226], _ph = [...rp('water', 6).slice(0, 3), 255], _pr = [...rp('water', 3).slice(0, 3), 205];
+const _sp = [...rp('water', 6).slice(0, 3), 0];
+export const WET_DEBUG = { splash: 0, puddle: 0 }; // QA/sheet
+
+// گودال: روی تایلِ خاک‌راه، جای قطعی از hash (۳..۱۰px عرض، ۲px ارتفاع + هایلایتِ آسمان + ریمِ تیره)
+// چکه: روی تایلِ چمنِ بدونِ محصول، چرخه‌ی ۳ فریمی (نقطه → حلقه‌ی کوچک → حلقه‌ی بزرگ) با محوشدنِ تدریجی
+export function drawRainGround(r, f, x0, y0, x1, y1, cx, cy, time) {
+  const fr = (time * 7) | 0;
+  let sp = 0, pd = 0;
+  for (let ty = y0; ty <= y1; ty++) for (let tx = x0; tx <= x1; tx++) {
+    const c = f.cell(tx, ty); if (!c) continue;
+    const sx = tx * TILE - cx, sy = ty * TILE - cy;
+    if (sx < -12 || sy < -12 || sx > r.w + 4 || sy > r.h + 4) continue;
+    if (c.kind === 'path' && !c.fenceH && hash2(tx, ty, 77) < 0.34) {  // گودال فقط روی خاک‌راهِ بی‌حصار
+      const px = sx + 2 + ((hash2(tx, ty, 78) * 8) | 0), py = sy + 6 + ((hash2(tx, ty, 79) * 6) | 0); // وسطِ کاشی، نه لبه
+      const w = 5 + ((hash2(tx, ty, 80) * 6) | 0);
+      r.rect(px, py, w, 2, _pd); r.rect(px + 1, py - 1, w - 2, 1, _pd);   // بدنِ گودال (لنزِ کم‌عمق)
+      r.px(px - 1, py + 1, _pr); r.px(px + w, py + 1, _pr);
+      r.px(px + 1, py - 1, _ph); r.px(px + 2, py, _ph); r.px(px + w - 2, py - 1, _ph); // جلای آسمان روی لبهٔ بالا
+      r.px(px, py + 2, _pr); r.px(px + w - 1, py + 2, _pr);
+      pd++;
+    } else if (sp < 8 && c.kind === 'grass' && !c.crop && hash2(tx, ty, 91) < 0.05) {
+      const ph = (fr + ((hash2(tx, ty, 92) * 3) | 0)) % 3;   // ۳ فریم
+      const px = sx + 4 + ((hash2(tx, ty, 93) * 8) | 0), py = sy + 5 + ((hash2(tx, ty, 94) * 8) | 0);
+      _sp[3] = 152 - ph * 42;
+      if (ph === 0) { r.px(px, py, _sp); r.px(px + 1, py + 1, _sp); }
+      else { r.px(px - ph, py, _sp); r.px(px + ph, py, _sp); r.px(px, py - ph, _sp); r.px(px, py + ph, _sp); }
+      sp++;
+    }
+  }
+  WET_DEBUG.splash = sp; WET_DEBUG.puddle = pd;
 }

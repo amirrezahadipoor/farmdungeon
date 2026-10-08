@@ -8,9 +8,9 @@ import { drawFarmhouse, drawFarmhouseGlow, drawScarecrow, drawSprinkler, drawBas
 import { HOUSE, SCARECROW } from './farm_layout.js';
 import { applyNight, nightFactor } from './night.js';
 import { drawBirds } from './art/critters.js';
-import { drawRain, isRaining, lightningK, flashTint, drawLightning, drawPondRipples } from './art/weather.js';
+import { drawRain, isRaining, lightningK, flashTint, drawLightning, drawPondRipples, drawRainGround } from './art/weather.js';
 import { drawHeroFrame, frameKey, framePhase, halfSprite } from './art/hero.js';
-import { flushDirty, OPAQUE } from './farm_terrain.js'; // S2.1: کش زمین + dirty-tile
+import { flushDirty, OPAQUE, wetTransition, WET, WET_FULL, wetRaster, wetTiles } from './farm_terrain.js'; // S2.1 کش زمین · S4.7 لایه‌ی خیس
 import { drawWater, SHORE_FARM } from './art/water.js'; // S2.7: آب و کرانه (یک منبع با دانجن)
 import { HOX, HOY } from './art/hero_pose.js';
 import { applyRim } from './art/rim.js';
@@ -63,17 +63,41 @@ export function renderFarm(game, r) {
     const y0 = Math.max(0, Math.floor(cy / TILE)), y1 = Math.min(ROWS - 1, Math.ceil((cy + r.h) / TILE));
     // S2.1: لایه‌ی استاتیک از کش (blit تایل‌به‌تایل؛ تایلِ مات = کپیِ u32، بدون blend) — dirtyها پیش از blit بازپخت می‌شوند
     const terr = flushDirty(f);
-    let allOp = true; // اگر تمام پنجره‌ی دید مات باشد، کل زمین با یک blit می‌آید
-    for (let ty = y0; ty <= y1 && allOp; ty++) for (let tx = x0; tx <= x1; tx++) if (!OPAQUE[ty * COLS + tx]) { allOp = false; break; }
-    if (allOp) terr.blit(r, x0 * TILE, y0 * TILE, (x1 - x0 + 1) * TILE, (y1 - y0 + 1) * TILE, x0 * TILE - cx, y0 * TILE - cy, true);
+    wetTransition(raining, x0, y0, x1, y1);            // S4.7: گذارِ آهسته (بودجه‌ی ~۰٫۳۵٪ پیکسلِ پنجره در هر فریم)
+    const wetL = wetTiles() ? wetRaster() : null;       // صفر تایلِ خیس ⇒ مسیرِ خشکِ قبلی، بیت‌به‌بیت
+    let allOp = true, allWet = wetL !== null;           // allOp: پنجره‌ی مات · allWet: تمامِ پنجره خیسِ کامل
     for (let ty = y0; ty <= y1; ty++) {
-      let rowOp = true;
-      for (let tx = x0; tx <= x1; tx++) if (!OPAQUE[ty * COLS + tx]) { rowOp = false; break; }
-      if (!allOp && rowOp) terr.blit(r, x0 * TILE, ty * TILE, (x1 - x0 + 1) * TILE, TILE, x0 * TILE - cx, ty * TILE - cy, true); // ردیفِ مات: یک memcpy به‌جای ۳۰ blit
+      for (let tx = x0; tx <= x1; tx++) {
+        const i2 = ty * COLS + tx;
+        if (!OPAQUE[i2]) allOp = false;
+        if (allWet && WET[i2] < WET_FULL) allWet = false;
+        if (!allOp && !allWet) break;
+      }
+      if (!allOp && !allWet) break;                     // پایانِ زودهنگام — هم‌ارزِ حلقه‌ی S2.1 وقتی خشکیم
+    }
+    const full = allOp && (allWet || !wetL);            // یک blitِ کلِ پنجره (از کشِ خیس اگر همه‌ی پنجره خیس است)
+    if (full) (allWet ? wetL : terr).blit(r, x0 * TILE, y0 * TILE, (x1 - x0 + 1) * TILE, (y1 - y0 + 1) * TILE, x0 * TILE - cx, y0 * TILE - cy, true);
+    for (let ty = y0; ty <= y1; ty++) {
+      let rowOp = true, rowAllDry = true, rowAllWet = wetL !== null; // ردیفِ ماتِ همگن: یک memcpy به‌جای ۳۰ blit
+      for (let tx = x0; tx <= x1; tx++) {
+        const i2 = ty * COLS + tx;
+        if (!OPAQUE[i2]) { rowOp = false; if (!wetL) break; }
+        if (wetL) { const w2 = WET[i2]; if (w2 >= WET_FULL) rowAllDry = false; else { rowAllWet = false; if (w2) rowAllDry = false; } }
+      }
+      const rowTag = rowAllWet ? 1 : (rowAllDry ? 0 : -1), rowBlit = !full && rowOp && rowTag >= 0;
+      if (rowBlit) (rowTag ? wetL : terr).blit(r, x0 * TILE, ty * TILE, (x1 - x0 + 1) * TILE, TILE, x0 * TILE - cx, ty * TILE - cy, true);
       for (let tx = x0; tx <= x1; tx++) {
       const c = f.cell(tx, ty);
       const sx = tx * TILE - cx, sy = ty * TILE - cy;
-      if (!allOp && !rowOp) terr.blit(r, tx * TILE, ty * TILE, TILE, TILE, sx, sy, OPAQUE[ty * COLS + tx] !== 0);
+      if (!full && !rowBlit) {
+        if (!wetL) terr.blit(r, tx * TILE, ty * TILE, TILE, TILE, sx, sy, OPAQUE[ty * COLS + tx] !== 0); // مسیرِ خشک = دقیقاً کدِ S2.1
+        else { // S4.7: تایلِ خیس/نیم‌خیس/خشک
+          const p = WET[ty * COLS + tx], op = OPAQUE[ty * COLS + tx] !== 0;
+          if (p >= WET_FULL) wetL.blit(r, tx * TILE, ty * TILE, TILE, TILE, sx, sy, op);
+          else if (p === 0) terr.blit(r, tx * TILE, ty * TILE, TILE, TILE, sx, sy, op);
+          else { wetL.blit(r, tx * TILE, ty * TILE, TILE, p, sx, sy, op); terr.blit(r, tx * TILE, ty * TILE + p, TILE, TILE - p, sx, sy + p, op); } // جبهه‌ی رطوبت درونِ تایل
+        }
+      }
       if (c.kind === 'water') drawWater(r, sx, sy, _fcell, tx, ty, wf, SHORE_FARM); // S2.7: آب متحرک (عمق+کاستیک+ساحل+کف) هر فریم روی کش
       if (c.crop) { // S2.6: سایهٔ تماسِ ۲px زیر گیاه (محصول روی خاک «نشانده» می‌شود)
         r.rect(sx + 5, sy + 14, 6, 1, c.wet ? E.soilWetSh : E.soilSh);
@@ -149,6 +173,7 @@ export function renderFarm(game, r) {
     // ---- آب‌وهوا ----
     const nf = nightFactor(game.dayT);
     if (raining) {
+      drawRainGround(r, f, x0, y0, x1, y1, cx, cy, game.time); // S4.7: گودال‌های خاک‌راه + چکه‌های ۳ فریمی
       drawRain(r, game.time);
       drawPondRipples(r, game.time); // موج روی حوضچه
       const lk = lightningK(game.dayT, game.time); // رعد و برق — فقط باران

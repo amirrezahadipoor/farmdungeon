@@ -11,6 +11,7 @@ import { bayer4 } from './art/dither.js';
 import { rp } from './art/ramps.js';
 import { drawWater, SHORE_FARM } from './art/water.js'; // S2.7: آب و کرانه — یک منبع
 import { bakeDecals, drawForest } from './art/decal.js'; // S2.9: دکال‌های خوشه‌ای + نوارِ جنگلِ لبه (هر دو پخته‌شده)
+import { PALETTE_MASTER } from './art/palette_master.js'; // S4.7: نگاشتِ پالت↔پالت برای نسخه‌ی «خیس»
 
 let cache = null;      // Raster کل دنیا (۴۸۰×۳۲۰)
 let bound = null;      // فارمِ متصل به کش (هر Game کش خودش را دارد)
@@ -24,6 +25,61 @@ const KIND = { grass: 1, path: 2, tree: 3, soil: 4, water: 5, hedge: 6, gate: 7,
 let sigs = null;       // امضای استاتیک هر سلول (تورِ اطمینان: هر جهشِ بی‌هوک را هم می‌گیرد)
 export const OPAQUE = new Uint8Array(COLS * ROWS); // آیا همه‌ی پیکسل‌های تایلِ کش مات‌اند؟ (⇒ blit فوق‌سریع)
 
+// ---------- S4.7: لایه‌ی «خیس» — کشِ دوم با تُنِ یک‌پله‌تیره‌تر/سردتر (نگاشتِ پالت↔پالت، نه ضربِ رنگ) ----------
+// هدف: نزدیک‌ترین رنگِ پالت به نسخه‌ی تیره‌ترِ همان رنگ (با شرطِ روشناییِ کمتر) ⇒ پالت نمی‌شکند (M5) و
+// گذارِ آهسته/خشک‌شدنِ تدریجی فقط با جابه‌جاییِ منبعِ blit انجام می‌شود (کشِ خشک هرگز دست نمی‌خورد).
+let wetCache = null, wetCount = 0;
+export const WET = new Uint8Array(COLS * ROWS);      // ۰ خشک · ۱ خیس
+export const wetRaster = () => wetCache;
+export const wetTiles = () => wetCount;
+const _wetMap = new Map();
+function wetTarget(c) {
+  const P = PALETTE_MASTER, R0 = c[0] * 0.84 | 0, G0 = c[1] * 0.86 | 0, B0 = c[2] * 0.92 | 0;
+  const l0 = c[0] * 3 + c[1] * 6 + c[2] * 2;
+  let best = null, bd = Infinity;
+  for (let k = 0; k < P.length; k++) {
+    const q = P[k];
+    if (q[0] === c[0] && q[1] === c[1] && q[2] === c[2]) continue;
+    if (q[0] * 3 + q[1] * 6 + q[2] * 2 >= l0) continue;   // فقط تیره‌تر (ترتیبِ روشنایی حفظ شود)
+    const dr = R0 - q[0], dg = G0 - q[1], db = B0 - q[2], d = dr * dr + dg * dg + db * db;
+    if (d < bd) { bd = d; best = q; }
+  }
+  return best || c;
+}
+function wetOf(r, g, b) {
+  const k = (r << 16) | (g << 8) | b;
+  let v = _wetMap.get(k);
+  if (v === undefined) { v = wetTarget([r, g, b]); _wetMap.set(k, v); }
+  return v;
+}
+function wetBake(i) {                                 // نسخه‌ی خیسِ یک تایل از کشِ خشک (۲۵۶px — فقط زمانِ گذار)
+  if (!wetCache) return;
+  const sx = (i % COLS) * TILE, sy = ((i / COLS) | 0) * TILE, sc = cache.d, tc = wetCache.d;
+  for (let y = 0; y < TILE; y++) for (let x = 0; x < TILE; x++) {
+    const p = ((sy + y) * W + sx + x) * 4;
+    const c = wetOf(sc[p], sc[p + 1], sc[p + 2]);
+    tc[p] = c[0]; tc[p + 1] = c[1]; tc[p + 2] = c[2]; tc[p + 3] = sc[p + 3];
+  }
+}
+// گذارِ آهسته: هر فریم بودجه‌ی WET_ROWS سطرِ ۱۶px (انتهای هر تایلِ خیس می‌شود پیش از رفتن به تایلِ بعد ⇒
+// جبهه‌ی رطوبت درونِ هر تایل از بالا پایین می‌آید) — ترتیبِ ردیفیِ قطعی، نرخِ ثابتِ پیکسل در فریم.
+export const WET_FULL = TILE;
+const WET_PX = 0.0035;                                // سهمِ پیکسلیِ هر فریم از پنجره‌ی دید (۰٫۳۵٪) ⇒ گذارِ ~۴٫۵s، مستقل از سایزِ ویوپورت، با حاشیه‌ی امنِ بودجه‌ی ۳٪
+export function wetTransition(raining, x0, y0, x1, y1) {
+  if (!cache) return 0;
+  if (!wetCache) { if (!raining) return 0; wetCache = new Raster(WORLD_W, WORLD_H); }
+  const rows = Math.max(1, (((x1 - x0 + 1) * (y1 - y0 + 1) * TILE * WET_PX) | 0)); // بودجه بر حسبِ سطرِ ۱px
+  let budget = rows, moved = 0;
+  for (let ty = y0; ty <= y1 && budget > 0; ty++) for (let tx = x0; tx <= x1 && budget > 0; tx++) {
+    const i = ty * COLS + tx, tgt = raining ? WET_FULL : 0, cur = WET[i];
+    if (cur === tgt) continue;
+    const step = Math.min(budget, Math.abs(tgt - cur));
+    if (raining) { if (!cur) wetBake(i); WET[i] = cur + step; if (cur === 0) wetCount++; }
+    else { WET[i] = cur - step; if (WET[i] === 0) wetCount--; }
+    budget -= step; moved += step;
+  }
+  return moved;
+}
 // بافتِ ماکرو (S2.4): جهت و چگالیِ «تافت»های چمن از fbmِ جهانی (≈۱/۴۰px).
 // چگالی در مرزِ لکه‌ها → صفر، پس هیچ بلوک/شطرنجِ تایلی دیده نمی‌شود و تایل همیشه فقط ۲ تُنِ **مجاور** دارد (ΔL≈۱۴).
 function tuftBake(r, sx, sy, tx, ty) {
@@ -184,6 +240,7 @@ function rebake(f, list) { // پاک‌کردن جعبه‌ی تایل‌ها س
   const arr = [...seen].sort((a, b) => a - b);
   for (const i of arr) cache.rect((i % COLS) * TILE, ((i / COLS) | 0) * TILE, TILE, TILE, [0, 0, 0, 0]);
   for (const i of arr) bakeTile(f, i % COLS, (i / COLS) | 0, cache);
+  if (wetCache) for (const i of arr) if (WET[i]) wetBake(i); // S4.7: نسخه‌ی خیسِ تایل‌های بازپخت‌شده
   const u = cache.u32();
   for (const i of arr) { // پرچم مات‌بودن: اگر همه‌ی ۲۵۶ پیکسل α=255 دارند، blit با کپیِ u32
     const tx = i % COLS, ty = (i / COLS) | 0; let m = 1;
@@ -197,6 +254,7 @@ function rebake(f, list) { // پاک‌کردن جعبه‌ی تایل‌ها س
 let engineCalls = 0; // شمارش پخت‌ها (تست)
 function build(f) {
   cache = new Raster(WORLD_W, WORLD_H);
+  wetCache = null; wetCount = 0; WET.fill(0); // S4.7: کشِ تازه ⇒ گذارِ خیس از صفر
   sigs = new Int32Array(COLS * ROWS).fill(-1);
   bound = f; dirty.clear(); engineCalls = 0;
   f.onCell = (tx, ty) => markDirty(tx, ty); // هوک مدل→نما (فارم تغییر سلول را اعلام می‌کند)
@@ -218,4 +276,4 @@ export function flushDirty(f) {
   if (n) rebake(f, changed);
   return cache;
 }
-export const terrainStats = () => ({ baked: engineCalls, size: cache ? [cache.w, cache.h] : null });
+export const terrainStats = () => ({ baked: engineCalls, size: cache ? [cache.w, cache.h] : null, wet: wetCount });
