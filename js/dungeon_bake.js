@@ -6,6 +6,7 @@
 import { groundSprite, TILE, COLS, ROWS, WORLD_W, WORLD_H } from './tiles.js';
 import { Raster } from './raster.js';
 import { drawAO } from './art/dungeon_depth.js'; // S3.5
+import { drawDungeonDecals } from './art/dungeon_decal.js'; // S3.6
 import { DPAL } from './art/ground.js';
 import { mask8, blob47, IDX_MASK, autoSprite, setAutoBuilder } from './art/autotile.js';
 import { drawFront, drawTopFace, pickPattern } from './art/brick.js'; // S3.3
@@ -99,8 +100,8 @@ function passFloorPattern(cache, D) { drawFlagstones(cache, D, D.theme | 0); }
 // ۴ — AO و سایه‌ی تماسی (S3.5): نوار ۴px با گرادیان Bayer + سایه‌ی SE پراپ‌های ایستا
 function passAO(cache, D) { drawAO(cache, D, D.theme | 0); }
 
-// ۵ — دکال‌ها و فرسودگی per تم (S3.6) — فعلاً خالی
-function passDecals() {}
+// ۵ — دکال‌ها و فرسودگی per تم (S3.6): خوشه‌های ۳–۸px + آویزانِ لبه‌ی دیوار
+function passDecals(cache, D) { drawDungeonDecals(cache, D, D.theme | 0); }
 
 // ۶ — پراپ‌ها و سازه‌های ایستا (S3.7/3.8) — فعلاً خالی
 function passStaticProps() {}
