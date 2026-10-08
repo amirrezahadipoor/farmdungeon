@@ -14,6 +14,7 @@ import { flushDirty, OPAQUE } from './farm_terrain.js'; // S2.1: کش زمین +
 import { drawWater, SHORE_FARM } from './art/water.js'; // S2.7: آب و کرانه (یک منبع با دانجن)
 import { HOX, HOY } from './art/hero_pose.js';
 import { applyRim } from './art/rim.js';
+import { shadowUpdate, castShadowDraw } from './art/shadow.js'; // S4.4: سایه‌ی پرتابیِ ساعتی
 
 const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
 const FENTS = []; // pool موجودات مزرعه
@@ -22,6 +23,9 @@ const TREES = []; // درخت‌های مرئی — بازمصرف برای پر
 const _sprCache = new Map(); // کش اسپرایت قهرمان مزرعه
 const WF_SEQ = [0, 1, 2, 1]; // موج آب: ۳ فریم با سیکل نرم — ثابت، بدون تخصیص هر فریم
 let _fr = null; // S2.7: نگاشتِ سلولِ مزرعه برای پیش‌بینیِ آب (بدون تخصیص هر فریم)
+let _now = 0; // S4.4: زمانِ فریم برای پختِ اسکرچِ سایه (بسته‌های ثابت — بدون تخصیص هر فریم)
+const _drawSc = (t) => drawScarecrow(t, 0, 0, _now);   // فقط برای پختِ ماسکِ سایه
+const _drawHs = (t) => drawFarmhouse(t, 0, 0, _now, 0); // night=0: پنجره‌ی روشن به ماسک نیاید
 const _fcell = (x, y) => _fr.cell(x, y);
 // اسکرچ گزینه‌های اسپرایت — بدون آبجکت/spread جدید در هر فریم (فقط خوانده می‌شود)
 const _ho = { dir: 'down', anim: 'idle', phase: 0, breath: 0, moveW: 0, tool: 'none', actP: -1, blink: false, equip: null };
@@ -51,6 +55,9 @@ export function renderFarm(game, r) {
     const cx = Math.round(clamp(game.cam.x, Math.min(0, (WORLD_W - r.w) / 2), Math.max(0, WORLD_W - r.w)));
     const cy = Math.round(clamp(game.cam.y, Math.min(0, (WORLD_H - r.h) / 2), Math.max(0, WORLD_H - r.h)));
     const f = game.farm, wf = [0, 1, 2, 1][Math.floor(game.time * 0.9) % 4]; _fr = f; // موج آب: سیکل آرام ~۱٫۱ث/فریم (ن۳۷)
+    const raining = isRaining(game.dayT); // S4.4: یک‌بار در فریم (سایه هم به آن نیاز دارد)
+    _now = game.time;
+    shadowUpdate(game.dayT, raining);      // S4.4: باکتِ سایه از ساعتِ روز — پیش از هر رسم
     const x0 = Math.max(0, Math.floor(cx / TILE)), x1 = Math.min(COLS - 1, Math.ceil((cx + r.w) / TILE));
     const y0 = Math.max(0, Math.floor(cy / TILE)), y1 = Math.min(ROWS - 1, Math.ceil((cy + r.h) / TILE));
     // S2.1: لایه‌ی استاتیک از کش (blit تایل‌به‌تایل؛ تایلِ مات = کپیِ u32، بدون blend) — dirtyها پیش از blit بازپخت می‌شوند
@@ -78,7 +85,10 @@ export function renderFarm(game, r) {
       }
       // ---- دکور زنده‌ی مزرعه (آرت جدا در js/art/) ----
       if (c.kind === 'sign') drawSaleSign(r, sx, sy, game.time);
-      else if (c.kind === 'scarecrow') drawScarecrow(r, sx, sy, game.time); // نگهبان پرنده‌ها
+      else if (c.kind === 'scarecrow') { // S4.4: سایه‌ی پرتابی زیر مترسک
+        castShadowDraw(r, sx + 1, sy, 15, 16, 18, 'sc', _drawSc);
+        drawScarecrow(r, sx, sy, game.time);
+      }
       // S2.9: دکال‌های چمنزار (تافت/شبدر/گل‌دسته/سنگ‌ریزه) حالا در کشِ زمین پخته می‌شوند ⇒ هر فریم صفر هزینه
       if (tx === 26 && ty === 14 && game.toolLvls.sprinkler) drawSprinkler(r, sx, sy, game.time); // آبپاش: بالای حوضچه، از آن آب می‌کشد
       if (tx === 18 && ty === 16 && game.toolLvls.basket) drawBasketCrate(r, sx, sy, game.time); // سبد: کنار خانه
@@ -116,7 +126,9 @@ export function renderFarm(game, r) {
     for (let i = 0; i < fn; i++) {
       const e = FENTS[i];
       if (e.t === 0) drawTree(r, e.sx, e.sy, e.v, game.time, e.sx >> 4);
-      else if (e.t === 3) drawFarmhouse(r, HOUSE.x * TILE - cx, HOUSE.y * TILE - cy, game.time, nightFactor(game.dayT));
+      else if (e.t === 3) { const hx = HOUSE.x * TILE - cx, hy = HOUSE.y * TILE - cy;
+        castShadowDraw(r, hx - 1, hy - 13, 44, 38, 48, 'hs', _drawHs); // S4.4: سایه‌ی پرتابیِ خانه
+        drawFarmhouse(r, hx, hy, game.time, nightFactor(game.dayT)); }
       else if (e.t === 1) {
         game._heroSprite().over(r, Math.round(h.x) - HOX - cx, Math.round(h.y) - HOY - cy); // سایه داخل اسپرایت پخته شده (ن۳۵: دوبل حذف شد)
       }
@@ -126,7 +138,6 @@ export function renderFarm(game, r) {
     // افکت‌ها (ذرات/متن‌ها/برش)
     game.fx.render(r, cx, cy);
     // ---- شب: تینت آبی + شب‌تاب‌ها ----
-    const raining = isRaining(game.dayT);
     applyNight(r, game.dayT, raining); // تینت شب×باران در یک گذر (ن۳۶: بدون شب‌تاب)
     drawFarmhouseGlow(r, HOUSE.x * TILE - cx, HOUSE.y * TILE - cy, game.time, nightFactor(game.dayT)); // پنجره‌ی خانه: نور واقعی در تاریکی
     game.fish.draw(r, cx, cy, game.time, f);

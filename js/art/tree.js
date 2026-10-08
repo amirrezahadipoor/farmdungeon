@@ -3,6 +3,7 @@
 import { Raster } from '../raster.js';
 import { applyRim } from './rim.js';
 import { inkOutline } from './outline.js'; // S1.7: outline ۱px دور تاج/تنه
+import { castShadow } from './shadow.js'; // S4.4: سایه‌ی پرتابیِ ساعتی (جای بیضیِ ثابت)
 
 const _cache = [null, null];
 
@@ -50,6 +51,6 @@ export function drawTree(r, sx, sy, variant, time, tx) {
   let f = _full[variant];
   if (!f) f = _full[variant] = [null, null, null];
   if (!f[sway + 1]) f[sway + 1] = fullTree(variant, sway);
-  r.ellipse(sx + 8, sy + 14, 8, 3, [8, 20, 12, 55]); // سایه‌ی زمین
+  castShadow(r, f[sway + 1], 'tr' + variant, sx - 6, sy - 16, 30); // S4.4: سایه از ماسکِ خودِ درخت (با ساعتِ روز می‌چرخد)
   f[sway + 1].over(r, sx - 6, sy - 16);
 }
