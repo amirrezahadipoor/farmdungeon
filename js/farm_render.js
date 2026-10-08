@@ -151,7 +151,7 @@ export function renderFarm(game, r) {
     for (let i = 0; i < fn; i++) for (let j = i + 1; j < fn; j++) if (FENTS[j].y < FENTS[i].y) { const tmp = FENTS[i]; FENTS[i] = FENTS[j]; FENTS[j] = tmp; }
     for (let i = 0; i < fn; i++) {
       const e = FENTS[i];
-      if (e.t === 0) drawTree(r, e.sx, e.sy, e.v, game.time, e.sx >> 4);
+      if (e.t === 0) drawTree(r, e.sx, e.sy, e.v, game.time, (e.sx + cx) >> 4, (e.y >> 4) - 1); // S5.1: تایلِ جهانی ⇒ گونه/اندازه/تابِ پایدار (مستقل از دوربین)
       else if (e.t === 3) { const hx = HOUSE.x * TILE - cx, hy = HOUSE.y * TILE - cy;
         castShadowDraw(r, hx - 1, hy - 13, 44, 38, 48, 'hs', _drawHs); // S4.4: سایه‌ی پرتابیِ خانه
         drawFarmhouse(r, hx, hy, game.time, nightFactor(game.dayT)); }
