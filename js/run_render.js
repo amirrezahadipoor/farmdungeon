@@ -7,7 +7,7 @@ import { drawEliteMark, MHEAD } from './art/monster_parts.js';
 import { applyRim } from './art/rim.js';
 import { clamp } from './dungeon.js';
 import { bakeFloor } from './dungeon_bake.js'; // S3.1: خط لوله‌ی پختِ لایه‌ای (base → … → staticProps)
-import { drawTorches, drawChests, drawDrops, drawShrines } from './art/dungeon_props.js';
+import { drawTorches, drawChests, drawDrops, drawShrines, TORCH_LIGHT } from './art/dungeon_props.js'; // S3.7: ثابت‌های نورِ مشعل
 import { drawWater, dungeonShore } from './art/water.js'; // S2.7: آب و کرانه (یک منبع با مزرعه)
 import { drawProjs } from './projectiles.js'; // ن۴۴
 import { applyDarkness } from './art/light.js';
@@ -148,9 +148,9 @@ export function renderRun(run, r) {
     if (!run._dark || run._dark.w !== r.w || run._dark.h !== r.h) run._dark = new Raster(r.w, r.h);
     const L = _lights; L.length = 0;
     L.push(h.x - cx, h.y - 14 - cy, 78, 195); // دید باز — نه ذربین!
-    for (const t of D.torches) { // نور مشعل: شعاع ثابت، قدرت نفس‌کش (۷ گام کوانتیزه — بدون پرش لبه)
-      const st = 157 + 3 * Math.round((Math.sin(run.time * 6.5 + t.x * 2.1 + t.y) + 1) * 2.5); // هم‌فاز با تنفس شعله
-      L.push(t.x * TILE + 8 - cx, t.y * TILE + 6 - cy, 44, st);
+    for (const t of D.torches) { // نور مشعل (S3.7): شعاع/قدرت از TORCH_LIGHT — نفسِ کندِ کوانتیزه (۰٫۹Hz، فازِ مکانی)
+      const st = TORCH_LIGHT.st0 + TORCH_LIGHT.stStep * (Math.floor(run.time * 0.45 + t.x * 2.1 + t.y) & 1);
+      L.push(t.x * TILE + 8 - cx, t.y * TILE + TORCH_LIGHT.yOff - cy, TORCH_LIGHT.r, st);
     }
     for (const d of D.drops) if (d.kind === 'essence') L.push(d.x - cx, d.y - cy, 10, 100);
     L.push(D.stairs.x * TILE + 8 - cx, D.stairs.y * TILE + 8 - cy, 22, 135);

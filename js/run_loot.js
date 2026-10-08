@@ -69,7 +69,8 @@ export function lootChests(run) {
   const D = run.dungeon, h = run.hero;
   for (const c of D.chests) {
     if (!c.open && Math.hypot(h.x - (c.x * TILE + 8), h.y - (c.y * TILE + 8)) < 16) {
-      c.open = true;
+      c.open = true; c.openT = run.time; // S3.7: مهرِ زمانیِ فقط-بصری برای انیمیشنِ درِ باز (۳ فریم)
+
       if (run.onSfx) run.onSfx('chest');
       run.fx.burst(c.x * TILE + 8, c.y * TILE + 6, [[230, 199, 74, 255], [255, 255, 255, 255]], 12, { sp: 40, up: 34, life: 0.5 });
       for (let j = 0; j < 6; j++) D.drops.push({ x: c.x * TILE + 8, y: c.y * TILE + 8, kind: Math.random() < 0.18 ? 'heart' : 'essence', t: Math.random() * 6 });
