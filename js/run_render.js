@@ -1,12 +1,12 @@
 // run_render.js — رندر دورِ دانجن: تایل‌ها، قطره‌ها/صندوق‌ها، تاریکی + منابع نور، مینی‌مپ، اسپرایت قهرمان
-import { groundSprite, drawTextC, drawText, textW, E, TILE, COLS, ROWS, WORLD_W, WORLD_H } from './tiles.js';
+import { drawTextC, drawText, textW, E, TILE, COLS, ROWS, WORLD_W, WORLD_H } from './tiles.js'; // S3.1: groundSprite دیگر اینجا استفاده نمی‌شود (رفت به dungeon_bake)
 import { Raster } from './raster.js';
 import { drawHeroFrame, frameKey, framePhase, halfSprite } from './art/hero.js';
 import { HOX, HOY } from './art/hero_pose.js';
 import { drawEliteMark, MHEAD } from './art/monster_parts.js';
 import { applyRim } from './art/rim.js';
 import { clamp } from './dungeon.js';
-import { drawDungeonDepth } from './art/dungeon_depth.js';
+import { bakeFloor } from './dungeon_bake.js'; // S3.1: خط لوله‌ی پختِ لایه‌ای (base → … → staticProps)
 import { drawTorches, drawChests, drawDrops, drawShrines } from './art/dungeon_props.js';
 import { drawWater, dungeonShore } from './art/water.js'; // S2.7: آب و کرانه (یک منبع با مزرعه)
 import { drawProjs } from './projectiles.js'; // ن۴۴
@@ -49,17 +49,6 @@ export function heroSprite(run, hurt = false) {
 }
 
 // کش ایستای هر طبقه: زمین + عمق + بافت — یک‌بار ساخته می‌شود، هر فریم فقط کپی
-function buildFloorCache(run) {
-  const D = run.dungeon;
-  const cache = new Raster(WORLD_W, WORLD_H);
-  for (let ty = 0; ty < ROWS; ty++) for (let tx = 0; tx < COLS; tx++) {
-    const c = D.cell(tx, ty);
-    groundSprite(c.kind, c.v, false, 0, D.theme).over(cache, tx * TILE, ty * TILE); // تم طبقه (ن۳۲)
-  }
-  drawDungeonDepth(cache, D, 0, 0, TILE, ROWS, COLS);
-  return cache;
-}
-
 // کپی سریع ناحیه: از src در (sx0,sy0) به اندازه‌ی (w,h) → ابتدای dst (0,0)
 function blitRegion(dst, src, sx0, sy0, w, h) {
   const dx0 = Math.max(0, -sx0), dy0 = Math.max(0, -sy0);       // برش خارج از src
@@ -80,7 +69,7 @@ export function renderRun(run, r) {
     const [shx, shy] = run.fx.offset(run.time);
     let cx = clamp(Math.round(run.cam.x) + shx, 0, WORLD_W - r.w);
     let cy = clamp(Math.round(run.cam.y) + shy, 0, WORLD_H - r.h);
-    if (!run._floorCache || run._floorCache.w !== WORLD_W) run._floorCache = buildFloorCache(run);
+    if (!run._floorCache || run._floorCache.w !== WORLD_W) run._floorCache = bakeFloor(run); // S3.1
     blitRegion(r, run._floorCache, cx, cy, r.w, r.h);
     // آب زنده‌ی دانجن (روی کش ایستا) — فقط تایل‌های آبِ نمایان
     const dwf = [0, 1, 2, 1][Math.floor(run.time * 0.9) % 4]; // ن۳۷: سیکل آرام آب دانجن
