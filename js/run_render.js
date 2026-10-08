@@ -182,7 +182,7 @@ export function renderRun(run, r) {
       pushC(D.stairs.x * TILE + 8 - cx, D.stairs.y * TILE + 8 - cy, 14, 52, 5);
       pushC(h.x - cx, h.y - 14 - cy, 22, 44, 4);           // هالهٔ گرمِ ملایمِ قهرمان (آخر ⇒ بودجه‌ی باقی‌مانده)
     }
-    applyDarkness(r, run._dark, L, C);
+    applyDarkness(r, run._dark, L, C, cx, cy); // S4.2: دوربین برای دیترِ جهانی
     // افکت‌ها روی تاریکی (می‌درخشند)
     run.fx.render(r, cx, cy);
     // ---- نوار جان + علامت حمله + کمبو: بعد از تاریکی (خوانا حتی در تاریکی) ----

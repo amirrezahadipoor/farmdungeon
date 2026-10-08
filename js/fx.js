@@ -5,6 +5,8 @@ const FCOL = { dmg: [235, 105, 105, 255], hit: [255, 232, 150, 255], crit: [255,
 const OFF = [0, 0]; // آفست لرزش — مشترک
 import { drawTextC, E } from './tiles.js';
 import { Raster } from './raster.js';
+import { BAYER4 } from './art/dither.js'; // S4.2: دیترِ ترتیبیِ وینیت
+export const VIG_LEVELS = 6;  // S4.2: سطوحِ α وینیت (کوانتیزه + دیتر ⇒ بدونِ نوارِ گرادیان)
 
 export class FX {
   constructor() {
@@ -95,16 +97,26 @@ export function vignette(w, h) {
   if (!v) {
     const cx = w / 2, cy = h / 2, maxD = Math.hypot(cx, cy);
     const mask = new Uint8Array(w * h), spans = new Int16Array(h * 2); // [x0,x1] هر سطر
+    const ST = 40 / (VIG_LEVELS - 1);                                   // S4.2: ۶ پله‌ی α + دیترِ Bayer4 (کارِ زمانِ ساخت، نه هر فریم)
+    const lvSeen = new Set();
     for (let y = 0; y < h; y++) {
       let x0 = -1, x1 = -1;
       for (let x = 0; x < w; x++) {
         const d = Math.hypot(x - cx, y - cy) / maxD;
-        if (d > 0.74) { mask[y * w + x] = Math.min(40, Math.round((d - 0.74) * 190)); if (x0 < 0) x0 = x; x1 = x; } // وینیت ظریف
+        if (d > 0.74) {
+          const raw = Math.min(40, (d - 0.74) * 190);
+          const sf = raw / ST, i = Math.floor(sf);
+          const th = (BAYER4[((y & 3) << 2) | (x & 3)] + 0.5) / 16;
+          mask[y * w + x] = Math.round(Math.min(VIG_LEVELS - 1, i + (sf - i > th ? 1 : 0)) * ST);
+          lvSeen.add(mask[y * w + x]);
+          if (x0 < 0) x0 = x;
+          x1 = x;
+        }
       }
       spans[y * 2] = x0; spans[y * 2 + 1] = x1;
     }
     v = {
-      w, h, mask, spans,
+      w, h, mask, spans, alphaLevels: lvSeen.size, // QA: سطوحِ α یکتای وینیت (پذیرش ≤۶)
       apply(r) { // بلندینگ عددی — بدون آبجکت/رشته، فقط ناحیه‌ی لبه
         const d = r.d, m = mask, sp = spans;
         for (let y = 0; y < h; y++) {

@@ -2,6 +2,7 @@
 // تاریکی پایه = مه آبی‌مه‌آلود (نه سیاهی مطلق)؛ نورها با «استامپ» از پیش‌محاسبه‌شده
 import { Raster } from '../raster.js';
 import { rp } from './ramps.js'; // S4.1: رنگِ نورها از رمپ‌های پالت (M5)
+import { BAYER4 } from './dither.js'; // S4.2: کوانتیزه‌ی آلفای تاریکی با دیترِ ترتیبی
 
 const DARK_R = 13, DARK_G = 11, DARK_B = 26, DARK_A = 118;
 
@@ -78,26 +79,86 @@ function colorStamp(rad, strength, cid) {
   return st;
 }
 
+// ---------- S4.2: کوانتیزه‌ی آلفای تاریکی به ۶ پله با آستانه‌ی Bayer4 (مختصاتِ **جهانی**) ----------
+// پله‌ها هم‌بازه با **دامنه‌ی واقعیِ α** انتخاب شده‌اند (۰..DARK_A) و DARK_A خودش یک پله است ⇒
+// ناحیه‌ی تختِ تاریک (۸۱٪ صفحه) **بیت‌به‌بیت دست‌نخورده** می‌ماند: نه بافتِ دیتر در پس‌زمینه، نه بایاسِ محیطی، نه هزینه.
+// LUT یک‌بار ساخته می‌شود: _QLUT[(bayerIdx<<8)|a] = پله‌ی گردشده · ثابت در جهان ⇒ بدونِ شناوری هنگام حرکت دوربین
+export const DARK_LEVELS = 6;
+const QSTEP = DARK_A / (DARK_LEVELS - 1);
+const _QLUT = new Uint8Array(16 * 256);
+for (let b = 0; b < 16; b++) {
+  const th = (BAYER4[b] + 0.5) / 16;
+  for (let a = 0; a < 256; a++) {
+    const sf = a / QSTEP, i = Math.floor(sf);
+    _QLUT[(b << 8) | a] = Math.round(Math.min(DARK_LEVELS - 1, i + (sf - i > th ? 1 : 0)) * QSTEP);
+  }
+}
+export const DITHER_DARK = { on: true };
+const _rects = new Int16Array(4 * 33); // اسکرچ‌آرِ مستطیل‌های نور (تخصیصِ صفر در هر فریم)
+// جدولِ فازِ افقی: cols[(camX&3)*W + x] = (x + camX) & 3 — چهار چرخش، یک‌بار در هر اندازهٔ صحنه
+let _phW = 0, _phTab = null;
+function phaseTab(w) {
+  if (_phW === w) return _phTab;
+  const t = new Uint8Array(4 * w);
+  for (let r = 0; r < 4; r++) for (let x = 0; x < w; x++) t[r * w + x] = (x + r) & 3;
+  _phW = w; _phTab = t; return t;
+}
+export function darkLevelCount() { return new Set(_QLUT).size; } // QA: تعداد سطوحِ α یکتای تاریکی (پذیرش ≤۶)
+
 // flat = [x, y, rad, strength, ...] — لیست تختِ نورها (بدون تخصیص آبجکت)
-export function applyDarkness(r, dk, flat, flatC) {
+export function applyDarkness(r, dk, flat, flatC, camX = 0, camY = 0) {
   const dd = dk.d;
   if (!dk._base || dk._base.length !== dd.length) {
     const b = dk._base = new Uint8ClampedArray(dd.length);
     for (let i = 0; i < b.length; i += 4) { b[i] = DARK_R; b[i + 1] = DARK_G; b[i + 2] = DARK_B; b[i + 3] = DARK_A; }
   }
   dd.set(dk._base); // کپی یک‌تکه‌ی پایه
+  let nr = 0, coverAll = false; // S4.2: مستطیل‌های تأثیرِ نور (برای پاسِ کوانتیزه)
   for (let li = 0; li < flat.length; li += 4) {
     const lx = flat[li], ly = flat[li + 1], rad = flat[li + 2], strength = flat[li + 3];
     const st = lightStamp(rad, strength), n = st.n, cut = st.cut;
     const cx0 = Math.round(lx), cy0 = Math.round(ly);
     const x0 = Math.max(0, cx0 - rad), x1 = Math.min(r.w - 1, cx0 + rad);
     const y0 = Math.max(0, cy0 - rad), y1 = Math.min(r.h - 1, cy0 + rad);
+    if (nr < 32) { const o = nr << 2; _rects[o] = x0; _rects[o + 1] = y0; _rects[o + 2] = x1; _rects[o + 3] = y1; nr++; } else coverAll = true;
     for (let y = y0; y <= y1; y++) {
       const srow = (y - cy0 + rad) * n - cx0 + rad;
       let di = (y * r.w + x0) * 4 + 3;
       for (let x = x0; x <= x1; x++, di += 4) {
         const v = dd[di] - cut[srow + x];
         dd[di] = v > 0 ? v : 0;
+      }
+    }
+  }
+  // ---------- S4.2: کوانتیزه‌ی α به ۶ پله با آستانه‌ی Bayer4 — فقط داخلِ ناحیه‌ی متأثر از نور ----------
+  // ناحیه‌ی تختِ تاریک (α = DARK_A) بیرونِ این مستطیل‌ها است ⇒ بیت‌به‌بیت دست‌نخورده (بدون بافتِ دیتر، بدون بایاس، بدون هزینه)
+  if (DITHER_DARK.on && nr) {
+    if (coverAll) { const o = 0; _rects[o] = 0; _rects[o + 1] = 0; _rects[o + 2] = r.w - 1; _rects[o + 3] = r.h - 1; nr = 1; }
+    // ادغامِ مستطیل‌های هم‌پوشان (تا جعبه‌ی محیطیِ کوچک‌تر بماند و هیچ پیکسلی دو بار کوانتیزه نشود؛ n ≤ ۳۲)
+    let merged = true;
+    while (merged) {
+      merged = false;
+      for (let i = 0; i < nr && !merged; i++) for (let j = i + 1; j < nr; j++) {
+        if (!(_rects[(i << 2) + 2] < _rects[j << 2] || _rects[(j << 2) + 2] < _rects[i << 2] ||
+              _rects[(i << 2) + 3] < _rects[(j << 2) + 1] || _rects[(j << 2) + 3] < _rects[(i << 2) + 1])) {
+          if (_rects[j << 2] < _rects[i << 2]) _rects[i << 2] = _rects[j << 2];
+          if (_rects[(j << 2) + 1] < _rects[(i << 2) + 1]) _rects[(i << 2) + 1] = _rects[(j << 2) + 1];
+          if (_rects[(j << 2) + 2] > _rects[(i << 2) + 2]) _rects[(i << 2) + 2] = _rects[(j << 2) + 2];
+          if (_rects[(j << 2) + 3] > _rects[(i << 2) + 3]) _rects[(i << 2) + 3] = _rects[(j << 2) + 3];
+          nr--; _rects.copyWithin(j << 2, nr << 2, (nr << 2) + 4); merged = true; break;
+        }
+      }
+    }
+    const W2 = r.w, cols = phaseTab(W2), co = (camX & 3) * W2;
+    for (let k = 0; k < nr; k++) {
+      const rx0 = _rects[k << 2], ry0 = _rects[(k << 2) + 1], rx1 = _rects[(k << 2) + 2], ry1 = _rects[(k << 2) + 3];
+      for (let y = ry0; y <= ry1; y++) {
+        const rp = ((y + camY) & 3) << 2;
+        let i = (y * W2 + rx0) * 4 + 3;
+        for (let x = rx0; x <= rx1; x++, i += 4) {
+          const a0 = dd[i];
+          if (a0 > 0 && a0 !== DARK_A) dd[i] = _QLUT[((rp | cols[co + x]) << 8) | a0];
+        }
       }
     }
   }
