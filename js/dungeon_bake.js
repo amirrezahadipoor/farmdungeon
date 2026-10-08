@@ -9,6 +9,7 @@ import { drawDungeonDepth } from './art/dungeon_depth.js';
 import { DPAL } from './art/ground.js';
 import { mask8, blob47, IDX_MASK, autoSprite, setAutoBuilder } from './art/autotile.js';
 import { drawFront, drawTopFace, pickPattern } from './art/brick.js'; // S3.3
+import { drawFlagstones } from './art/flagstone.js'; // S3.4
 
 // ۱ — پایه: تایلِ زمینِ هر سلول با تمِ طبقه (همان حلقه‌ی قبلی، بی‌هیچ تغییری)
 function passBase(cache, D) {
@@ -92,8 +93,8 @@ function passWallMass(cache, D) {
   }
 }
 
-// ۳ — کف: سنگفرشِ مقیاس-جهان + ترکِ پیوسته (S3.4) — فعلاً خالی
-function passFloorPattern() {}
+// ۳ — کف: سنگفرشِ مقیاس-جهان + ترکِ پیوسته (S3.4)
+function passFloorPattern(cache, D) { drawFlagstones(cache, D, D.theme | 0); }
 
 // ۴ — AO و سایه‌ی تماسی (S3.5) — فعلاً **هم‌ارزِ قبلی**: سایه‌ی عمق + خزه
 function passAO(cache, D) { drawDungeonDepth(cache, D, 0, 0, TILE, ROWS, COLS); }
