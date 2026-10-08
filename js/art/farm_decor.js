@@ -1,6 +1,7 @@
 // art/farm_decor.js — دکور زنده‌ی مزرعه: گل‌های مرتع، چمن بلند، سنگ‌ریزه،
 // اسپارکل محصول رسیده، گرداب جادویی دروازه، نیلوفر و نیزار آب
 import { E } from './palette_env.js';
+import { bakeOutline } from './outline.js'; // S5.3: تابلوی فروش هم outline یکدست گرفت
 
 const hash = (x, y) => { let h = (x * 374761393 + y * 668265263) | 0; h = (h ^ (h >> 13)) * 1274126177; return ((h ^ (h >> 16)) >>> 0) / 4294967295; };
 
@@ -42,17 +43,18 @@ export function drawWaterLife(r, sx, sy, tx, ty, time = 0) {
 
 
 // تابلوی «فروشی» باغ شمالی: تیر چوبی + تخته با سکه (ن۳۶: پالس درخشش حذف — سکه کافی است)
-export function drawSaleSign(r, sx, sy, time) {
-  const bob = 0; // ن۳۸: تخته‌ی ثابت
-  r.rect(sx + 7, sy + 9, 2, 6, E.woodSh);           // تیر
-  r.rect(sx + 7, sy + 9, 1, 6, E.wood);
-  r.rect(sx + 3, sy + 2 + bob, 10, 7, E.wood);      // تخته
-  r.rect(sx + 3, sy + 2 + bob, 10, 1, E.woodHi);
-  r.rect(sx + 3, sy + 8 + bob, 10, 1, E.woodSh);
-  r.rect(sx + 4, sy + 3 + bob, 8, 5, E.soilSh);     // زمینه‌ی تیره‌ی تخته
-  r.rect(sx + 6, sy + 4 + bob, 4, 3, E.gold);       // سکه
-  r.px(sx + 6, sy + 4 + bob, E.white);
-  r.px(sx + 9, sy + 6 + bob, E.wheatSh);
+export function drawSaleSign(r, sx, sy, time) { // S5.3: outline یکدست + قابِ تخته + سایه‌ی تماسی
+  return bakeOutline(r, sx + 2, sy + 1, 12, 16, (r) => {
+    r.rect(sx + 7, sy + 9, 2, 6, E.woodSh);           // تیر
+    r.rect(sx + 7, sy + 9, 1, 6, E.wood);
+    r.rect(sx + 6, sy + 15, 4, 1, E.soilSh);          // سایه‌ی تماسیِ تیر
+    r.rect(sx + 3, sy + 2, 10, 7, E.woodSh);          // قابِ تخته
+    r.rect(sx + 4, sy + 3, 8, 5, E.wood);             // تخته
+    r.rect(sx + 4, sy + 3, 8, 1, E.woodHi); r.px(sx + 4, sy + 7, E.woodSh); r.px(sx + 11, sy + 4, E.woodSh);
+    r.rect(sx + 5, sy + 4, 6, 3, E.soilSh);           // زمینه‌ی تیره
+    r.rect(sx + 6, sy + 5, 4, 2, E.gold);             // سکه
+    r.px(sx + 6, sy + 5, E.white); r.px(sx + 9, sy + 6, E.wheatSh);
+  }, { mode: 'ink' });
 }
 
 // ---------- S2.5: خاک‌راه ----------
