@@ -12,11 +12,16 @@ import { mask8, blob47, IDX_MASK, autoSprite, setAutoBuilder } from './art/autot
 import { drawFront, drawTopFace, pickPattern } from './art/brick.js'; // S3.3
 import { drawFlagstones } from './art/flagstone.js'; // S3.4
 
-// ۱ — پایه: تایلِ زمینِ هر سلول با تمِ طبقه (همان حلقه‌ی قبلی، بی‌هیچ تغییری)
+// ۱ — پایه: تایلِ زمینِ هر سلول با تمِ طبقه + فرشِ autotile (S3.8)
+const isCarpet = (D, x, y) => { const c = D.cell(x, y); return !!c && c.kind === 'decor' && c.v === 5; };
 function passBase(cache, D) {
   for (let ty = 0; ty < ROWS; ty++) for (let tx = 0; tx < COLS; tx++) {
     const c = D.cell(tx, ty);
-    groundSprite(c.kind, c.v, false, 0, D.theme).over(cache, tx * TILE, ty * TILE); // تم طبقه (ن۳۲)
+    // S3.8: فرشِ تالار — mask4 از همسایه‌های هم‌جنس (variant = 40+mask) ⇒ لبه فقط روی ضلعِ بی‌همسایه
+    const v = (c.kind === 'decor' && c.v === 5)
+      ? 40 + ((isCarpet(D, tx, ty - 1) ? 1 : 0) | (isCarpet(D, tx + 1, ty) ? 2 : 0) | (isCarpet(D, tx, ty + 1) ? 4 : 0) | (isCarpet(D, tx - 1, ty) ? 8 : 0))
+      : c.v;
+    groundSprite(c.kind, v, false, 0, D.theme).over(cache, tx * TILE, ty * TILE); // تم طبقه (ن۳۲)
   }
 }
 

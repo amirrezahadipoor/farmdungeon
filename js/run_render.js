@@ -9,6 +9,7 @@ import { clamp } from './dungeon.js';
 import { bakeFloor } from './dungeon_bake.js'; // S3.1: خط لوله‌ی پختِ لایه‌ای (base → … → staticProps)
 import { drawTorches, drawChests, drawDrops, drawShrines, TORCH_LIGHT } from './art/dungeon_props.js'; // S3.7: ثابت‌های نورِ مشعل
 import { drawWater, dungeonShore } from './art/water.js'; // S2.7: آب و کرانه (یک منبع با مزرعه)
+import { drawPillarHead } from './art/ground.js'; // S3.8: سرستونِ بیرون‌زده (بعد از موجودات ⇒ y-sort)
 import { drawProjs } from './projectiles.js'; // ن۴۴
 import { applyDarkness } from './art/light.js';
 import { t, faNum } from './i18n.js';
@@ -135,6 +136,14 @@ export function renderRun(run, r) {
       }
     }
     drawProjs(r, run.projs || [], cx, cy); // ن۴۴: تیرها و گوی‌های آتش
+    // S3.8: سرستون‌های ستون‌ها — بالای تایل بیرون می‌زنند و **بعد از موجودات/قهرمان** کشیده می‌شوند (y-sort یک‌لایه)
+    // فهرستِ ستون‌ها یک‌بار به‌ازای هر دانجن ساخته می‌شود (نه هر فریم) ⇒ هزینه‌ی رندر ناچیز
+    if (!D._pillars) { const a = []; for (let y = 0; y < ROWS; y++) for (let x = 0; x < COLS; x++) { const c = D.cell(x, y); if (c && c.kind === 'pillar') a.push(x, y, c.v); } D._pillars = a; }
+    const PL = D._pillars;
+    for (let k = 0; k < PL.length; k += 3) {
+      const px = PL[k] * TILE - cx, py = PL[k + 1] * TILE - cy;
+      if (px > -16 && px < r.w && py > -16 && py < r.h) drawPillarHead(r, px, py, PL[k + 2], D.theme);
+    }
     if (run.hero.chill > 0) { // ن۴۴: نشانگر کندی یخ — سه ذره‌ی ثابت سرد روی پا (سیگنال گیم‌پلی، نه دکور)
       const hx = Math.round(run.hero.x - cx), hy = Math.round(run.hero.y - cy);
       const a2 = Math.round(140 + Math.sin(run.time * 6) * 40);

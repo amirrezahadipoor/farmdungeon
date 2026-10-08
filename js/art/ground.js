@@ -26,6 +26,22 @@ const DTHEME = STONE_THEMES.map((X, t) => {
 });
 export const DPAL = (t) => DTHEME[t] || DP0;
 
+// سرستونِ بیرون‌زده (S3.8): ۶px بالای تایل + ۴px هم‌پوشانِ تنه — در رندر **بعد از موجودات** کشیده می‌شود
+// ⇒ اگر قهرمان/موب شمالِ ستون بایستد، ستون آن‌ها را می‌پوشاند (ی-sort طبیعی با یک لایه‌ی دینامیک)
+export function drawPillarHead(r, sx, sy, variant, theme) {
+  const P = DPAL(theme | 0);
+  r.rect(sx + 3, sy - 6, 10, 6, P.brick);        // تنه‌ی بالایی
+  r.rect(sx + 3, sy - 6, 3, 6, P.brickHi);       // نور بالا-چپ
+  r.rect(sx + 11, sy - 6, 2, 6, P.brickOut);
+  r.rect(sx + 1, sy - 10, 14, 4, P.stone);       // سرستون
+  r.rect(sx + 1, sy - 10, 14, 1, P.stoneHi);
+  r.rect(sx + 1, sy - 7, 14, 1, P.stoneSh);      // سایه‌ی زیرِ سرستون
+  if (variant === 1) {                            // ترک‌خورده: لبه‌ی شکسته
+    r.px(sx + 3, sy - 10, P.stoneSh); r.px(sx + 4, sy - 9, P.stoneSh);
+    r.px(sx + 12, sy - 10, P.stoneSh); r.line(sx + 6, sy - 6, sx + 8, sy - 2, P.brickOut);
+  } else { r.px(sx + 6, sy - 9, P.stoneSh); r.px(sx + 10, sy - 5, P.brickOut); }
+}
+
 export function groundSprite(kind, variant = 0, wet = false, waterFrame = 0, theme = 0) {
   const nk = theme * 7680 + KIND_ID[kind] * 512 + ((variant & 63) | (wet ? 64 : 0)) * 4 + (waterFrame & 3); // S2.8: ۶۴ واریانت
   let cached = _gnum[nk];
@@ -125,14 +141,19 @@ export function groundSprite(kind, variant = 0, wet = false, waterFrame = 0, the
         r.rect(6, 8, 4, 1, P.moss); r.rect(0, 12, 6, 1, P.mossD); r.rect(10, 12, 4, 1, P.moss);
         r.px(5, 6, P.mossD); r.px(12, 10, P.moss);
       }
-    } else if (kind === 'stairs') {
+    } else if (kind === 'stairs') { // پله/چاهِ طبقه (S3.8): ۴ پلهی باریکشونده به سمتِ پایین + چاهِ تاریکِ دهانه با درخششِ گرم
       r.rect(0, 0, 16, 16, P.brickOut);
       for (let i = 0; i < 4; i++) {
-        r.rect(2 + i, 2 + i * 3, 12 - i * 2, 3, i % 2 ? P.stairs : P.stairsSh);
-        r.rect(2 + i, 2 + i * 3, 12 - i * 2, 1, P.stoneHi);
-      } // S3.2: پخِ هم‌تراز با کف (بالا/چپ روشن، پایین/راست سایه) ⇒ مرزِ دیوار↔پله هم بی‌درز
-      r.rect(0, 0, 16, 1, P.stoneHi); r.rect(0, 0, 1, 16, P.stoneHi);
+        const x = 1 + i, y = 1 + i * 3, w = 14 - i * 2;
+        r.rect(x, y, w, 2, i < 3 ? (i % 2 ? P.stairs : P.stairsSh) : P.deep); // رویهی پله (پلهی آخر: تاریکیِ چاه)
+        r.rect(x, y, w, 1, i < 3 ? P.stoneHi : P.brickOut);                   // لبِ روشنِ پله (لبهی نورگیر)
+        r.rect(x, y + 2, w, 1, P.brickOut);                                   // ریزرِ تیره ⇒ پلهها از هم جدا خوانده شوند
+      }
+      r.rect(0, 0, 16, 1, P.stoneHi); r.rect(0, 0, 1, 16, P.stoneHi); // S3.2: پخِ هم‌تراز با کف
       r.rect(15, 0, 1, 16, P.stoneSh); r.rect(0, 15, 16, 1, P.stoneSh);
+      r.rect(6, 12, 4, 4, P.deep); r.rect(6, 12, 4, 1, P.brickOut); // چاهِ دهانه — بعد از پخ، تا درخشش خورده نشود
+      r.rect(6, 13, 4, 3, rp('fire', 4)); r.rect(7, 13, 2, 3, rp('fire', 5));
+      r.px(7, 15, rp('fire', 6)); r.px(8, 15, rp('fire', 6)); r.px(7, 14, rp('fire', 6));
     } else if (kind === 'gateL' || kind === 'gateR') { // دروازه‌ی دانجن ۲×۲: variant 0 = ردیف بالا (سردر)، 1 = ردیف پایین (آستانه) — یک طاق یکپارچه
       const L2 = kind === 'gateL', top = variant === 0;
       const ox = L2 ? 4 : 0, ow = 12; // دهانه‌ی بنفش (سمت داخلی هر نیمه)
@@ -153,65 +174,66 @@ export function groundSprite(kind, variant = 0, wet = false, waterFrame = 0, the
       if (L2) { r.px(7, top ? 8 : 4, rp('magicCyan', 6)); r.px(9, top ? 12 : 8, [...rp('magicCyan', 6).slice(0, 3), 200]); }
       else { r.px(5, top ? 11 : 6, rp('magicCyan', 6)); r.px(8, top ? 7 : 2, [...rp('magicCyan', 6).slice(0, 3), 200]); }
       r.px(L2 ? 2 : 13, top ? 6 : 2, rp('magicCyan', 6)); r.px(L2 ? 2 : 13, top ? 11 : 8, rp('magicCyan', 5)); // رون‌های ستون
-    } else if (kind === 'pillar') { // ستون سنگی روی کف (مانع) — v1: ترک‌خورده
-      if (variant === 1) {
-        r.rect(0, 0, 16, 16, P.stone);
-        r.rect(0, 15, 16, 1, P.stoneSh);
-        r.rect(2, 8, 12, 8, P.stoneSh);
-        r.rect(3, 4, 10, 11, P.brick);
-        r.rect(3, 4, 3, 11, P.brickHi);
-        r.rect(11, 4, 2, 11, P.brickOut);
-        r.rect(1, 2, 14, 3, P.stone);
-        r.rect(1, 2, 14, 1, P.stoneHi); r.rect(1, 4, 14, 1, P.brickOut);
-        // ترک عمیق مورب + لبه‌های شکسته
-        r.line(5, 4, 8, 10, P.brickOut); r.line(8, 10, 7, 14, P.brickOut);
-        r.px(6, 6, P.brickOut); r.px(8, 12, P.brickOut); r.px(9, 8, P.stoneSh);
-        r.rect(4, 3, 2, 1, P.brickOut); r.rect(10, 3, 3, 1, P.brickOut); // سرستون شکسته
+    } else if (kind === 'pillar') { // ستون (S3.8): پایه + تنه + سرستونِ بیرون‌زده (drawPillarHead) — v1 ترک‌خورده
+      r.rect(0, 0, 16, 16, P.brickOut);
+      r.rect(3, 0, 10, 16, P.brick);            // تنه (ادامه‌ی سرستونِ دینامیک)
+      r.rect(3, 0, 3, 16, P.brickHi);           // نورِ بالا-چپِ تنه
+      r.rect(11, 0, 2, 16, P.brickOut);         // لبه‌ی تاریکِ راستِ تنه
+      r.rect(2, 9, 12, 2, P.stone);             // حلقه‌ی میانی
+      r.rect(2, 9, 12, 1, P.stoneHi);
+      r.rect(1, 11, 14, 4, P.stone);            // پایه (پلینت)
+      r.rect(1, 11, 14, 1, P.stoneHi);
+      r.rect(1, 14, 14, 1, P.stoneSh);
+      r.rect(0, 15, 16, 1, P.brickOut);         // سایه‌ی کف زیرِ پایه
+      if (variant === 1) {                      // ترک‌خورده
+        r.line(6, 2, 8, 8, P.brickOut); r.line(8, 8, 7, 12, P.brickOut);
+        r.px(9, 5, P.brickOut); r.px(10, 10, P.stoneSh);
+        r.rect(4, 0, 3, 1, P.brickOut); r.px(9, 0, P.brickOut);   // لبه‌ی شکسته‌ی بالا (زیر سرستون)
+      } else { r.px(9, 4, P.brickOut); r.px(7, 12, P.stoneSh); }
+    } else if (kind === 'decor') { // دکور کف دانجن (S3.8): 0 استخوان 1 قارچ 2 ترک 3 کریستال 4 تار + 40..55 = فرشِ autotile
+      if (variant >= 40) { // فرش تالار (S3.8): لبه فقط روی ضلعِ بی‌همسایه (mask4: N=1 E=2 S=4 W=8)
+        const m = variant - 40;
+        const CR = rp('clothRed', 3), CH_ = rp('clothRed', 5), CS = rp('clothRed', 2), CD = rp('clothRed', 1);
+        const GD = rp('gold', 4), GH = rp('gold', 6);
+        r.rect(0, 0, 16, 16, CR);
+        r.rect(0, 0, 16, 1, CS); r.rect(0, 0, 1, 16, CS);            // رگه‌ی بافت
+        r.rect(15, 0, 1, 16, CS); r.rect(0, 15, 16, 1, CS);
+        if (!(m & 1)) r.rect(0, 0, 16, 1, GH);                        // لبه‌ی طلایی فقط روی ضلعِ باز
+        if (!(m & 4)) r.rect(0, 15, 16, 1, GH);
+        if (!(m & 8)) r.rect(0, 0, 1, 16, GH);
+        if (!(m & 2)) r.rect(15, 0, 1, 16, GH);
+        if ((m & 1) && (m & 4) && (m & 2) && (m & 8)) {               // تایلِ داخلی: نقشِ لوزیِ طلایی
+          r.px(8, 3, GD); r.rect(7, 4, 3, 1, GH); r.rect(6, 5, 5, 1, GD);
+          r.rect(6, 6, 5, 3, CD); r.rect(7, 6, 3, 3, CR);
+          r.rect(6, 9, 5, 1, GD); r.rect(7, 10, 3, 1, GH); r.px(8, 11, GD);
+        } else { r.rect(3, 3, 10, 10, CH_); r.rect(4, 4, 8, 8, CR); }  // نوارِ داخلیِ لبه‌دار
       } else {
-      r.rect(0, 0, 16, 16, P.stone);
-      r.rect(0, 15, 16, 1, P.stoneSh);
-      r.rect(2, 8, 12, 8, P.stoneSh);          // سایه پایه
-      r.rect(3, 4, 10, 11, P.brick);           // بدنه ستون
-      r.rect(3, 4, 3, 11, P.brickHi);
-      r.rect(11, 4, 2, 11, P.brickOut);
-      r.rect(1, 2, 14, 3, P.stone);            // سرستون
-      r.rect(1, 2, 14, 1, P.stoneHi); r.rect(1, 4, 14, 1, P.brickOut);
-      r.px(6, 8, P.brickOut); r.px(9, 12, P.brickOut); // ترک
-      }
-    } else if (kind === 'decor') { // دکور کف دانجن: variant 0=استخوان 1=قارچ 2=ترک 5=فرش (ن۳۲)
-      if (variant === 5) { // فرش قرمز تالار تخت — لبه‌ی طلایی، بافت صلیبی
-        r.rect(0, 0, 16, 16, [142, 38, 44, 255]);
-        r.rect(0, 0, 16, 1, [186, 58, 58, 255]); r.rect(0, 0, 1, 16, [186, 58, 58, 255]);
-        r.rect(15, 0, 1, 16, [94, 24, 30, 255]); r.rect(0, 15, 16, 1, [94, 24, 30, 255]);
-        r.rect(3, 3, 10, 10, [120, 30, 38, 255]);
-        r.rect(7, 2, 2, 12, [170, 52, 52, 255]); r.rect(2, 7, 12, 2, [170, 52, 52, 255]);
-        r.px(4, 4, [230, 199, 74, 255]); r.px(11, 4, [230, 199, 74, 255]); r.px(4, 11, [230, 199, 74, 255]); r.px(11, 11, [230, 199, 74, 255]);
-      } else {
-      r.rect(0, 0, 16, 16, P.stone);
+      r.rect(0, 0, 16, 16, P.stone);                 // بستر: سنگ‌فرشِ کف (رمپِ تم)
       r.rect(0, 0, 16, 1, P.stoneHi); r.rect(15, 0, 1, 16, P.stoneSh); r.rect(0, 15, 16, 1, P.stoneSh);
-      if (variant === 0) { // استخوان‌ها
-        r.lineW(4, 10, 10, 7, 2, E.bone ?? E.white);
-        r.px(3, 9, E.white); r.px(3, 11, E.white); r.px(11, 6, E.white); r.px(11, 8, E.white);
-        r.rect(7, 12, 4, 2, E.white); r.px(8, 12, P.stoneSh);
-      } else if (variant === 1) { // قارچ‌های نورانی
-        r.rect(4, 10, 2, 3, E.essenceSh ?? P.stoneSh); r.rect(9, 8, 2, 4, E.essenceSh ?? P.stoneSh);
-        r.rect(3, 8, 4, 2, E.essence); r.rect(8, 6, 4, 2, E.essence);
-        r.px(4, 8, [230, 250, 255, 255]); r.px(10, 6, [230, 250, 255, 255]);
+      const BONE = rp('bone', 6), BONE_D = rp('bone', 4), INK = rp('ink', 1);
+      if (variant === 0) { // استخوان‌ها (رمپ + outline)
+        r.rect(3, 8, 9, 4, INK);
+        r.lineW(4, 10, 10, 7, 2, BONE); r.px(3, 9, BONE); r.px(3, 11, BONE_D);
+        r.px(11, 6, BONE); r.px(11, 8, BONE_D); r.rect(7, 12, 4, 2, BONE); r.px(8, 12, BONE_D);
+      } else if (variant === 1) { // قارچ‌های نورانی (رمپِ magicCyan)
+        r.rect(3, 7, 5, 3, INK); r.rect(8, 5, 5, 3, INK);
+        r.rect(4, 10, 2, 3, rp('magicCyan', 2)); r.rect(9, 8, 2, 4, rp('magicCyan', 2));
+        r.rect(4, 8, 3, 2, rp('magicCyan', 5)); r.rect(9, 6, 3, 2, rp('magicCyan', 5));
+        r.px(4, 8, E.white); r.px(10, 6, E.white);
       } else if (variant === 2) { // ترک زمین
         r.line(3, 3, 7, 8, P.brickOut); r.line(7, 8, 6, 13, P.brickOut); r.line(7, 8, 12, 10, P.brickOut);
-        r.px(12, 10, P.brickOut); r.px(3, 3, P.stoneSh);
-      } else if (variant === 3) { // کریستال درخشان
-        r.px(4, 12, E.essenceSh); r.px(11, 11, E.essenceSh);
-        r.lineW(7, 13, 7, 7, 2, E.essence);       // بلور اصلی
-        r.px(6, 6, [230, 250, 255, 255]); r.px(8, 8, [230, 250, 255, 255]);
-        r.px(5, 9, E.essenceSh); r.px(9, 11, E.essenceSh);
-        r.lineW(11, 13, 11, 10, 1, E.essence);    // بلور کوچک
-        r.px(11, 9, [230, 250, 255, 255]);
+        r.px(12, 10, P.brickOut); r.px(3, 3, P.stoneSh); r.px(5, 6, P.deep);
+      } else if (variant === 3) { // کریستال درخشان (رمپِ magicCyan + outline)
+        r.rect(5, 6, 5, 8, INK);
+        r.px(4, 12, rp('magicCyan', 2)); r.px(11, 11, rp('magicCyan', 2));
+        r.lineW(7, 13, 7, 7, 2, rp('magicCyan', 5));       // بلورِ اصلی
+        r.px(6, 6, E.white); r.px(8, 8, rp('magicCyan', 6));
+        r.lineW(11, 13, 11, 10, 1, rp('magicCyan', 4)); r.px(11, 9, E.white);
       } else if (variant === 4) { // تار عنکبوت (گوشه)
         r.px(1, 1, E.white); r.px(2, 2, E.white); r.px(3, 3, P.stoneHi);
         r.line(1, 1, 6, 1, E.white); r.line(1, 1, 1, 6, E.white);
-        r.line(2, 2, 6, 2, P.stoneHi); r.line(2, 2, 2, 6, P.stoneHi);
-        r.line(1, 4, 4, 1, P.stoneHi); r.px(4, 4, E.white); r.px(5, 3, P.stoneHi);
+        r.line(2, 2, 6, 2, rp('bone', 4)); r.line(2, 2, 2, 6, rp('bone', 4));
+        r.line(1, 4, 4, 1, rp('bone', 4)); r.px(4, 4, E.white); r.px(5, 3, rp('bone', 4));
       }
       }
     } else if (kind === 'bush') { // بوته‌ی مرز زمین قفل‌شده (روی چمن)
