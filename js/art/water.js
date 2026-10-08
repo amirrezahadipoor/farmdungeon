@@ -32,15 +32,19 @@ const _dsh = [];
 export function dungeonShore(t) {
   if (!_dsh[t]) {
     const P = DPAL(t);
+    const WB = ['water', 'water', 'stoneForge', 'magicCyan'][t] || 'water';   // رمپِ بدنه‌ی آبِ تم
+    const WF = [['water', 4], ['water', 4], ['fire', 6], ['magicCyan', 6]][t] || ['water', 4]; // [رمپِ کفِ موج، پله]
     _dsh[t] = {
       // ساحلِ **تیره**: سنگِ خیس یک پله زیرِ کف (L۳۹ در برابر کفِ L۵۲) — غار تاریک است و
       // روشناییِ لبه از کفِ موج می‌آید نه از سنگ؛ آبِ کم‌عمق یک پله روشن‌تر از ساحل ⇒ مرزِ سخت نداریم
       n: 1 + t, id: 'd' + t, rim: [P.mortar, P.stone], speck: [P.floorA, P.stoneHi], speckD: [P.brickOut, P.floorB],
       dark: {}, bevel: [4 | 2, 'dfloor'], // کفِ دانجن در بالا/چپ بِوِلِ روشن (stoneHi) دارد ⇒ ساحلِ روشن روبه‌رویش
-      foam: rp('water', 4),
-      body: [rp('water', 3), rp('water', 2), rp('water', 1)],
-      up: [rp('water', 4), rp('water', 3), rp('water', 2)],
-      dn: [rp('water', 2), rp('water', 1), rp('water', 0)],
+      // S3.9 هویتِ تم در آب: بدنه/کاستیک/کفِ موج از رمپِ خودِ تم — ساختارِ پله‌ایِ S2.7 دست‌نخورده
+      // (هر گذر یک پله ⇒ M8 آب↔زمین = ۰) · گدازه: بدنه‌ی تیره‌ی گرم + کاستیکِ fire · یخ: آبِ روشنِ فیروزه‌ای
+      foam: rp(WF[0], WF[1]),
+      body: [rp(WB, 3), rp(WB, 2), rp(WB, 1)],
+      up: t === 2 ? [rp('fire', 4), rp('fire', 3), rp(WB, 2)] : [rp(WB, 4), rp(WB, 3), rp(WB, 2)],
+      dn: [rp(WB, 2), rp(WB, 1), rp(WB, 0)],
     };
   }
   return _dsh[t];
