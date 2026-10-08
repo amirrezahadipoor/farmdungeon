@@ -41,20 +41,17 @@ export function makeRamp({ h, s, l0 = L0, l1 = L1, hShadow = -20, hLight = 15, s
 }
 
 // ---------- مواد پایه (هیو، اشباع) ----------
-// S3.9: هویتِ تم‌ها در مواد — stoneIce آبیِ سردِ اشباع‌تر (۲۱۴/۰٫۵۲، هایلایتِ سرد) · stoneMoss سبزِ اشباع‌تر (۱۳۶/۰٫۳۰)
 const BASE = {
   grass: [118, 0.45], grassDry: [60, 0.48], leaf: [104, 0.50], leafAutumn: [38, 0.55],
   soil: [26, 0.42], soilWet: [18, 0.50], dust: [34, 0.34], sand: [45, 0.40],
-  stoneCool: [222, 0.10], stoneMoss: [136, 0.30], stoneForge: [16, 0.50], stoneIce: [214, 0.52],
+  stoneCool: [222, 0.10], stoneMoss: [138, 0.22], stoneForge: [16, 0.50], stoneIce: [198, 0.30],
   water: [205, 0.50], waterDeep: [218, 0.45],
   skin: [22, 0.48], clothRed: [352, 0.50], clothBlue: [220, 0.42], clothGreen: [128, 0.35],
   clothPurple: [282, 0.38], bone: [45, 0.16], metal: [212, 0.12],
   fire: [28, 0.80], magicCyan: [188, 0.55], gold: [45, 0.60], ink: [240, 0.30],
 };
-// S3.9: گزینه‌های ساختِ ماده — «یخ» هایلایتِ گرم نمی‌گیرد (چرخشِ هیو خاموش) ⇒ سطحِ سردِ بازتابیِ تمِ یخ
-const MOPT = { stoneIce: { hLight: 4 } };
 export const RAMP = {};
-for (const k in BASE) RAMP[k] = makeRamp({ h: BASE[k][0], s: BASE[k][1], ...(MOPT[k] || {}) });
+for (const k in BASE) RAMP[k] = makeRamp({ h: BASE[k][0], s: BASE[k][1] });
 
 // هم‌نام‌های معنایی (همان آرایه — یک رنگ اضافه نمی‌کنند؛ تفکیک کامل در نشست‌های بعد اگر لزوم شد)
 const ALIAS = {

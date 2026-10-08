@@ -11,18 +11,22 @@ const _gnum = new Array(15 * 512 * 4).fill(null); // S2.8: ۶۴ واریانت �
 // تم رنگی دانجن (ن۳۲ → S1.4): هر تم یک رمپ سنگ + رمپِ هویتِ خزه/گدازه/یخ
 // قانون کنتراست S1.4 (اندازه‌گیری‌شده): L کف ≈ ۵۲/۶۵ · نمای دیوار (brick) = ۳۸ → ΔL ۲۰ ✓ · کلاهک (stone) = ۷۸ → ΔL ۲۰ ✓
 // کلیدهای قدیمی DPAL حفظ شده‌اند (brick/brickHi/brickOut/stone/stoneHi/stoneSh/warm/mortar/cap/moss/mossD/stairs/stairsSh/glint) + تازه: floorA/floorB
-const STONE_THEMES = ['stoneCool', 'stoneMoss', 'stoneForge', 'stoneIce'];   // تم ۰..۳
+// S3.9: تم ۳ (یخ) از رمپِ **موجودِ** waterDeep می‌آید (هم‌نردبانِ L با بقیه‌ی تم‌ها: brick[2]/floor[3]/[4]) —
+// «مجموعه‌ی رمپ‌ها» دست‌نخورده می‌ماند چون outline.js برای اسپرایت‌های مزرعه (درخت/خانه) از همین مجموعه رنگ می‌گیرد (درس ۸۹)
+const STONE_THEMES = ['stoneCool', 'stoneMoss', 'stoneForge', 'waterDeep'];  // تم ۰..۳
 const MOSS_THEMES = ['leaf', 'leaf', 'fire', 'magicCyan'];                  // هویتِ خزه/گدازه/یخ
 const DTHEME = STONE_THEMES.map((X, t) => {
   const M = MOSS_THEMES[t];
-  return {
-    brick: rp(X, 2), brickHi: rp(X, 3), brickOut: rp(X, 0), glint: rp(X, 4),      // بدنه‌ی دیوار (تیره) + جلای آجر
+  const O = {
+    brick: rp(X, t === 0 ? 1 : 2), brickHi: rp(X, t === 0 ? 2 : 3), brickOut: rp(X, 0), glint: rp(X, 4),      // بدنه‌ی دیوار (تیره) + جلای آجر
     stone: rp(X, 5), stoneHi: rp(X, 6), stoneSh: rp(X, 3),                        // سنگِ روشن (کلاهک/ستون/دروازه/پله)
-    cap: rp(X, 4), mortar: rp(X, 2), deep: rp(X, 1),                              // خطِ کلاهک + درزهای کف + **رویِ توده‌ی دیوار (S3.2: L۲۶)**
-    floorA: rp(X, 3), floorB: rp(X, 4), warm: rp(X, 4),                           // سنگ‌فرش دو‌تُن کف
+    cap: rp(X, 4), mortar: rp(X, t === 0 ? 1 : 2), deep: rp(X, t === 0 ? 0 : 1),                              // خطِ کلاهک + درزهای کف + **رویِ توده‌ی دیوار (S3.2: L۲۶)**
+    // S3.9: تمِ یخ — کف از رمپِ magicCyan (هم‌روشنی با stoneIce[3]/[4] ⇒ نردبانِΔL دست‌نخورده) با هیوئی سردِ آبی
+    floorA: rp(X, 3), floorB: rp(X, 4), warm: rp(X, 4),
     stairs: rp(X, 5), stairsSh: rp(X, 3),
     moss: rp(M, 5), mossD: rp(M, 3),                                              // خزه/گدازه/یخ — هویت تم
   };
+  return O;
 });
 export const DPAL = (t) => DTHEME[t] || DP0;
 
