@@ -13,7 +13,7 @@ const BAY4 = new Float32Array(16);
 for (let i = 0; i < 16; i++) BAY4[i] = (BAYER4[i] + 0.5) / 16;
 
 export const FACE_TOP = 4;                 // بالای نوارِ نما (درست زیرِ کلاهک)
-export const FACE_BOT = 14;                // پایینِ نوار — ردیفِ ۱۵ را پاسِ AO می‌کشد (S3.2)
+export const FACE_BOT = 14;                // پایینِ نوار — ردیفِ ۱۵ = لبه‌ی روشنِ پایه (S3.5: مالکیتِ S3.3)
 export const TORCH_MOD = 4, TORCH_X = 7, TORCH_Y = 6; // نقطه‌ی نصبِ مشعل: تایل‌های نما با tx%4===0 (S3.7)
 
 // ۰ رانینگ‌باندِ درشت (آجر ۱۱×۶) · ۱ سنگ‌تراشِ بزرگ (بلوک ۱۶×۸) · ۲ آجر + ستون‌چین
@@ -93,6 +93,7 @@ export function drawFront(r, ox, oy, P, theme, tx, ty, pat) {
     const d = hash2(tx, ty, 37) < 0.5 ? 1 : -1;
     r.px(ox + sx, oy + sy, brk); r.px(ox + sx + d, oy + sy + 1, brk); r.px(ox + sx, oy + sy + 2, brk);
   }
+  r.rect(ox, oy + FACE_BOT + 1, TILE, 1, hi);                  // لبه‌ی روشنِ پایه (S3.5: از drawDungeonDepth منتقل شد)
   if (tx % TORCH_MOD === 0) { // پایه‌ی آهنیِ مشعل (نقطه‌ی نصبِ ثابت برای S3.7)
     const m0 = rp('metal', 1), m1 = rp('metal', 2), m2 = rp('metal', 4);
     r.rect(ox + TORCH_X, oy + TORCH_Y, 2, 1, m2);

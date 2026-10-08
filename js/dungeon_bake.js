@@ -5,7 +5,7 @@
 // ⇒ خروجیِ کش بایت‌به‌بایت همانِ `buildFloorCache` قدیمی است (پذیرشِ S3.1).
 import { groundSprite, TILE, COLS, ROWS, WORLD_W, WORLD_H } from './tiles.js';
 import { Raster } from './raster.js';
-import { drawDungeonDepth } from './art/dungeon_depth.js';
+import { drawAO } from './art/dungeon_depth.js'; // S3.5
 import { DPAL } from './art/ground.js';
 import { mask8, blob47, IDX_MASK, autoSprite, setAutoBuilder } from './art/autotile.js';
 import { drawFront, drawTopFace, pickPattern } from './art/brick.js'; // S3.3
@@ -96,8 +96,8 @@ function passWallMass(cache, D) {
 // ۳ — کف: سنگفرشِ مقیاس-جهان + ترکِ پیوسته (S3.4)
 function passFloorPattern(cache, D) { drawFlagstones(cache, D, D.theme | 0); }
 
-// ۴ — AO و سایه‌ی تماسی (S3.5) — فعلاً **هم‌ارزِ قبلی**: سایه‌ی عمق + خزه
-function passAO(cache, D) { drawDungeonDepth(cache, D, 0, 0, TILE, ROWS, COLS); }
+// ۴ — AO و سایه‌ی تماسی (S3.5): نوار ۴px با گرادیان Bayer + سایه‌ی SE پراپ‌های ایستا
+function passAO(cache, D) { drawAO(cache, D, D.theme | 0); }
 
 // ۵ — دکال‌ها و فرسودگی per تم (S3.6) — فعلاً خالی
 function passDecals() {}
