@@ -93,7 +93,14 @@ export function renderRun(run, r) {
     drawShrines(r, D, cx, cy, run.time);
     // هاله‌ی تهدید باس (نبض قرمز زیر پا)
     const bossRef = D.enemies.find((e) => e.isBoss) || null; // یک find برای هاله + مینی‌مپ
-    if (bossRef && bossRef.state !== 'die') r.ellipse(Math.round(bossRef.x) - cx, Math.round(bossRef.y) + 2 - cy, 26 + Math.round(Math.sin(run.time * 3) * 3), 8, [190, 60, 60, 42]);
+    if (bossRef && bossRef.state !== 'die') {
+      // S6.6: هاله‌ی تهدیدِ فاز‌محور — فاز ۲ گرم‌تر · فاز ۳ «هاله‌ی خشم» (دو حلقه، تندتر)
+      const bph = bossRef.phase || 1, pw = bph === 3 ? 1.35 : bph === 2 ? 1.15 : 1;
+      const pulse = Math.sin(run.time * (bph === 3 ? 6 : 3));
+      const col = bph === 3 ? [236, 74, 52, 66] : bph === 2 ? [214, 92, 60, 52] : [190, 60, 60, 42];
+      r.ellipse(Math.round(bossRef.x) - cx, Math.round(bossRef.y) + 2 - cy, Math.round((26 + pulse * 3) * pw), Math.round(8 * pw), col);
+      if (bph === 3) r.ellipse(Math.round(bossRef.x) - cx, Math.round(bossRef.y) + 2 - cy, Math.round(34 + pulse * 5), 11, [236, 74, 52, 30]);
+    }
     // رد دوج: شبح‌های آبی محوشونده
     if (run._trail) for (const g of run._trail) {
       const a = Math.round(70 * (1 - g.t / 0.3));

@@ -29,6 +29,7 @@ export const ALL_KINDS = [...MONSTER_KINDS, 'boss'];
 export class Monster {
   constructor(kind, x, y, phase = 1, muls = {}) {
     this.kind = kind; this.x = x; this.y = y; this.phase = phase;
+    this._phaseShown = phase; this._phaseFlash = 0; // S6.6: وضعیتِ نمایشیِ گذارِ فاز (فقط ظاهر)
     const s = STATS[kind];
     this.isElite = !!muls.elite; // تاج‌دار: قوی‌تر، غنیمت بیشتر (منبع واحد ضریب)
     this.dmg = s.dmg * (muls.dmgMul ?? 1) * (this.isElite ? 1.35 : 1);
@@ -116,11 +117,17 @@ export class Monster {
   // اسپرایت کش‌شده (۸ فریم فاز/زمان)
   sprite() {
     const q = (v) => Math.floor(v * 8) / 8;
-    const key = `${this.kind}|${this.state}|${q(this.t)}|${q(this.ph)}|${this.face}|${this.flash > 0 ? 1 : 0}|${this.atk}|${this.phase}`;
+    // S6.6: گذارِ فاز — فقط ظاهر (مدل/گیم‌پلی دست‌نخورده): دو فریمِ نخستِ فازِ تازه = لرزش + جرقه + فلشِ سفید
+    let phaseFlash = 0;
+    if (this.isBoss) {
+      if (this._phaseShown !== this.phase) { this._phaseShown = this.phase; this._phaseFlash = 2; }
+      if (this._phaseFlash > 0) { phaseFlash = 1; this._phaseFlash--; }
+    }
+    const key = `${this.kind}|${this.state}|${q(this.t)}|${q(this.ph)}|${this.face}|${this.flash > 0 ? 1 : 0}|${this.atk}|${this.phase}|${phaseFlash}`;
     let s = Monster._cache.get(key);
     if (!s) {
       const o = { state: this.state, t: q(this.t), ph: q(this.ph), face: this.face, time: this.time, hit: this.flash > 0 };
-      s = this.isBoss ? drawBossFrame({ ...o, atk: this.atk, phase: this.phase }) : drawMonsterFrame(this.kind, o);
+      s = this.isBoss ? drawBossFrame({ ...o, atk: this.atk, phase: this.phase, phaseFlash }) : drawMonsterFrame(this.kind, o);
       Monster._cache.set(key, s); // snap پالت داخلِ draw*Frame (خط لولهٔ S6.1) — سقف حافظه در makeSpriteCache
     }
     return s;
