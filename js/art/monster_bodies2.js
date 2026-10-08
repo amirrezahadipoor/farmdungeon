@@ -1,6 +1,8 @@
-// monster_bodies2.js — بدنه‌ی ۷ هیولای ن۴۴ (مومیایی/کماندار/قوچ/یخ‌مرد/آتش‌جان/دزد/خرگوش)
+// monster_bodies2.js — بدنه‌ی ۴ هیولای ن۴۴ (مومیایی/کماندار/قوچ/یخ‌مرد) — بخش‌بندیِ S6.5
+// بخش‌بندیِ S6.5: آتش‌جان/دزد/خرگوش به monster_bodies4.js رفتند (سقفِ ۲۸۰ خط) و این‌جا ادغام می‌شوند.
 // همان قرارداد monster_bodies: (r, f) با f={state,t,ph,face,time} — فقط هندسه/انیمیشن
 import { MC, MOY, lm, wind } from './monster_parts.js';
+import { MBODY4, MOUT4, MSHW4 } from './monster_bodies4.js';
 
 const sin = Math.sin, cos = Math.cos, PI = Math.PI;
 
@@ -24,15 +26,26 @@ function dMummy(r, f) {
   g.rect(bx + 2, by - 4, 3, 2, MC.mummyStain); g.rect(bx - 5 + lean * 0.3, by - 14, 11, 1, MC.mummyMid); // لکه + باند سر
   g.rect(bx - 6, by + 2, 4, 1, MC.mummyBand); g.rect(bx - 4 + lean * 0.3, by - 17, 9, 1, MC.mummyBand); // S1.5b: باند تیره‌ی سر/تنه
   g.rect(bx + 4, by - 12, 3, 26, MC.mummySh); // نوار سایه کنار
+  // S6.5: باندِ پیچ‌خورده (مورب روی تنه) + دنباله‌ی رها (سیلوئت را از استخوانی جدا می‌کند)
+  for (let i = 0; i < 5; i++) {
+    const y0 = by - 11 + i * 5;
+    g.lineW(bx - 7, y0, bx + 7, y0 + 3, 1, i % 2 ? MC.mummyBand : MC.mummyMid);
+    g.lineW(bx - 7, y0 + 1, bx + 7, y0 + 4, 1, MC.mummySh);
+  }
+  g.lineW(bx + 6, by + 3, bx + 9, by + 8 + sin(f.time * 2) * 2, 1, MC.mummyHi);    // دنباله‌ی آزاد (بالای خطِ زمین)
+  g.lineW(bx + 9, by + 9 + sin(f.time * 2) * 2, bx + 10, by + 12 + sin(f.time * 3) * 2, 1, MC.mummyMid);
+  g.px(bx + 10, by + 12 + sin(f.time * 3) * 2, MC.mummyMid); g.px(bx + 9, by + 11 + sin(f.time * 2) * 2, MC.mummyHi);
   // سر: کلاه‌خود باند با چشم درخشان
   g.rect(bx - 5 + lean * 0.3, by - 19, 11, 8, MC.mummy);
   g.rect(bx - 5 + lean * 0.3, by - 19, 11, 2, MC.mummyHi);
   g.rect(bx - 4 + lean * 0.3, by - 16, 3, 2, MC.dark); g.rect(bx + 1 + lean * 0.3, by - 16, 3, 2, MC.dark);
   if (f.state !== 'die') { g.px(bx - 3 + lean * 0.3, by - 15, MC.mummyGlow); g.px(bx + 2 + lean * 0.3, by - 15, MC.mummyGlow); }
   // بازوهای باند‌پیچ (حمله: تاب رو به جلو)
-  const ax = bx + 6, swing = f.state === 'attack' ? arm * 10 : 0;
+  // S6.5: بازوانِ درازِ رو‌به‌جلو (امضای مومیایی — سیلوئت را از دزد جدا می‌کند)
+  const ax = bx + 6, swing = (f.state === 'attack' ? arm * 10 : 0) + 5;
   g.lineW(ax, by - 6, ax + 4 + swing, by + 2 - arm * 6, 3, MC.mummySh);
-  g.lineW(bx - 6, by - 6, bx - 9, by + 2, 3, MC.mummySh);
+  g.rect(ax + 3 + swing, by + 1 - arm * 6, 4, 3, MC.mummySh);   // کفِ دستِ آویزان
+  g.lineW(bx - 6, by - 6, bx - 11, by - 1, 3, MC.mummySh);      // بازوی عقبی
   // پاها
   const st = f.state === 'move' ? sin(f.ph * PI * 2) * 3 : 0;
   g.rect(bx - 5, MOY - 3, 4, 3, MC.mummySh); g.rect(bx + 1, MOY - 3, 4, 3, MC.mummySh);
@@ -70,7 +83,17 @@ function dArcher(r, f) {
   // کمان: قوس عمودی جلو + زه + تیر (با کشش عقب می‌رود)
   const hx = bx + 8 - recoil * 2; // دست کمان
   const bowX = hx + 3 + pull * -2;
-  g.lineW(bowX, by - 12, bowX, by + 4, 1, a(MC.archerBow)); // قوس ساده
+  // S6.5: کمانِ کمانی (سه پاره با برآمدگیِ میانی) — قوس ساده‌ی عمودی جای خود را داد
+  g.lineW(bowX, by - 12, bowX + 3, by - 4, 1, a(MC.archerBow));
+  g.lineW(bowX + 3, by - 4, bowX, by + 4, 1, a(MC.archerBow));
+  g.px(bowX + 2, by - 4, a(MC.archerBowHi));
+  // S6.5: تیردان پشتِ شانه + ۳ پرِ تیر (سیلوئت را از اسکلت جدا می‌کند)
+  g.rect(bx - 8, by - 6, 3, 9, a(MC.archerQuiver));
+  g.px(bx - 8, by - 6, a(MC.archerBow)); g.px(bx - 6, by - 6, a(MC.archerBow));
+  for (let i = 0; i < 3; i++) {
+    g.lineW(bx - 7 + i, by - 7 - i * 2, bx - 6 + i, by - 12 - i * 2, 1, a(MC.boneSh));
+    g.px(bx - 7 + i, by - 12 - i * 2, a(MC.archerFeather));
+  }
   g.px(bowX, by - 6, a(MC.archerQuiver)); g.px(bowX, by + 1, a(MC.archerQuiver)); // S1.5b: چنگک قوس
   g.px(bowX - 1, by - 13, a(MC.archerBowHi)); g.px(bowX - 1, by + 5, a(MC.archerBowHi)); // نوک‌ها
   g.line(bowX, by - 12, bowX - pull * 5, by - 4, a(MC.boneOut)); g.line(bowX, by + 4, bowX - pull * 5, by - 4, a(MC.boneOut)); // زه
@@ -114,10 +137,16 @@ function dRam(r, f) {
   g.rect(hx - 3, hy - 4, 8, 2, MC.ram);
   g.rect(hx + 4, hy - 1, 2, 2, MC.ramOut); // پوزه
   g.px(hx + 2, hy - 2, MC.dark); // چشم
-  // شاخ: قوس رو به جلو
+  // S6.5: شاخِ حلزونی (قوسِ رو به جلو + دورِ دوم به داخل) + توده‌های پشمِ بیرون‌زده
   g.lineW(hx - 1, hy - 5, hx + 4, hy - 10, 2, MC.ramHorn);
   g.lineW(hx + 4, hy - 10, hx + 9, hy - 7, 2, MC.ramHorn);
+  g.lineW(hx + 9, hy - 7, hx + 7, hy - 3, 2, MC.ramHorn);      // دورِ دومِ حلزون
+  g.lineW(hx + 7, hy - 3, hx + 2, hy - 4, 2, MC.ramHornSh);
   g.px(hx + 9, hy - 7, MC.ramHornSh); g.px(hx + 4, hy - 10, MC.ramHornSh);
+  g.px(hx + 1, hy - 5, MC.ramHornSh);
+  for (const [tx, ty] of [[-10, -8], [-7, -10], [7, 6], [4, 8]]) { // توده‌های پشمِ بالا/پایین (نه پهلو — هم‌پوشانی با اسلایم را زیاد می‌کرد)
+    g.px(bx + tx, by + ty, MC.ramHi); g.px(bx + tx - (tx < 0 ? 1 : -1), by + ty + 1, MC.ram);
+  }
   if (stretch) { g.px(hx + 12, hy - 2, [255, 255, 255, 90]); g.px(hx + 14, hy + 1, [255, 255, 255, 60]); } // بویرِ شارژ
   if (dead > 0) { // افتادن پهلو
     g.ellipse(bx, MOY - 4, 13 * (0.6 + dead * 0.4), 6, [MC.ram[0], MC.ram[1], MC.ram[2], Math.round(255 * (1 - dead * 0.8))]);
@@ -147,8 +176,16 @@ function dYeti(r, f) {
   // سر کوچک بالا
   g.ellipse(bx + 2, by - 15, 7, 6, a(MC.yeti));
   g.ellipse(bx + 2, by - 17, 4, 3, a(MC.white));
+  // S6.5: خزِ یخیِ دندانه‌دار روی لبه‌ی سیلوئت (از توده‌ی ساده متمایز)
+  for (let i = 0; i < 9; i++) {
+    const ang = -PI * 0.9 + i * (PI * 1.8 / 8), sx2 = bx + cos(ang) * 14, sy2 = by + sin(ang) * 16;
+    g.px(sx2, sy2, a(i % 2 ? MC.yetiIce : MC.yetiMid));
+    g.px(bx + cos(ang) * 12.5, by + sin(ang) * 14.5, a(MC.yetiSh2));
+  }
+  g.rect(bx - 1, by - 18, 5, 1, a(MC.yetiDark)); // ابرو
   g.rect(bx, by - 16, 2, 2, a(MC.dark)); g.rect(bx + 4, by - 16, 2, 2, a(MC.dark)); // چشم‌ها
-  g.rect(bx + 1, by - 12, 4, 1, a(MC.yetiSkin)); // بینی/دهان
+  g.rect(bx + 1, by - 12, 5, 2, a(MC.yetiSkin)); // دهان
+  g.px(bx + 2, by - 12, a(MC.white)); g.px(bx + 4, by - 12, a(MC.white)); // S6.5: دندان‌ها
   // بازوهای بلند + مشت‌ها (حمله: بالا سپس کوبش جلو)
   const ay = by - 4 - rage * 10 + slam * 12;
   g.lineW(bx - 10, by + 2, bx - 14, ay, 4, a(MC.yeti));
@@ -161,126 +198,7 @@ function dYeti(r, f) {
   if (rage > 0.5 && f.state === 'attack' && f.t < 0.5) { g.px(bx - 5, by - 20, [242, 239, 228, 180]); g.px(bx + 8, by - 22, [242, 239, 228, 140]); } // S1.5b: ذرات از پالت
 }
 
-// ---------- آتش‌جان: روح شعله کوچک — تف‌کردن گلوله‌ی آتش ---------- 
-function dImp(r, f) {
-  const g = lm(r, f.face);
-  let yOff = sin(f.time * 2.6) * 3, spit = 0, dead = 0, scowl = 0;
-  if (f.state === 'move') yOff = -6 - Math.abs(sin(f.ph * PI * 2)) * 5;
-  else if (f.state === 'attack') {
-    if (f.t < 0.5) { const e = wind(f.t, 0.5); yOff -= e * 4; scowl = e; } // نفس‌کردن داخل
-    else { spit = 1 - (f.t - 0.5) / 0.5; yOff += 2; scowl = 1; }           // تف
-  } else if (f.state === 'die') dead = f.t;
-  const bx = 0, by = MOY - 16 + yOff;
-  const fade = 1 - dead;
-  const a = (c) => [c[0], c[1], c[2], Math.round(c[3] * fade)];
-  // بدن: قطره‌ی شعله (لبه تیره، داخل اصلی، هسته روشن)
-  for (let dy = -14; dy <= 8; dy++) {
-    const k = (dy + 14) / 22;
-    const w2 = Math.round(9 * Math.sin(PI * Math.min(1, 0.15 + k * 0.92)));
-    if (w2 < 1) continue;
-    const col = dy < -8 ? a(MC.impSh) : dy > 4 ? a(MC.imp) : a(MC.impHi);
-    for (let dx = -w2; dx <= w2; dx++) if ((dx * 5 + dy * 3) % 7 !== 0) g.px(bx + dx, by + dy, col); // سوراخ‌های شعله
-  }
-  g.rect(bx - 2, by + 5, 4, 1, a(MC.impMid)); g.px(bx - 1, by - 12, a(MC.impDeep)); g.px(bx + 2, by - 12, a(MC.impDeep)); // S1.5b: بافت شعله
-  g.rect(bx - 3, by + 2, 6, 1, a(MC.impDeep)); g.rect(bx - 6, by - 1, 2, 2, a(MC.impOut)); g.rect(bx + 5, by - 3, 2, 2, a(MC.impOut)); // لبه‌های تیره
-  g.rect(bx - 1, by + 3, 3, 1, a(MC.impGold)); // هسته‌ی زرین
-  g.rect(bx - 5, by - 8, 2, 1, a(MC.impHorn)); g.rect(bx + 4, by - 8, 2, 1, a(MC.impHorn)); // ابروی تیره
-  // زبانه‌ی سر (موج آرام)
-  const fl = sin(f.time * 3) * 2;
-  g.px(bx, by - 16, a(MC.impSh)); g.px(bx - 1 + fl * 0.5, by - 18, a(MC.impHi)); g.px(bx + 1, by - 15, a(MC.imp));
-  // چشم‌های شرور + دهان
-  g.rect(bx - 5, by - 6, 3, 2, a(MC.impEye)); g.rect(bx + 2, by - 6, 3, 2, a(MC.impEye)); // S1.5b: چشم قرمز
-  if (scowl > 0.3) { g.px(bx - 4, by - 7, a(MC.dark)); g.px(bx + 3, by - 7, a(MC.dark)); }
-  g.rect(bx - 2 + spit * 3, by - 1, 5, 2, a(MC.dark)); // دهان (هنگام تف جلو)
-  // ذره‌ی آتش داخل (هسته)
-  g.px(bx, by + 2, a(MC.impHi)); g.px(bx - 1, by + 3, a(MC.imp));
-  if (dead > 0) { for (let i = 0; i < 3; i++) g.px(bx - 6 + i * 6, by - 10 - dead * 16 + i * 4, [MC.impHi[0], MC.impHi[1], MC.impHi[2], Math.round(200 * (1 - dead))]); }
-}
-
-// ---------- دزد: شنل кап‌دار + خنجر — دزدیدن و گریز ---------- 
-function dBandit(r, f) {
-  const g = lm(r, f.face);
-  let lean = 3, yOff = 0, stab = 0, dead = 0;
-  if (f.state === 'idle') { lean = sin(f.time * 1.4) * 2; yOff = sin(f.time * 2.4) * 1; }
-  else if (f.state === 'move') { lean = 6 + Math.abs(sin(f.ph * PI)) * 2; yOff = -Math.abs(sin(f.ph * PI * 2)) * 3; }
-  else if (f.state === 'attack') {
-    if (f.t < 0.5) { const e = wind(f.t, 0.5); lean = -4 * e; stab = e; }
-    else { stab = 1 - (f.t - 0.5) / 0.5; lean = 7; }
-  } else if (f.state === 'die') dead = f.t;
-  const bx = lean * 0.3, by = MOY - 14 + yOff;
-  const fade = 1 - dead;
-  const a = (c) => [c[0], c[1], c[2], Math.round(c[3] * fade)];
-  // شنل: ذوزنقه با لبه‌ی موجی
-  for (let dy = -10; dy <= 10; dy++) {
-    const w2 = 6 + Math.floor((dy + 10) * 0.45);
-    const wob = dy > 6 ? sin(f.time * 5 + dy) * 1 : 0;
-    for (let dx = -w2; dx <= w2; dx++) g.px(bx + dx + wob, by + dy, a(dy < -6 ? MC.banditHi : (dx > w2 - 3 ? MC.banditSh : MC.bandit)));
-  }
-  // کلاه‌کپ
-  g.ellipse(bx + 1, by - 11, 6, 5, a(MC.bandit));
-  g.rect(bx - 3, by - 12, 8, 3, a(MC.banditSh));
-  // صورت زیر کلاه: فقط چشم‌ها
-  g.rect(bx + 1, by - 10, 2, 2, a(MC.banditEdge)); g.px(bx + 4, by - 10, a(MC.banditBlade)); // چشم‌های براق
-  // خنجر (حمله: ضربه به جلو)
-  const kx = bx + 8 + stab * 8;
-  g.lineW(bx + 5, by + 2, kx, by - 1 + stab * 2, 1, a(MC.banditBlade));
-  g.rect(bx - 5, by + 1, 10, 1, a(MC.banditSash)); g.rect(bx - 1, by + 3, 2, 2, a(MC.banditBuckle)); // S1.5b: کمربند + سگک
-  g.rect(bx + 1, by - 9, 3, 1, a(MC.banditSkin)); // لکه‌ی صورت زیر کلاه
-  g.rect(bx - 8, by + 6, 4, 1, a(MC.banditDeep)); g.rect(bx + 5, by + 8, 4, 1, a(MC.banditDeep));
-  g.rect(bx - 6, by - 4, 4, 1, a(MC.banditMid)); g.rect(bx + 3, by - 2, 4, 1, a(MC.banditMid));
-  g.px(bx - 9, by + 9, a(MC.banditEdge)); g.px(bx - 8, by + 9, a(MC.banditEdge));
-  g.px(kx + 1, by - 1 + stab * 2, a(MC.white));
-  // کیسه‌ی دزدی (بعد از دزدیدن: برآمدگی طلایی) — bulge از فیلد a.f? از time نمی‌شود؛ از اینجا: کیسه همیشه، طلاییِ آن با نگاه دیده می‌شود
-  g.ellipse(bx - 7, by + 4, 3, 3, a(MC.banditSh));
-  g.px(bx - 7, by + 3, a(MC.banditBuckle));
-  // پاها
-  const st = f.state === 'move' ? sin(f.ph * PI * 2) * 4 : 0;
-  g.rect(bx - 4 + st, MOY - 4, 3, 4, a(MC.banditSh)); g.rect(bx + 2 - st, MOY - 4, 3, 4, a(MC.banditSh));
-  if (dead > 0.4) { // سکه‌های ریخته
-    g.px(bx - 9, MOY - 2, a(MC.banditBuckle)); g.px(bx + 7, MOY - 3, a(MC.banditBuckle));
-  }
-}
-
-// ---------- خرگوش غول‌پیکر: گوش‌های بلند، جهش فنری ---------- 
-function dHare(r, f) {
-  const g = lm(r, f.face);
-  let w = 20, h = 16, yOff = 0, xOff = 0, earT = 0, dead = 0;
-  if (f.state === 'idle') { const br2 = sin(f.time * 2.5); w += br2; h -= br2 * 0.6; earT = sin(f.time * 1.8) * 2; }
-  else if (f.state === 'move') {
-    const ph = f.ph % 1, hop = Math.abs(sin(PI * ph));
-    yOff = -hop * 13;
-    const sq = ph < 0.14 || ph > 0.92 ? 1.3 : (ph > 0.25 && ph < 0.7 ? 0.8 : 1);
-    w *= sq; h /= sq; xOff = ph * 16 - 8;
-    earT = -hop * 3;
-  } else if (f.state === 'attack') {
-    if (f.t < 0.45) { const e = wind(f.t, 0.45); w *= 1 + 0.25 * e; h *= 1 + 0.25 * e; earT = -4 * e; }
-    else { const e = (f.t - 0.45) / 0.55; w *= 1.15 - e * 0.2; h *= 0.75; xOff = 10 * e; earT = 3; }
-  } else if (f.state === 'die') { dead = f.t; h = 16 * (1 - dead) + 4 * dead; w = 20 + 10 * dead; earT = dead * 6; }
-  const cx = xOff, cy = MOY - h / 2 - yOff;
-  // بدن
-  g.ellipse(cx, cy, w / 2, h / 2, MC.hare);
-  g.ellipse(cx - w * 0.15, cy - h * 0.2, w * 0.28, h * 0.26, MC.hareHi);
-  g.ellipse(cx + w * 0.2, cy + h * 0.15, w * 0.24, h * 0.2, MC.hareSh);
-  g.ellipse(cx - w * 0.05, cy + h * 0.3, w * 0.18, h * 0.1, MC.hareMid); // S1.5b: بافت خز
-  g.rect(cx - 5, cy + 2, 3, 1, MC.hareDeep); g.rect(cx + 2, cy + 1, 3, 1, MC.hareDeep);
-  g.rect(cx - 6, MOY - 4, 3, 2, MC.hareFoot); g.rect(cx + 3, MOY - 4, 3, 2, MC.hareFoot); // پنجه‌ها
-  // سر جلو
-  const hx = cx + w * 0.38, hy = cy - h * 0.25;
-  g.ellipse(hx, hy, 6, 5.5, MC.hare);
-  g.ellipse(hx + 1, hy - 2, 3, 2.5, MC.hareHi);
-  g.px(hx + 4, hy - 1, MC.dark); // چشم
-  g.rect(hx - 2, hy + 3, 4, 1, MC.hareMid); g.px(hx + 6, hy + 1, MC.hareNose); // S1.5b: بینی + چانه
-  // گوش‌های بلند (عقب‌خم هنگام جهش)
-  for (const ex of [hx - 3, hx + 1]) {
-    g.lineW(ex, hy - 4, ex - 2 + earT * 0.4, hy - 20 + earT, 2, MC.hare);
-    g.lineW(ex, hy - 4, ex - 2 + earT * 0.4, hy - 20 + earT, 1, MC.hareIn);
-  }
-  // پنجه‌ها (فشرده هنگام جهش)
-  if (yOff < -4) { g.px(cx - 5, MOY - 2 + yOff * 0.4, MC.hareSh); g.px(cx + 4, MOY - 2 + yOff * 0.4, MC.hareSh); }
-  if (dead > 0.5) { g.px(cx - 8, MOY - 2, [MC.hareSh[0], MC.hareSh[1], MC.hareSh[2], Math.round(255 * (1 - dead))]); }
-}
-
-// ---------- جدول‌ها (ن۴۴) ----------
-export const MBODY2 = { mummy: dMummy, archer: dArcher, ram: dRam, yeti: dYeti, imp: dImp, bandit: dBandit, hare: dHare };
-export const MOUT2 = { mummy: MC.mummyOut, archer: MC.boneOut, ram: MC.ramOut, yeti: MC.yetiOut, imp: MC.impOut, bandit: MC.banditOut, hare: MC.hareOut };
-export const MSHW2 = { mummy: [10, 3], archer: [9, 3], ram: [14, 4], yeti: [16, 5], imp: [8, 3], bandit: [10, 3], hare: [11, 4] };
+// ---------- جدول‌ها (ن۴۴) — ۴ این‌جا + ۳ از monster_bodies4 ----------
+export const MBODY2 = { mummy: dMummy, archer: dArcher, ram: dRam, yeti: dYeti, ...MBODY4 };
+export const MOUT2 = { mummy: MC.mummyOut, archer: MC.boneOut, ram: MC.ramOut, yeti: MC.yetiOut, ...MOUT4 };
+export const MSHW2 = { mummy: [10, 3], archer: [9, 3], ram: [14, 4], yeti: [16, 5], ...MSHW4 };
