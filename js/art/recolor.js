@@ -8,7 +8,7 @@ const hexRGB = (h) => [parseInt(h.slice(1, 3), 16), parseInt(h.slice(3, 5), 16),
 const WORKER_SWAP = new Map(); // 'r,g,b' → [r,g,b]
 {
   const pairs = [
-    [PAL.jacketHi, PAL.pantsHi], [PAL.jacket, PAL.pants], [PAL.jacketSh, PAL.pantsSh],
+    [PAL.jacketHi, PAL.pantsHi], [PAL.jacket, PAL.pants], [PAL.jacketSh, PAL.pantsSh], [PAL.jacketDeep, PAL.hairSh],
     [PAL.pantsHi, PAL.bootHi], [PAL.pants, PAL.boot], [PAL.pantsSh, PAL.bootSh],
     [PAL.hair, PAL.hat], [PAL.hairSh, PAL.hatSh],
     [PAL.scarf, PAL.shirt], [PAL.scarfSh, PAL.shirtSh],
@@ -19,7 +19,7 @@ const WORKER_SWAP = new Map(); // 'r,g,b' → [r,g,b]
 const WORKER2_SWAP = new Map(); // کارگر دوم: کاپشن آبی → حنایی، دستمال → قهوه‌ای (کلاه حصیری ندارد)
 {
   const pairs = [
-    [PAL.jacketHi, PAL.hatHi], [PAL.jacket, PAL.hat], [PAL.jacketSh, PAL.hatSh],
+    [PAL.jacketHi, PAL.hatHi], [PAL.jacket, PAL.hat], [PAL.jacketSh, PAL.hatSh], [PAL.jacketDeep, PAL.hairSh],
     [PAL.scarf, PAL.boot], [PAL.scarfSh, PAL.bootSh],
   ];
   for (const [a, b] of pairs) WORKER2_SWAP.set(hexRGB(a).join(','), hexRGB(b));

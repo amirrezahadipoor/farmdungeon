@@ -12,6 +12,7 @@ export const PAL = {
   jacketHi: '#6fa3d8',
   jacket:   '#3e6fae',
   jacketSh: '#26477b',
+  jacketDeep: '#1d2a55', // S6.2: پله‌ی چهارم سایه‌ی پارچه (هیو-شیفت بنفش، ΔL≈24 از jacketSh)
   shirt:    '#e9dfc6',
   shirtSh:  '#b9ac8c',
   pantsHi:  '#87975c',

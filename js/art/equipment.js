@@ -10,34 +10,35 @@ const CR = [122, 208, 232, 255], CRH = [180, 240, 255, 255]; // بلوری
 
 // ---------- کلاه/خود (جایگزین کلاه‌ی پیش‌فرض) ----------
 export function drawEquipHat(r, dir, hc, id) {
-  const hx = Math.round(hc[0]), hy = Math.round(hc[1]);
+  const hx = Math.round(hc[0]) & ~1, hy = Math.round(hc[1]) & ~1; // S6.2: هم‌پار با drawHead (لنگرِ زوج)
   const fx = dir === 'right' ? 1 : dir === 'left' ? -1 : 0;
+  // S6.2: همه‌ی کلاه‌ها با سرِ بزرگ‌شده (مو تا hy-7) هم‌تراز شدند — ۲px بالاتر، عرض ۱۳
   if (id === 'capStraw') {
-    r.rect(hx - 7, hy - 7, 15, 2, [230, 190, 100, 255]);
-    r.rect(hx - 7, hy - 6, 15, 1, [190, 150, 70, 255]);
-    r.rect(hx - 4, hy - 10, 9, 3, [230, 190, 100, 255]);
-    r.rect(hx - 4, hy - 10, 9, 1, [255, 220, 140, 255]);
-    r.rect(hx - 1, hy - 8, 3, 1, [170, 60, 50, 255]); // نوار قرمز
+    r.rect(hx - 7, hy - 9, 14, 2, [230, 190, 100, 255]);
+    r.rect(hx - 7, hy - 8, 14, 2, [190, 150, 70, 255]);
+    r.rect(hx - 4, hy - 12, 8, 3, [230, 190, 100, 255]);
+    r.rect(hx - 4, hy - 12, 8, 1, [255, 220, 140, 255]);
+    r.rect(hx - 1, hy - 10, 3, 1, [170, 60, 50, 255]); // نوار قرمز
   } else if (id === 'helmLeather') {
-    r.rect(hx - 5, hy - 11, 11, 5, LB);
-    r.rect(hx - 5, hy - 11, 11, 1, LBH);
-    r.rect(hx - 5, hy - 7, 11, 1, LBS);
-    r.rect(hx - 1, hy - 9, 3, 2, LBS); // درز
-    if (fx !== 0) r.rect(hx + (fx > 0 ? 3 : -5), hy - 8, 2, 4, LBH); // گونه‌پوش
+    r.rect(hx - 6, hy - 13, 12, 5, LB);
+    r.rect(hx - 6, hy - 13, 12, 1, LBH);
+    r.rect(hx - 6, hy - 9, 12, 1, LBS);
+    r.rect(hx - 1, hy - 11, 3, 2, LBS); // درز
+    if (fx !== 0) r.rect(hx + (fx > 0 ? 4 : -6), hy - 10, 2, 4, LBH); // گونه‌پوش
   } else if (id === 'helmIron') {
-    r.rect(hx - 5, hy - 12, 11, 6, M);
-    r.rect(hx - 5, hy - 12, 11, 1, MH);
-    r.rect(hx - 5, hy - 7, 11, 1, MS);
-    r.rect(hx - 1, hy - 10, 2, 6, MS); // تیغه‌ی میانی
-    if (fx !== 0) { r.rect(hx + (fx > 0 ? 3 : -5), hy - 8, 2, 5, M); r.px(hx + (fx > 0 ? 4 : -4), hy - 8, MH); }
-    else { r.px(hx - 5, hy - 6, MS); r.px(hx + 5, hy - 6, MS); }
-    r.rect(hx - 2, hy - 13, 4, 1, GD); // نوک برنجی
+    r.rect(hx - 6, hy - 14, 12, 6, M);
+    r.rect(hx - 6, hy - 14, 12, 1, MH);
+    r.rect(hx - 6, hy - 9, 12, 1, MS);
+    r.rect(hx - 1, hy - 12, 2, 6, MS); // تیغه‌ی میانی
+    if (fx !== 0) { r.rect(hx + (fx > 0 ? 4 : -6), hy - 10, 2, 5, M); r.px(hx + (fx > 0 ? 5 : -5), hy - 10, MH); }
+    else { r.px(hx - 6, hy - 8, MS); r.px(hx + 6, hy - 8, MS); }
+    r.rect(hx - 2, hy - 15, 4, 1, GD); // نوک برنجی
   } else if (id === 'crownWar') {
-    r.rect(hx - 5, hy - 10, 11, 3, GD);
-    r.rect(hx - 5, hy - 8, 11, 1, [180, 150, 50, 255]);
-    for (let i = 0; i < 3; i++) r.rect(hx - 4 + i * 4, hy - 13, 2, 3, GD);
-    r.px(hx - 3, hy - 13, GDH); r.px(hx + 4, hy - 13, GDH);
-    r.px(hx, hy - 9, CR); // جوهر مرکزی
+    r.rect(hx - 6, hy - 12, 12, 3, GD);
+    r.rect(hx - 6, hy - 10, 12, 1, [180, 150, 50, 255]);
+    for (let i = 0; i < 3; i++) r.rect(hx - 4 + i * 4, hy - 15, 2, 3, GD);
+    r.px(hx - 3, hy - 15, GDH); r.px(hx + 4, hy - 15, GDH);
+    r.px(hx, hy - 11, CR); // جوهر مرکزی
   }
 }
 
@@ -85,7 +86,7 @@ export function drawEquipBoots(r, dir, P, id) {
       const ax = Math.round(a[0]), ay = Math.round(a[1]);
       r.rect(ax - 2, ay - 4, 5, 4, M);
       r.rect(ax - 2, ay - 4, 5, 1, MH);
-      r.px(ax + (dir === 'left' ? -3 : 3), ay - 3, GD); // خار
+      r.rect((ax + (dir === 'left' ? -3 : 1)) & ~1, (ay - 4) & ~1, 2, 2, GD); // S6.2: خارِ هم‌ترازِ ۲×۲ تا در نصف‌سازی بماند
     }
   }
 }

@@ -47,9 +47,10 @@ export function gaitPose(dir, g, phase, breath, idleW) {
   const ns = nearSign(dir);
   const breathY = Math.sin(2 * Math.PI * breath / 2.4);
   const mv = 1 - idleW;
-  const bob = bodyBob(g, phase) * mv; // + در وسط تکیه‌گاه (walk) یا پرواز (run)
+  // S6.2: bob زیرپیکسی = فقط رنگ (نه مقیاس/موقعیت): جابه‌جایی عمودی بدن حذف شد؛
+  // سطحِ bob در hero.js (drawTorso) به باندِ سایه + خال dither ترجمه می‌شود — سیلوئت بین فریم‌ها پایدار
   const sway = side ? 0 : ns * g.sway * Math.cos(2 * Math.PI * (phase - 0.31)) * mv;
-  const pelvis = [sway, GEO.hip - bob + idleW * breathY * 0.5];
+  const pelvis = [sway, GEO.hip + idleW * breathY * 0.5];
   const lean = g.lean * mv;
   const neck = side
     ? [pelvis[0] + Math.sin(lean) * 14 * fx, pelvis[1] - Math.cos(lean) * 14]
