@@ -17,6 +17,7 @@ import { HOX, HOY } from './art/hero_pose.js';
 import { applyRim } from './art/rim.js';
 import { shadowUpdate, castShadowDraw } from './art/shadow.js'; // S4.4: سایه‌ی پرتابیِ ساعتی
 import { glowBegin, glowAdd, glowDraw } from './art/glow.js'; // S4.6: درخششِ ارزان
+import { drawGate } from './art/gate.js'; // S5.5: گرداب/رون‌های دروازه‌ی دانجن (لایه‌ی داینامیک)
 
 const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
 const FENTS = []; // pool موجودات مزرعه
@@ -123,6 +124,12 @@ export function renderFarm(game, r) {
       if (c.crop && f.mature(c)) drawReadySparkle(r, sx, sy, tx, ty, game.time, !!c.crop.g);
       }
     }
+    // S5.5: دروازه‌ی دانجن — گردابِ ۶ فریمی + رون‌ها + ذرات (روی طاقِ پخته، زیرِ موجودات)
+    const gt = game.farm.gate;
+    if (gt) {
+      const gsx = gt.x * TILE - cx, gsy = gt.y * TILE - cy;
+      if (gsx > -40 && gsy > -40 && gsx < r.w + 8 && gsy < r.h + 8) drawGate(r, gsx, gsy, game.time);
+    }
     // نشانگر هدف (گوشه‌های چشمک‌زن)
     if (game.marker) {
       const m = game.marker, sx = m.x * TILE - cx, sy = m.y * TILE - cy;
@@ -170,6 +177,7 @@ export function renderFarm(game, r) {
     drawFarmhouseGlow(r, HOUSE.x * TILE - cx, HOUSE.y * TILE - cy, game.time, nfG); // پنجره‌ی خانه: نور واقعی در تاریکی
     glowBegin();                                        // S4.6: هاله‌ی گرمِ پنجره در شب (افزودنی، پس از LUT)
     if (nfG > 0.45) glowAdd(HOUSE.x * TILE - cx + 8, HOUSE.y * TILE - cy + 21, 0, 1, 74, 2);
+    if (gt) glowAdd(gt.x * TILE - cx + 16, gt.y * TILE - cy + 10, 3, 1, 58, 1); // S5.5: هاله‌ی بنفشِ دروازه (GCOL[3])
     glowDraw(r);
     game.fish.draw(r, cx, cy, game.time, f);
     // ---- آب‌وهوا ----
