@@ -6,7 +6,7 @@ import { PALETTE_MASTER } from './palette_master.js';
 
 // پیش‌فرض **خاموش**: قفلِ پالت M5 را از ۱۰٫۶٪ به ۹۹٫۷٪ می‌برد ولی ~+۰٫۴۹ms در فریمِ دانجن
 // می‌افزاید و فاصله‌ی تم‌ها را کم می‌کند ⇒ تصمیمِ روشن/خاموش با کاربر (ن۸۸ در MEMORY.md)
-export const PM_SNAP = { on: false, sprites: true };                    // on: قفلِ صحنه (opt-in) · sprites: قفلِ اسپرایت‌ها در زمانِ پخت (S4.6c، ارزان)
+export const PM_SNAP = { on: true, sprites: true };   // S6.0/R3: قفلِ صحنه روشن شد (تصمیمِ کاربر پس از R3) — M5 دانجن ۱۱٫۶٪→۹۹٫۸٪                    // on: قفلِ صحنه (opt-in) · sprites: قفلِ اسپرایت‌ها در زمانِ پخت (S4.6c، ارزان)
 export const SNAP_INFO = { n: 0, px: 0, moved: 0 };                      // شمارشِ اسنپِ اسپرایت (QA)
 export const PM_SNAP_INFO = { built: 0, ms: 0, cells: 0, pal: 0 };      // شمارشِ ساخت (QA)
 
