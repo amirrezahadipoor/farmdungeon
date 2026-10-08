@@ -568,10 +568,52 @@ const rampL = (name) => RAMP[name].map((c) => Math.round(lum(c[0], c[1], c[2])))
 return {RAMP_STEPS, RAMP, RAMP_NAMES, RAMP_BASE_NAMES, rp, rpHex, rampL, makeRamp};
 })();
 const {RAMP_STEPS, RAMP, RAMP_NAMES, RAMP_BASE_NAMES, rp, rpHex, rampL, makeRamp} = __m_art_ramps;
+const __m_art_palette_hero = (() => {
+// art/palette_hero.js — پالت ثابت ۲۴ رنگه‌ی قهرمان/کارگر (از ریشه به art/ منتقل شد) (بدون هیچ رنگ محاسبه‌شده‌ی خارج از پالت)
+const PAL = {
+  out:      '#141021', // outline تیره ۱ پیکسلی
+  skinHi:   '#ffd9a3',
+  skin:     '#efa477',
+  skinSh:   '#b87852',
+  hair:     '#5f3a28',
+  hairSh:   '#3f2418',
+  hatHi:    '#ffe082',
+  hat:      '#e6b34d',
+  hatSh:    '#a97b2c',
+  jacketHi: '#6fa3d8',
+  jacket:   '#3e6fae',
+  jacketSh: '#26477b',
+  shirt:    '#e9dfc6',
+  shirtSh:  '#b9ac8c',
+  pantsHi:  '#87975c',
+  pants:    '#667441',
+  pantsSh:  '#454f2c',
+  bootHi:   '#b9854e',
+  boot:     '#94643a',
+  bootSh:   '#6b4527',
+  metalHi:  '#eef2f7',
+  metal:    '#aeb9c8',
+  metalSh:  '#727e96',
+  wood:     '#8a5a33',
+  scarf:    '#c94f4f',
+  scarfSh:  '#8a2f2f',
+};
+
+// تبدیل hex به [r,g,b,a] یک‌بار در بارگذاری
+const C = {};
+for (const k of Object.keys(PAL)) {
+  const h = PAL[k];
+  C[k] = [parseInt(h.slice(1, 3), 16), parseInt(h.slice(3, 5), 16), parseInt(h.slice(5, 7), 16), 255];
+}
+
+return {PAL, C};
+})();
+const {PAL, C} = __m_art_palette_hero;
 const __m_art_palette_master = (() => {
 // art/palette_master.js — پالت مستر (S1.2): ۹۶ رنگ که همه‌ی رنگ‌های رمپ + رنگ‌های ویژه را در ΔE<۶ پوشش می‌دهد
 // ساخت قطعی در بارگذاری (۲۶ms، یک‌بار): FPS (farthest-point) → Lloyd → refine «اسلاید مرکز بدترین نقطه».
 // منبع حقیقت رنگ‌ها همچنان art/ramps.js است؛ M5 (tools/art_audit.mjs) درصد پیکسل‌های داخل این پالت را می‌سنجد.
+
 
 
 // رنگ‌های ویژه (بیرون رمپ‌ها؛ همه توسط FPS به‌عنوان مرکز انتخاب می‌شوند → فاصله ۰)
@@ -581,7 +623,10 @@ const PM_SPECIALS = [
   [201, 79, 79],   // قرمز خون (شال/آسیب)
   [124, 192, 105], // سبز افکت (جوانه/درخشش)
 ];
-const PM_K = 96;        // سقف تعداد رنگ‌های پالت مستر (پذیرش S1.2)
+// S4.6c (۱۴۰۵): ۹۶ → ۱۲۸. دلیل: پالتِ امضای قهرمان (۲۶ رنگ) بیرونِ اتحادِ رمپ‌ها بود ⇒ M5 گروه «قهرمان» ۳۳٪.
+// با افزودنِ آن رنگ‌ها به اتحاد، K=۹۶ پوششِ رمپ‌ها را به Δ۵٫۸ می‌بُرد و قهرمان را ۸٫۲ ⇒ هر دو خارج از آستانه‌ی ۶.
+// K=۱۲۸ پوششِ هر دو را زیرِ ۶ نگه می‌دارد (رمپ‌ها ≈۴٫۵ · قهرمان ≈۴٫۰) بدونِ هیچ تغییرِ بصری در هنر.
+const PM_K = 128;       // سقف تعداد رنگ‌های پالت مستر (S1.2: ۹۶ → S4.6c: ۱۲۸)
 const PM_TOL = 6;       // آستانه‌ی پوشش (نرمال‌شده — همان متریک M5)
 
 const pmDist = (a, b) => Math.sqrt(((a[0] - b[0]) ** 2 + (a[1] - b[1]) ** 2 + (a[2] - b[2]) ** 2) / 3);
@@ -590,6 +635,7 @@ function pmUnion() {
   const u = [];
   for (const n of RAMP_BASE_NAMES) for (const c of RAMP[n]) u.push([c[0], c[1], c[2]]);
   for (const s of PM_SPECIALS) u.push(s);
+  for (const k in PAL) { const h = PAL[k]; u.push([parseInt(h.slice(1, 3), 16), parseInt(h.slice(3, 5), 16), parseInt(h.slice(5, 7), 16)]); } // S4.6c
   return u;
 }
 
@@ -645,47 +691,6 @@ function nearestPM(r, g, b) {
 return {PM_SPECIALS, PM_K, PM_TOL, pmDist, PALETTE_MASTER, PM_SIZE, PM_COVER, buildPaletteMaster, inPM, nearestPM};
 })();
 const {PM_SPECIALS, PM_K, PM_TOL, pmDist, PALETTE_MASTER, PM_SIZE, PM_COVER, buildPaletteMaster, inPM, nearestPM} = __m_art_palette_master;
-const __m_art_palette_hero = (() => {
-// art/palette_hero.js — پالت ثابت ۲۴ رنگه‌ی قهرمان/کارگر (از ریشه به art/ منتقل شد) (بدون هیچ رنگ محاسبه‌شده‌ی خارج از پالت)
-const PAL = {
-  out:      '#141021', // outline تیره ۱ پیکسلی
-  skinHi:   '#ffd9a3',
-  skin:     '#efa477',
-  skinSh:   '#b87852',
-  hair:     '#5f3a28',
-  hairSh:   '#3f2418',
-  hatHi:    '#ffe082',
-  hat:      '#e6b34d',
-  hatSh:    '#a97b2c',
-  jacketHi: '#6fa3d8',
-  jacket:   '#3e6fae',
-  jacketSh: '#26477b',
-  shirt:    '#e9dfc6',
-  shirtSh:  '#b9ac8c',
-  pantsHi:  '#87975c',
-  pants:    '#667441',
-  pantsSh:  '#454f2c',
-  bootHi:   '#b9854e',
-  boot:     '#94643a',
-  bootSh:   '#6b4527',
-  metalHi:  '#eef2f7',
-  metal:    '#aeb9c8',
-  metalSh:  '#727e96',
-  wood:     '#8a5a33',
-  scarf:    '#c94f4f',
-  scarfSh:  '#8a2f2f',
-};
-
-// تبدیل hex به [r,g,b,a] یک‌بار در بارگذاری
-const C = {};
-for (const k of Object.keys(PAL)) {
-  const h = PAL[k];
-  C[k] = [parseInt(h.slice(1, 3), 16), parseInt(h.slice(3, 5), 16), parseInt(h.slice(5, 7), 16), 255];
-}
-
-return {PAL, C};
-})();
-const {PAL, C} = __m_art_palette_hero;
 const __m_art_palette_snap = (() => {
 // art/palette_snap.js — قفل پالت (S1.6): هیچ پیکسلِ قهرمان/کارگر بیرون از پالت نماند
 // قاعده: پیکسل خارج‌ازپالت → نزدیک‌ترین رنگ پالت؛ اگر پیکسل از آن رنگ روشن‌تر باشد (جلای rim)
@@ -3260,7 +3265,8 @@ const __m_art_pm_snap = (() => {
 
 // پیش‌فرض **خاموش**: قفلِ پالت M5 را از ۱۰٫۶٪ به ۹۹٫۷٪ می‌برد ولی ~+۰٫۴۹ms در فریمِ دانجن
 // می‌افزاید و فاصله‌ی تم‌ها را کم می‌کند ⇒ تصمیمِ روشن/خاموش با کاربر (ن۸۸ در MEMORY.md)
-const PM_SNAP = { on: false };                                   // توگل (QA/A-B)
+const PM_SNAP = { on: false, sprites: true };                    // on: قفلِ صحنه (opt-in) · sprites: قفلِ اسپرایت‌ها در زمانِ پخت (S4.6c، ارزان)
+const SNAP_INFO = { n: 0, px: 0, moved: 0 };                      // شمارشِ اسنپِ اسپرایت (QA)
 const PM_SNAP_INFO = { built: 0, ms: 0, cells: 0, pal: 0 };      // شمارشِ ساخت (QA)
 
 const N = 32, CELLS = N * N * N;
@@ -3311,9 +3317,59 @@ function pmSnapTable() { return _built ? _t : build(); }
 const pmSnapIdx = (r, g, b) => ((r >> 3) << 10) | ((g >> 3) << 5) | (b >> 3); // اندیسِ سلولِ ۵بیتی
 function pmSnapColor(c) { const t = pmSnapTable(); return t[pmSnapIdx(c[0], c[1], c[2])]; } // برای سنجه/شیت
 
-return {PM_SNAP, PM_SNAP_INFO, pmSnapIdx, pmSnapTable, pmSnapColor};
+// ---------- S4.6c: یکسان‌سازیِ پالتِ اسپرایت‌ها با پالتِ مستر، **در زمانِ پخت** (صفر هزینه در فریم) ----------
+// استراتژی: نگاشتِ **زنده‌مانندهٔ تنوع** — هر رنگِ اسپرایت به نزدیک‌ترین رنگِ پالت می‌رود، ولی رنگ‌های هم‌اسپرایت
+// هرگز روی هم نمی‌افتند (انتخابِ نزدیک‌ترین «استفاده‌نشده») ⇒ تعدادِ پله‌های سایه (M3) حفظ می‌شود.
+// فقط پیکسل‌های «مات» (alpha ≥ TH): پیکسل‌های نیم‌شفاف با پس‌زمینه آمیخته می‌شوند و رنگِ ذخیره‌شده‌شان معنا ندارد.
+const SNAP_TH = 200;
+const SNAP_DL = [3, 6, 12, Infinity];            // نوارهای حفظِ روشنایی (تنگ‌ترین اول) ⇒ خوانایی (M1) دست‌نخورده
+const _map = new Map();                                 // نگاشتِ کلیدِ رنگ → رنگِ پالت (مشترکِ همه‌ی پخت‌ها)
+const _key = (r, g, b) => (r << 16) | (g << 8) | b;
+function snapRaster(ras) {
+  if (!PM_SNAP.sprites) return 0;
+  const d = ras.d, P = PALETTE_MASTER, K = P.length;
+  const hist = new Map();                                // هیستوگرامِ پیکسل‌های مات
+  for (let i = 0; i < d.length; i += 4) { if (d[i + 3] < SNAP_TH) continue; const k = _key(d[i], d[i + 1], d[i + 2]); hist.set(k, (hist.get(k) || 0) + 1); }
+  if (!hist.size) return 0;
+  const keys = [...hist.keys()].sort((a, b) => hist.get(b) - hist.get(a) || a - b); // پایدار و قطعی
+  const used = new Set(), assign = new Map();
+  for (const k of keys) {
+    const r = (k >> 16) & 255, g = (k >> 8) & 255, b = k & 255;
+    const cached = _map.get(k);
+    if (cached !== undefined && !used.has(cached)) { assign.set(k, cached); used.add(cached); continue; }
+    const L0 = r * 0.299 + g * 0.587 + b * 0.114;
+    let bi = -1;                                         // «نزدیک‌ترینِ استفاده‌نشده» با نوارهای حفظِ روشنایی (M1)
+    for (const band of SNAP_DL) {                        // از تنگ‌ترین نوار شروع کن؛ اولین نوارِ غیرخالی برنده است
+      let bd = Infinity;
+      for (let j = 0; j < K; j++) {
+        const c = P[j], id = _key(c[0], c[1], c[2]);
+        if (used.has(id)) continue;
+        if (Math.abs(c[0] * 0.299 + c[1] * 0.587 + c[2] * 0.114 - L0) > band) continue;
+        const dr = r - c[0], dg = g - c[1], db = b - c[2], dd = (dr * dr + dg * dg + db * db) / 3;
+        if (dd < bd) { bd = dd; bi = id; }
+      }
+      if (bi >= 0) break;
+    }
+    if (bi < 0) continue;                                // پالتِ پر (پیش نمی‌آید: ۱۲۸ > رنگ‌های یک اسپرایت)
+    used.add(bi);
+    if (cached === undefined) _map.set(k, bi);
+    if (bi !== k) assign.set(k, bi);
+  }
+  if (!assign.size) return 0;
+  let moved = 0;
+  for (let i = 0; i < d.length; i += 4) {
+    if (d[i + 3] < SNAP_TH) continue;
+    const t = assign.get(_key(d[i], d[i + 1], d[i + 2]));
+    if (t === undefined) continue;
+    d[i] = (t >> 16) & 255; d[i + 1] = (t >> 8) & 255; d[i + 2] = t & 255; moved++;
+  }
+  SNAP_INFO.n++; SNAP_INFO.px += 1; SNAP_INFO.moved += moved;
+  return moved;
+}
+
+return {PM_SNAP, SNAP_INFO, PM_SNAP_INFO, pmSnapIdx, SNAP_TH, SNAP_DL, pmSnapTable, pmSnapColor, snapRaster};
 })();
-const {PM_SNAP, PM_SNAP_INFO, pmSnapIdx, pmSnapTable, pmSnapColor} = __m_art_pm_snap;
+const {PM_SNAP, SNAP_INFO, PM_SNAP_INFO, pmSnapIdx, SNAP_TH, SNAP_DL, pmSnapTable, pmSnapColor, snapRaster} = __m_art_pm_snap;
 const __m_art_quality = (() => {
 // art/quality.js — کیفیت تطبیقی: در دستگاه ضعیف افکت‌های غیرضروری خودکار کم می‌شوند
 // level 1 = کامل (پیش‌فرض) | 0 = حداقل (گوشی ضعیف) — فقط main_app تنظیم می‌کند
@@ -6331,6 +6387,7 @@ const __m_monster = (() => {
 
 
 
+
 const STATS = {
   slime:    { hp: 20,  speed: 24, range: 18, windup: 0.35, dmg: 4,  stride: 10, cool: 1.1 },
   bat:      { hp: 12,  speed: 42, range: 16, windup: 0.32, dmg: 3,  stride: 12, cool: 0.9 },
@@ -6448,6 +6505,7 @@ class Monster {
       const o = { state: this.state, t: q(this.t), ph: q(this.ph), face: this.face, time: this.time, hit: this.flash > 0 };
       s = this.isBoss ? drawBossFrame({ ...o, atk: this.atk, phase: this.phase }) : drawMonsterFrame(this.kind, o);
       if (Monster._cache.size > 300) { const it = Monster._cache.keys(); for (let i = 0; i < 90; i++) { const k = it.next(); if (k.done) break; Monster._cache.delete(k.value); } } // سقف حافظه: ۳۰۰×۶۴KB≈۱۹MB
+      snapRaster(s); // S4.6c: یکسان‌سازیِ پالتِ موب/باس با پالتِ مستر (یک‌بار در پخت)
       Monster._cache.set(key, s);
     }
     return s;

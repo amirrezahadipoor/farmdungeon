@@ -2,6 +2,7 @@
 // ساخت قطعی در بارگذاری (۲۶ms، یک‌بار): FPS (farthest-point) → Lloyd → refine «اسلاید مرکز بدترین نقطه».
 // منبع حقیقت رنگ‌ها همچنان art/ramps.js است؛ M5 (tools/art_audit.mjs) درصد پیکسل‌های داخل این پالت را می‌سنجد.
 import { RAMP, RAMP_BASE_NAMES } from './ramps.js';
+import { PAL } from './palette_hero.js'; // S4.6c: رنگ‌های امضای قهرمان (بدون alias: باندلِ تک‌فایلی نام‌ها را سراسری تزریق می‌کند)
 
 // رنگ‌های ویژه (بیرون رمپ‌ها؛ همه توسط FPS به‌عنوان مرکز انتخاب می‌شوند → فاصله ۰)
 export const PM_SPECIALS = [
@@ -10,7 +11,10 @@ export const PM_SPECIALS = [
   [201, 79, 79],   // قرمز خون (شال/آسیب)
   [124, 192, 105], // سبز افکت (جوانه/درخشش)
 ];
-export const PM_K = 96;        // سقف تعداد رنگ‌های پالت مستر (پذیرش S1.2)
+// S4.6c (۱۴۰۵): ۹۶ → ۱۲۸. دلیل: پالتِ امضای قهرمان (۲۶ رنگ) بیرونِ اتحادِ رمپ‌ها بود ⇒ M5 گروه «قهرمان» ۳۳٪.
+// با افزودنِ آن رنگ‌ها به اتحاد، K=۹۶ پوششِ رمپ‌ها را به Δ۵٫۸ می‌بُرد و قهرمان را ۸٫۲ ⇒ هر دو خارج از آستانه‌ی ۶.
+// K=۱۲۸ پوششِ هر دو را زیرِ ۶ نگه می‌دارد (رمپ‌ها ≈۴٫۵ · قهرمان ≈۴٫۰) بدونِ هیچ تغییرِ بصری در هنر.
+export const PM_K = 128;       // سقف تعداد رنگ‌های پالت مستر (S1.2: ۹۶ → S4.6c: ۱۲۸)
 export const PM_TOL = 6;       // آستانه‌ی پوشش (نرمال‌شده — همان متریک M5)
 
 export const pmDist = (a, b) => Math.sqrt(((a[0] - b[0]) ** 2 + (a[1] - b[1]) ** 2 + (a[2] - b[2]) ** 2) / 3);
@@ -19,6 +23,7 @@ function pmUnion() {
   const u = [];
   for (const n of RAMP_BASE_NAMES) for (const c of RAMP[n]) u.push([c[0], c[1], c[2]]);
   for (const s of PM_SPECIALS) u.push(s);
+  for (const k in PAL) { const h = PAL[k]; u.push([parseInt(h.slice(1, 3), 16), parseInt(h.slice(3, 5), 16), parseInt(h.slice(5, 7), 16)]); } // S4.6c
   return u;
 }
 

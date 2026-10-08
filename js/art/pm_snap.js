@@ -6,7 +6,8 @@ import { PALETTE_MASTER } from './palette_master.js';
 
 // پیش‌فرض **خاموش**: قفلِ پالت M5 را از ۱۰٫۶٪ به ۹۹٫۷٪ می‌برد ولی ~+۰٫۴۹ms در فریمِ دانجن
 // می‌افزاید و فاصله‌ی تم‌ها را کم می‌کند ⇒ تصمیمِ روشن/خاموش با کاربر (ن۸۸ در MEMORY.md)
-export const PM_SNAP = { on: false };                                   // توگل (QA/A-B)
+export const PM_SNAP = { on: false, sprites: true };                    // on: قفلِ صحنه (opt-in) · sprites: قفلِ اسپرایت‌ها در زمانِ پخت (S4.6c، ارزان)
+export const SNAP_INFO = { n: 0, px: 0, moved: 0 };                      // شمارشِ اسنپِ اسپرایت (QA)
 export const PM_SNAP_INFO = { built: 0, ms: 0, cells: 0, pal: 0 };      // شمارشِ ساخت (QA)
 
 const N = 32, CELLS = N * N * N;
@@ -56,3 +57,53 @@ function build() {
 export function pmSnapTable() { return _built ? _t : build(); }
 export const pmSnapIdx = (r, g, b) => ((r >> 3) << 10) | ((g >> 3) << 5) | (b >> 3); // اندیسِ سلولِ ۵بیتی
 export function pmSnapColor(c) { const t = pmSnapTable(); return t[pmSnapIdx(c[0], c[1], c[2])]; } // برای سنجه/شیت
+
+// ---------- S4.6c: یکسان‌سازیِ پالتِ اسپرایت‌ها با پالتِ مستر، **در زمانِ پخت** (صفر هزینه در فریم) ----------
+// استراتژی: نگاشتِ **زنده‌مانندهٔ تنوع** — هر رنگِ اسپرایت به نزدیک‌ترین رنگِ پالت می‌رود، ولی رنگ‌های هم‌اسپرایت
+// هرگز روی هم نمی‌افتند (انتخابِ نزدیک‌ترین «استفاده‌نشده») ⇒ تعدادِ پله‌های سایه (M3) حفظ می‌شود.
+// فقط پیکسل‌های «مات» (alpha ≥ TH): پیکسل‌های نیم‌شفاف با پس‌زمینه آمیخته می‌شوند و رنگِ ذخیره‌شده‌شان معنا ندارد.
+export const SNAP_TH = 200;
+export const SNAP_DL = [3, 6, 12, Infinity];            // نوارهای حفظِ روشنایی (تنگ‌ترین اول) ⇒ خوانایی (M1) دست‌نخورده
+const _map = new Map();                                 // نگاشتِ کلیدِ رنگ → رنگِ پالت (مشترکِ همه‌ی پخت‌ها)
+const _key = (r, g, b) => (r << 16) | (g << 8) | b;
+export function snapRaster(ras) {
+  if (!PM_SNAP.sprites) return 0;
+  const d = ras.d, P = PALETTE_MASTER, K = P.length;
+  const hist = new Map();                                // هیستوگرامِ پیکسل‌های مات
+  for (let i = 0; i < d.length; i += 4) { if (d[i + 3] < SNAP_TH) continue; const k = _key(d[i], d[i + 1], d[i + 2]); hist.set(k, (hist.get(k) || 0) + 1); }
+  if (!hist.size) return 0;
+  const keys = [...hist.keys()].sort((a, b) => hist.get(b) - hist.get(a) || a - b); // پایدار و قطعی
+  const used = new Set(), assign = new Map();
+  for (const k of keys) {
+    const r = (k >> 16) & 255, g = (k >> 8) & 255, b = k & 255;
+    const cached = _map.get(k);
+    if (cached !== undefined && !used.has(cached)) { assign.set(k, cached); used.add(cached); continue; }
+    const L0 = r * 0.299 + g * 0.587 + b * 0.114;
+    let bi = -1;                                         // «نزدیک‌ترینِ استفاده‌نشده» با نوارهای حفظِ روشنایی (M1)
+    for (const band of SNAP_DL) {                        // از تنگ‌ترین نوار شروع کن؛ اولین نوارِ غیرخالی برنده است
+      let bd = Infinity;
+      for (let j = 0; j < K; j++) {
+        const c = P[j], id = _key(c[0], c[1], c[2]);
+        if (used.has(id)) continue;
+        if (Math.abs(c[0] * 0.299 + c[1] * 0.587 + c[2] * 0.114 - L0) > band) continue;
+        const dr = r - c[0], dg = g - c[1], db = b - c[2], dd = (dr * dr + dg * dg + db * db) / 3;
+        if (dd < bd) { bd = dd; bi = id; }
+      }
+      if (bi >= 0) break;
+    }
+    if (bi < 0) continue;                                // پالتِ پر (پیش نمی‌آید: ۱۲۸ > رنگ‌های یک اسپرایت)
+    used.add(bi);
+    if (cached === undefined) _map.set(k, bi);
+    if (bi !== k) assign.set(k, bi);
+  }
+  if (!assign.size) return 0;
+  let moved = 0;
+  for (let i = 0; i < d.length; i += 4) {
+    if (d[i + 3] < SNAP_TH) continue;
+    const t = assign.get(_key(d[i], d[i + 1], d[i + 2]));
+    if (t === undefined) continue;
+    d[i] = (t >> 16) & 255; d[i + 1] = (t >> 8) & 255; d[i + 2] = t & 255; moved++;
+  }
+  SNAP_INFO.n++; SNAP_INFO.px += 1; SNAP_INFO.moved += moved;
+  return moved;
+}
