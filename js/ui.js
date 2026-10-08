@@ -6,7 +6,7 @@ import { paintIcon, iconEl } from './art/icons.js';
 import { CROPS } from './farm.js';
 import { ITEMS, SLOTS } from './items.js';
 import { rasterToCanvas } from './raster.js';
-import { cropSprite } from './tiles.js';
+import { cropSprite, cropIcon } from './tiles.js';
 
 export const $ = (id) => document.getElementById(id);
 
@@ -47,7 +47,7 @@ export function paintHudIcons() {
     const c = cv.getContext('2d');
     c.imageSmoothingEnabled = false;
     c.clearRect(0, 0, cv.width, cv.height);
-    c.drawImage(rasterToCanvas(cropSprite(type, 3)), 0, 0, 16, 16, 0, 0, cv.width, cv.height);
+    c.drawImage(rasterToCanvas(cropIcon(type)), 0, 0, 16, 16, 0, 0, cv.width, cv.height);
   }
 }
 
@@ -148,7 +148,7 @@ export function buildMenu(app, hooks) {
       cv2.width = 14; cv2.height = 14; cv2.className = 'pico';
       const c2 = cv2.getContext('2d');
       c2.imageSmoothingEnabled = false;
-      c2.drawImage(rasterToCanvas(cropSprite(m.crop, 3)), 0, 0, 16, 16, 0, 0, 14, 14);
+      c2.drawImage(rasterToCanvas(cropIcon(m.crop)), 0, 0, 16, 16, 0, 0, 14, 14);
       btn.appendChild(cv2);
       btn.addEventListener('click', () => hooks.onMeal(kind));
     }

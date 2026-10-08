@@ -11,7 +11,7 @@ import { Game } from '../js/game.js';
 import { Monster } from '../js/monster.js';
 import { heroSprite } from '../js/run_render.js';
 import { groundSprite } from '../js/art/ground.js';
-import { cropSprite } from '../js/art/crops.js';
+import { cropSprite, cropIcon, CROP_STAGES } from '../js/art/crops.js';
 import { MONSTER_KINDS, MOX, MOY } from '../js/art/monster_parts.js';
 import { HOY } from '../js/art/hero_pose.js'; // S1.6: خط پای قهرمان (بوم ۶۴px)
 import { drawText } from '../js/art/font2.js';
@@ -173,7 +173,7 @@ function poolRaster(sprites, cell = 72, cols = 8) {
   return r;
 }
 const CROP_SPRS = [];
-for (const t of ['carrot', 'wheat', 'pumpkin', 'strawberry', 'eggplant', 'corn']) for (let st = 0; st < 4; st++) CROP_SPRS.push([t + st, cropSprite(t, st)]);
+for (const t of ['carrot', 'wheat', 'pumpkin', 'strawberry', 'eggplant', 'corn']) for (let st = 0; st < CROP_STAGES; st++) CROP_SPRS.push([t + st, cropSprite(t, st)]);
 
 // ---------- M9: diff فریم (٪ پیکسل متفاوت، آلفا>۱۲۰، تفاوت کانالی>۸) ----------
 function frameDiff(a, b) {
@@ -247,11 +247,11 @@ M.M9.idleWeak = Object.entries(idleAmp).filter(([, v]) => v < 12).map(([k, v]) =
 const CROPS = ['carrot', 'wheat', 'pumpkin', 'strawberry', 'eggplant', 'corn'];
 const cropH = {};
 for (const t of CROPS) {
-  const s = cropSprite(t, 3);
+  const s = cropSprite(t, CROP_STAGES - 1);
   const st = spriteStats(s, 150);
   cropH[t] = st.bbox[1] > st.bbox[3] ? 0 : st.bbox[3] - st.bbox[1] + 1;
 }
-M.M10 = { min: Math.min(...Object.values(cropH)), max: Math.max(...Object.values(cropH)), stages: 4, per: cropH };
+M.M10 = { min: Math.min(...Object.values(cropH)), max: Math.max(...Object.values(cropH)), stages: CROP_STAGES, per: cropH };
 
 // ---------- امتیاز (هدف‌های ROADMAP) ----------
 const goals = {
@@ -274,9 +274,9 @@ function blit(dst, src, dx, dy, sc = 1, sx0 = 0, sy0 = 0, sw = src.w, sh = src.h
 {
   const SHEET_W = 480, PAD = 8;
   const mobCell = 56, mobRows = Math.ceil(KINDS.length / 8);
-  const cropCell = 32, cropRows = 2;
+  const cropCell = 32, cropRows = 6, cropRowH = cropCell * 1.5 + 12; // S5.2: ۶ نوع × ۶ مرحله، بومِ ۲۴ردیفه (زوم×۲=۴۸px)
   const HEAD = 34;
-  const H = HEAD + 160 * 2 + 20 + mobRows * (mobCell + 14) + 14 + cropRows * (cropCell + 12) + 14;
+  const H = HEAD + 160 * 2 + 20 + mobRows * (mobCell + 14) + 14 + cropRows * cropRowH + 14;
   const sheet = new Raster(SHEET_W, H);
   for (let i = 0; i < sheet.d.length; i += 4) { sheet.d[i] = 18; sheet.d[i + 1] = 16; sheet.d[i + 2] = 26; sheet.d[i + 3] = 255; }
   drawText(sheet, 'ممیزی آرت — ن۵۲/S0.3', PAD, 8, [240, 233, 200, 255], 2);
@@ -295,11 +295,11 @@ function blit(dst, src, dx, dy, sc = 1, sx0 = 0, sy0 = 0, sw = src.w, sh = src.h
     drawText(sheet, (dL >= 25 ? '+' : '') + String(dL), cx + 30, cy + mobCell, dL >= 25 ? [150, 220, 150, 255] : [230, 140, 140, 255], 1);
   });
   y += mobRows * (mobCell + 14) + 6;
-  drawText(sheet, 'قهرمان (ΔL ' + M.M1.hero + ') + محصولات ۶ نوع × ۴ مرحله:', PAD, y, [240, 210, 190, 255], 1); y += 12;
+  drawText(sheet, 'قهرمان (ΔL ' + M.M1.hero + ') + محصولات ۶ نوع × ۶ مرحله:', PAD, y, [240, 210, 190, 255], 1); y += 12;
   blit(sheet, HERO, PAD, y, 2);
-  CROPS.forEach((t, i) => {
-    const row = i < 3 ? 0 : 1, col = i % 3;
-    for (let st = 0; st < 4; st++) blit(sheet, cropSprite(t, st), 90 + col * (4 * cropCell + 18) + st * cropCell, y + row * (cropCell + 12), 2);
+  CROPS.forEach((t, i) => {            // S5.2: هر محصول یک ردیف، ۶ مرحله از چپ
+    for (let st = 0; st < CROP_STAGES; st++) blit(sheet, cropSprite(t, st), 90 + st * cropCell, y + i * cropRowH, 2);
+    drawText(sheet, t.slice(0, 6), PAD + 2, y + i * cropRowH + 14, [200, 200, 220, 255], 1);
   });
   savePNG(path.join(SHOTS, 'art_audit.png'), sheet);
 }

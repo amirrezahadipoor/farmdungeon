@@ -71,6 +71,8 @@ export class Farm {
   farmable(x, y) { const c = this.cell(x, y); return !!c && c.farmable; }
   mature(c) { return !!c.crop && c.crop.progress >= CROPS[c.crop.type].grow; }
   stage(c) { return c.crop ? Math.min(3, Math.floor((c.crop.progress / CROPS[c.crop.type].grow) * 4)) : -1; }
+  progress(c) { return c.crop ? Math.min(1, c.crop.progress / CROPS[c.crop.type].grow) : 0; }   // S5.2: read-only
+  vstage(c) { return c.crop ? Math.min(5, Math.floor(this.progress(c) * 6)) : -1; }             // مرحله‌ی بصریِ ۶پله (۶=CROP_STAGES)
 
   // انتخاب خودکار ابزار بر اساس وضعیت تایل
   autoTool(x, y) {

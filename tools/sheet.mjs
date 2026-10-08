@@ -9,7 +9,7 @@ import { Run } from '../js/run.js';
 import { Game } from '../js/game.js';
 import { Monster } from '../js/monster.js';
 import { groundSprite } from '../js/art/ground.js';
-import { cropSprite } from '../js/art/crops.js';
+import { cropSprite, CROP_STAGES } from '../js/art/crops.js';
 import { drawText } from '../js/art/font2.js';
 import { MONSTER_KINDS, MOX, MOY } from '../js/art/monster_parts.js';
 import { RAMP, RAMP_NAMES, RAMP_BASE_NAMES } from '../js/art/ramps.js';
@@ -62,7 +62,7 @@ function sheetTiles() {
   const Z = 4, CELL = 16 * Z, GAP = 8, COLW = CELL + GAP;
   const farmKinds = [['grass'], ['soil'], ['soil', 'wet'], ['path'], ['hedge'], ['water'], ['fence'], ['fencePost'], ['bush']];
   const dunKinds = ['dfloor', 'wall', 'pillar', 'stairs', 'water', 'decor', 'gateL', 'gateR'];
-  const H = 40 + farmKinds.length * (CELL + 20) + 30 + 4 * (2 * (CELL + 16) + 24) + 30 + 4 * (CELL + 20) + 40;
+  const H = 40 + farmKinds.length * (CELL + 20) + 30 + 4 * (2 * (CELL + 16) + 24) + 30 + CROPS.length * (Z * 24 + 20) + 40; // S5.2: بومِ محصول ۲۴ردیفه
   const W = 40 + 4 * COLW + 8 + (dunKinds.length + 1) * COLW;
   const r = new Raster(W, H);
   r.rect(0, 0, W, H, BG);
@@ -86,11 +86,11 @@ function sheetTiles() {
     }
     y += 2 * (CELL + 16) + 24;
   }
-  drawText(r, 'محصولات — ۶ نوع × ۴ مرحله (زوم ×۴)', 12, y, [240, 220, 190, 255], 1); y += 14;
+  drawText(r, 'محصولات — ۶ نوع × ۶ مرحله (زوم ×۴)', 12, y, [240, 220, 190, 255], 1); y += 14;
   for (const t of CROPS) {
-    for (let st = 0; st < 4; st++) blit(r, cropSprite(t, st), 12 + st * COLW, y, Z);
-    drawText(r, t, 12 + 4 * COLW, y + 26, [200, 200, 220, 255], 1);
-    y += CELL + 20;
+    for (let st = 0; st < CROP_STAGES; st++) blit(r, cropSprite(t, st), 12 + st * COLW, y, Z);
+    drawText(r, t, 12 + CROP_STAGES * COLW, y + 40, [200, 200, 220, 255], 1);
+    y += Z * 24 + 20;
   }
   savePNG(path.join(SHOTS, 'sheet_tiles.png'), r);
   console.log('sheet_tiles.png', r.w + 'x' + r.h);

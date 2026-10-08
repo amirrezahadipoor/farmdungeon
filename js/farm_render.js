@@ -103,7 +103,8 @@ export function renderFarm(game, r) {
       if (c.crop) { // S2.6: سایهٔ تماسِ ۲px زیر گیاه (محصول روی خاک «نشانده» می‌شود)
         r.rect(sx + 5, sy + 14, 6, 1, c.wet ? E.soilWetSh : E.soilSh);
         r.rect(sx + 6, sy + 15, 4, 1, c.wet ? rp('soilWet', 1) : rp('soil', 1));
-        cropSprite(c.crop.type, f.stage(c)).over(r, sx, sy);
+        const cs = cropSprite(c.crop.type, f.vstage(c)); // S5.2: ۶ مرحله‌ی بصری · بومِ ۲۴ردیفه ⇒ ۸px بالای تایل
+        cs.over(r, sx, sy - (cs.h - TILE));
       }
       if (c.crop && c.crop.g && !f.mature(c)) { // طلاییِ در حال رشد: درخشش ریز (کوانتیزه)
         _gP[3] = 55 + 25 * Math.round((Math.sin(game.time * 1.2 + tx) + 1)); // ن۳۶: پالس آرام‌تر — نشانِ طلایی، نه استروب

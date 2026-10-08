@@ -1,7 +1,7 @@
 {
- "ts": "2026-10-08T17:24:18.855Z",
- "score": 6.4,
- "passed": 7,
+ "ts": "2026-10-08T17:35:38.140Z",
+ "score": 7.3,
+ "passed": 8,
  "goals": {
   "M1": true,
   "M2": true,
@@ -12,7 +12,7 @@
   "M7": true,
   "M8": true,
   "M9": false,
-  "M10": false
+  "M10": true
  },
  "metrics": {
   "M1": {
@@ -393,16 +393,16 @@
    ]
   },
   "M10": {
-   "min": 7,
-   "max": 13,
-   "stages": 4,
+   "min": 13,
+   "max": 20,
+   "stages": 6,
    "per": {
-    "carrot": 7,
-    "wheat": 13,
-    "pumpkin": 10,
-    "strawberry": 7,
-    "eggplant": 10,
-    "corn": 13
+    "carrot": 16,
+    "wheat": 16,
+    "pumpkin": 13,
+    "strawberry": 13,
+    "eggplant": 15,
+    "corn": 20
    }
   }
  },
