@@ -8,6 +8,7 @@ import { drawFarmhouse, drawFarmhouseGlow, drawScarecrow, drawSprinkler, drawBas
 import { HOUSE, SCARECROW } from './farm_layout.js';
 import { applyNight, nightFactor } from './night.js';
 import { drawBirds } from './art/critters.js';
+import { drawMotes } from './art/motes.js'; // S4.8: گرده‌ی آرامِ روز
 import { drawRain, isRaining, lightningK, flashTint, drawLightning, drawPondRipples, drawRainGround } from './art/weather.js';
 import { drawHeroFrame, frameKey, framePhase, halfSprite } from './art/hero.js';
 import { flushDirty, OPAQUE, wetTransition, WET, WET_FULL, wetRaster, wetTiles } from './farm_terrain.js'; // S2.1 کش زمین · S4.7 لایه‌ی خیس
@@ -179,4 +180,5 @@ export function renderFarm(game, r) {
       const lk = lightningK(game.dayT, game.time); // رعد و برق — فقط باران
       if (lk > 0) { flashTint(r, lk); drawLightning(r, game.time); }
     }
+    if (nf < 0.25) drawMotes(r, 'farm', 0, cx, cy, game.time, r.w, r.h); // S4.8: گرده (≤۴) — فقط روز
   }

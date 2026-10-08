@@ -12,6 +12,7 @@ import { drawWater, dungeonShore } from './art/water.js'; // S2.7: آب و کر�
 import { drawPillarHead } from './art/ground.js'; // S3.8: سرستونِ بیرون‌زده (بعد از موجودات ⇒ y-sort)
 import { drawProjs } from './projectiles.js'; // ن۴۴
 import { applyDarkness, COLOR_LIGHTS, C_RAD_CAP, C_MAX, setThemeGrade, GRADE } from './art/light.js'; // S4.1: پاسِ نورِ رنگی
+import { drawMotes } from './art/motes.js'; // S4.8: غبار/اخگرِ آرامِ تم
 import { glowBegin, glowAdd, glowDraw, GLOW } from './art/glow.js'; // S4.6: درخششِ ارزان
 import { t, faNum } from './i18n.js';
 
@@ -201,6 +202,7 @@ export function renderRun(run, r) {
     setThemeGrade(GRADE.off ? -1 : D.theme);                     // S4.3: گریدینگِ رنگیِ تم (LUT یک‌بار در هر تغییرِ تم)
     applyDarkness(r, run._dark, L, C, cx, cy); // S4.2: دوربین برای دیترِ جهانی
     glowDraw(r);                               // S4.6: هاله‌ها روی تاریکی (افزودنی + clamp)
+    drawMotes(r, 'dungeon', D.theme, cx, cy, run.time, r.w, r.h); // S4.8: ذراتِ آرامِ تم (≤۶، ۱px)
     // افکت‌ها روی تاریکی (می‌درخشند)
     run.fx.render(r, cx, cy);
     // ---- نوار جان + علامت حمله + کمبو: بعد از تاریکی (خوانا حتی در تاریکی) ----
