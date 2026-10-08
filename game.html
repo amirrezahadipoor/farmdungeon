@@ -2968,6 +2968,7 @@ const __m_art_light = (() => {
 // تاریکی پایه = مه آبی‌مه‌آلود (نه سیاهی مطلق)؛ نورها با «استامپ» از پیش‌محاسبه‌شده
 
 
+
 const DARK_R = 13, DARK_G = 11, DARK_B = 26, DARK_A = 118;
 
 // استامپ نور: cut = strength×(1−d²) از پیش‌محاسبه‌شده — کلید: rad×1000+strength
@@ -3000,8 +3001,51 @@ for (let a = 1; a < 256; a++) {
   }
 }
 
+
+// ---------- S4.1: نور رنگی — استامپِ پیش‌محاسبه با کلیدِ عددی (صفر تخصیص در حلقهٔ رندر) ----------
+// جدول رنگ‌ها: همه از رمپ‌های پالت (M5) — شناسهٔ رنگ، اندیسِ همان جدول است
+const LCOL = [                                   // همه **دقیقاً** از رمپ‌ها (عضویتِ پالت ⇒ M5)
+  rp('fire', 6),        // 0 مشعل — گرم
+  rp('magicCyan', 6),   // 1 جادو/اسانس
+  rp('clothRed', 6),    // 2 گدازه/باس
+  rp('clothPurple', 6), // 3 محراب
+  [242, 239, 228],      // 4 قهرمان — سفیدِ گرمِ ویژهٔ پالت
+  rp('water', 6),       // 5 پله — آبیِ سردِ روشن
+  rp('gold', 6),        // 6 طلا/کریستال
+];
+const COLOR_LIGHTS = { on: true };   // S4.6/QA: خاموش‌کردنِ پاسِ رنگی
+const CL_DEBUG = { n: 0, c: null };   // شمارِ/لیستِ نورهای رنگیِ آخرین فریم (QA/audit)
+let C_RAD_CAP = 24;                  // سقفِ شعاعِ پاسِ رنگ (سایه‌زداییِ تاریکی مستقل و تا ۴۴px می‌رود؛ رنگ تا لبه لازم نیست)
+let C_MAX = 3;                       // سقفِ تعداد نورِ رنگی روی صفحه (مشخصه: ≤۶) — ارزان‌تر = پایدارتر
+function setColorRadCap(v) { C_RAD_CAP = v; }
+function setColorMax(v) { C_MAX = v; }
+// نکتهٔ کارایی: `sd` از نوع Uint8ClampedArray است ⇒ `sd[i] += k` خودش اشباع می‌کند؛
+// پس پاسِ رنگ **بدون LUT** انجام می‌شود (LUTِ تصادفیِ ۶۴KB کندتر از ضربِ سادهٔ int بود — اندازه‌گیری شد)
+const _cSt = new Map();
+function colorStamp(rad, strength, cid) {
+  const key = ((rad << 8) | strength) * 8 + cid;
+  let st = _cSt.get(key);
+  if (!st) {
+    const n = rad * 2 + 1, c = LCOL[cid] || LCOL[0];
+    const add = new Uint8Array(n * n * 3), inv = 1 / (rad * rad);
+    for (let y = 0; y < n; y++) for (let x = 0; x < n; x++) {
+      const dx = x - rad, dy = y - rad, d2 = (dx * dx + dy * dy) * inv;
+      if (d2 >= 1) continue;
+      // ۸ پله‌ی کوانتیزه (پیکسل‌آرتِ تمیز؛ باندینگِ بیشتر با پاسِ S4.2 حل می‌شود)
+      const q = d2 < 0.06 ? 1 : d2 < 0.16 ? 0.875 : d2 < 0.28 ? 0.75 : d2 < 0.42 ? 0.625 :
+                d2 < 0.58 ? 0.5 : d2 < 0.72 ? 0.375 : d2 < 0.86 ? 0.25 : 0.125;
+      if (!q) continue;
+      const k = strength * q / 255, i3 = (y * n + x) * 3;
+      add[i3] = c[0] * k; add[i3 + 1] = c[1] * k; add[i3 + 2] = c[2] * k;
+    }
+    st = { n, add };
+    _cSt.set(key, st);
+  }
+  return st;
+}
+
 // flat = [x, y, rad, strength, ...] — لیست تختِ نورها (بدون تخصیص آبجکت)
-function applyDarkness(r, dk, flat) {
+function applyDarkness(r, dk, flat, flatC) {
   const dd = dk.d;
   if (!dk._base || dk._base.length !== dd.length) {
     const b = dk._base = new Uint8ClampedArray(dd.length);
@@ -3032,11 +3076,39 @@ function applyDarkness(r, dk, flat) {
     const q = a << 8;
     sd[i] = _LR[q | sd[i]]; sd[i + 1] = _LG[q | sd[i + 1]]; sd[i + 2] = _LB[q | sd[i + 2]];
   }
+  // ---------- S4.1: پاسِ رنگ — افزودنی با clamp، روی تایل‌های روشن هم اعمال می‌شود ----------
+  if (flatC && COLOR_LIGHTS.on) {
+    CL_DEBUG.n = flatC.length / 5; CL_DEBUG.c = flatC;
+    for (let i = 0; i < flatC.length; i += 5) {
+      const rad = flatC[i + 2], strength = flatC[i + 3], cid = flatC[i + 4];
+      const st = colorStamp(rad, strength, cid), n = st.n, add = st.add;
+      const cx0 = Math.round(flatC[i]), cy0 = Math.round(flatC[i + 1]);
+      const x0 = Math.max(0, cx0 - rad), x1 = Math.min(r.w - 1, cx0 + rad);
+      const y0 = Math.max(0, cy0 - rad), y1 = Math.min(r.h - 1, cy0 + rad);
+      let si = (y0 * r.w + x0) * 4, ai = ((y0 - cy0 + rad) * n - cx0 + rad) * 3;
+      for (let y = y0; y <= y1; y++) {
+        let s2 = si, a2 = ai;
+        for (let x = x0; x <= x1; x++, s2 += 4, a2 += 3) {
+          // فقط در «ناحیه‌ی روشن» رنگ اضافه می‌شود و به‌اندازه‌ی روشنایی وزن می‌گیرد
+          const ar = add[a2];
+          if (ar) {
+            const lit = 255 - dd[s2 + 3];
+            if (lit > 8) {
+              sd[s2] += (lit * ar) >> 8;                          // اشباع خودکار (Uint8ClampedArray)
+              const ag = add[a2 + 1]; if (ag) sd[s2 + 1] += (lit * ag) >> 8;
+              const ab = add[a2 + 2]; if (ab) sd[s2 + 2] += (lit * ab) >> 8;
+            }
+          }
+        }
+        si += r.w * 4; ai += n * 3;
+      }
+    }
+  }
 }
 
-return {applyDarkness};
+return {COLOR_LIGHTS, CL_DEBUG, C_RAD_CAP, C_MAX, setColorRadCap, setColorMax, applyDarkness};
 })();
-const {applyDarkness} = __m_art_light;
+const {COLOR_LIGHTS, CL_DEBUG, C_RAD_CAP, C_MAX, setColorRadCap, setColorMax, applyDarkness} = __m_art_light;
 const __m_art_quality = (() => {
 // art/quality.js — کیفیت تطبیقی: در دستگاه ضعیف افکت‌های غیرضروری خودکار کم می‌شوند
 // level 1 = کامل (پیش‌فرض) | 0 = حداقل (گوشی ضعیف) — فقط main_app تنظیم می‌کند
@@ -8344,6 +8416,8 @@ const __m_run_render = (() => {
 const _sprCache = new Map(); // کش اسپرایت قهرمان (LRU)
 const ENTS = []; // لیست موجودات قابل رندر — بازمصرف بین فریم‌ها
 const _lights = []; // لیست تخت نورها — بدون تخصیص آبجکت
+const _clights = []; // S4.1: لیست تختِ نورهای **رنگی** [x,y,rad,strength,colorId] — حداکثر ۶ روی صفحه
+const TORCH_COL_ST = 132; // شدتِ تزریقِ رنگِ مشعل (رنگِ رمپیِ تیره‌تر ⇒ شدتِ بیشتر برای همان گرمی)
 const MINI_BG = [12, 10, 24, 175], MINI_FLOOR = [82, 78, 100, 200], MINI_PILLAR = [50, 46, 66, 220], MINI_WATER = [90, 160, 180, 190], BOSS_DOT = [220, 80, 80, 255];
 const SKILL_HALO = [140, 220, 255, 90], IFRAME_GLOW = [255, 255, 255, 60], IFRAME_BOX = [255, 255, 255, 26];
 const _spC2 = [255, 224, 130, 255], _bossC = [226, 120, 120, 255]; // ن۴۱: رنگ اسپلش طبقه/باس — اسکرچ
@@ -8491,7 +8565,23 @@ function renderRun(run, r) {
     for (const d of D.drops) if (d.kind === 'essence') L.push(d.x - cx, d.y - cy, 10, 100);
     L.push(D.stairs.x * TILE + 8 - cx, D.stairs.y * TILE + 8 - cy, 22, 135);
     if (D.shrine && !D.shrine.used) L.push(D.shrine.x - cx, D.shrine.y - cy, 20, 80 + 12 * Math.round((Math.sin(run.time * 2.4) + 1))); // نور فیروزه‌ای محراب
-    applyDarkness(r, run._dark, L);
+    // ---- S4.1: نورهای رنگی (حداکثر ۶ روی صفحه؛ شعاع ≤ ۴۰) — به ترتیبِ اهمیت پرش می‌کنند ----
+    const C = _clights; C.length = 0;
+    const pushC = (X, Y, rad, st, cid) => {
+      if (C.length >= C_MAX * 5) return;                   // سقفِ نورهای رنگی روی صفحه (مشخصه: ≤۶)
+      if (X < -rad || Y < -rad || X > r.w + rad || Y > r.h + rad) return; // بیرونِ فریم = هزینه‌ی بی‌فایده
+      C.push(X, Y, Math.min(40, rad), st, cid);
+    };
+    if (COLOR_LIGHTS.on) {
+      // ترتیبِ اهمیت: نورهای کارکردی (مشعل/محتوای دراپ) اول، تزئینی‌ها آخر
+      for (const t of D.torches) pushC(t.x * TILE + 8 - cx, t.y * TILE + TORCH_LIGHT.yOff - cy, TORCH_LIGHT.r, TORCH_COL_ST, 0); // شدتِ رنگِ ملایم‌تر از شدتِ روشنایی
+      for (const d of D.drops) if (d.kind === 'essence') pushC(d.x - cx, d.y - cy, 14, 90, 1);
+      if (D.shrine && !D.shrine.used) pushC(D.shrine.x - cx, D.shrine.y - cy, 16, 66, 3);
+      for (const e of D.enemies) if (!e.dead && e.isBoss) pushC(e.x - cx, e.y - 40 - cy, 30, 92, 2); // برقِ گدازه‌ایِ باس
+      pushC(D.stairs.x * TILE + 8 - cx, D.stairs.y * TILE + 8 - cy, 14, 52, 5);
+      pushC(h.x - cx, h.y - 14 - cy, 22, 44, 4);           // هالهٔ گرمِ ملایمِ قهرمان (آخر ⇒ بودجه‌ی باقی‌مانده)
+    }
+    applyDarkness(r, run._dark, L, C);
     // افکت‌ها روی تاریکی (می‌درخشند)
     run.fx.render(r, cx, cy);
     // ---- نوار جان + علامت حمله + کمبو: بعد از تاریکی (خوانا حتی در تاریکی) ----

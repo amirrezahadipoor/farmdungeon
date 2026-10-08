@@ -11,12 +11,14 @@ import { drawTorches, drawChests, drawDrops, drawShrines, TORCH_LIGHT } from './
 import { drawWater, dungeonShore } from './art/water.js'; // S2.7: آب و کرانه (یک منبع با مزرعه)
 import { drawPillarHead } from './art/ground.js'; // S3.8: سرستونِ بیرون‌زده (بعد از موجودات ⇒ y-sort)
 import { drawProjs } from './projectiles.js'; // ن۴۴
-import { applyDarkness } from './art/light.js';
+import { applyDarkness, COLOR_LIGHTS, C_RAD_CAP, C_MAX } from './art/light.js'; // S4.1: پاسِ نورِ رنگی
 import { t, faNum } from './i18n.js';
 
 const _sprCache = new Map(); // کش اسپرایت قهرمان (LRU)
 const ENTS = []; // لیست موجودات قابل رندر — بازمصرف بین فریم‌ها
 const _lights = []; // لیست تخت نورها — بدون تخصیص آبجکت
+const _clights = []; // S4.1: لیست تختِ نورهای **رنگی** [x,y,rad,strength,colorId] — حداکثر ۶ روی صفحه
+const TORCH_COL_ST = 132; // شدتِ تزریقِ رنگِ مشعل (رنگِ رمپیِ تیره‌تر ⇒ شدتِ بیشتر برای همان گرمی)
 const MINI_BG = [12, 10, 24, 175], MINI_FLOOR = [82, 78, 100, 200], MINI_PILLAR = [50, 46, 66, 220], MINI_WATER = [90, 160, 180, 190], BOSS_DOT = [220, 80, 80, 255];
 const SKILL_HALO = [140, 220, 255, 90], IFRAME_GLOW = [255, 255, 255, 60], IFRAME_BOX = [255, 255, 255, 26];
 const _spC2 = [255, 224, 130, 255], _bossC = [226, 120, 120, 255]; // ن۴۱: رنگ اسپلش طبقه/باس — اسکرچ
@@ -164,7 +166,23 @@ export function renderRun(run, r) {
     for (const d of D.drops) if (d.kind === 'essence') L.push(d.x - cx, d.y - cy, 10, 100);
     L.push(D.stairs.x * TILE + 8 - cx, D.stairs.y * TILE + 8 - cy, 22, 135);
     if (D.shrine && !D.shrine.used) L.push(D.shrine.x - cx, D.shrine.y - cy, 20, 80 + 12 * Math.round((Math.sin(run.time * 2.4) + 1))); // نور فیروزه‌ای محراب
-    applyDarkness(r, run._dark, L);
+    // ---- S4.1: نورهای رنگی (حداکثر ۶ روی صفحه؛ شعاع ≤ ۴۰) — به ترتیبِ اهمیت پرش می‌کنند ----
+    const C = _clights; C.length = 0;
+    const pushC = (X, Y, rad, st, cid) => {
+      if (C.length >= C_MAX * 5) return;                   // سقفِ نورهای رنگی روی صفحه (مشخصه: ≤۶)
+      if (X < -rad || Y < -rad || X > r.w + rad || Y > r.h + rad) return; // بیرونِ فریم = هزینه‌ی بی‌فایده
+      C.push(X, Y, Math.min(40, rad), st, cid);
+    };
+    if (COLOR_LIGHTS.on) {
+      // ترتیبِ اهمیت: نورهای کارکردی (مشعل/محتوای دراپ) اول، تزئینی‌ها آخر
+      for (const t of D.torches) pushC(t.x * TILE + 8 - cx, t.y * TILE + TORCH_LIGHT.yOff - cy, TORCH_LIGHT.r, TORCH_COL_ST, 0); // شدتِ رنگِ ملایم‌تر از شدتِ روشنایی
+      for (const d of D.drops) if (d.kind === 'essence') pushC(d.x - cx, d.y - cy, 14, 90, 1);
+      if (D.shrine && !D.shrine.used) pushC(D.shrine.x - cx, D.shrine.y - cy, 16, 66, 3);
+      for (const e of D.enemies) if (!e.dead && e.isBoss) pushC(e.x - cx, e.y - 40 - cy, 30, 92, 2); // برقِ گدازه‌ایِ باس
+      pushC(D.stairs.x * TILE + 8 - cx, D.stairs.y * TILE + 8 - cy, 14, 52, 5);
+      pushC(h.x - cx, h.y - 14 - cy, 22, 44, 4);           // هالهٔ گرمِ ملایمِ قهرمان (آخر ⇒ بودجه‌ی باقی‌مانده)
+    }
+    applyDarkness(r, run._dark, L, C);
     // افکت‌ها روی تاریکی (می‌درخشند)
     run.fx.render(r, cx, cy);
     // ---- نوار جان + علامت حمله + کمبو: بعد از تاریکی (خوانا حتی در تاریکی) ----
