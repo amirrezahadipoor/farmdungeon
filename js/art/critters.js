@@ -68,29 +68,54 @@ export class Fish {
   }
 }
 
-// پرندگان کوچک روی تاج درخت‌ها — جاخالی قطعی، بال‌زدن دوره‌ای؛
-// قهرمان که نزدیک شود می‌پرند (بالا می‌روند و بال می‌زنند)
-const B_BODY = [58, 48, 66, 255], B_BODY2 = [86, 72, 92, 255], B_BELLY = [44, 36, 52, 255];
-const B_WING = [110, 96, 120, 255], B_WING2 = [96, 84, 108, 255], B_BEAK = [232, 180, 90, 255], B_EYE = [240, 240, 248, 255];
+// ---------- S5.6: پرندگان — ۴px با **۲ فریمِ بال**، رنگ‌ها از رمپ، سایهٔ کوچکِ پرواز ----------
+const B = { body: rp('ink', 4), bodyHi: rp('ink', 5), belly: rp('ink', 3), wing: rp('ink', 6),
+            wing2: rp('metal', 5), beak: rp('gold', 6), eye: rp('bone', 6), sh: rp('grass', 0) };
+// پرنده‌ی نشسته: بدونِ بالِ باز؛ در پرواز: بالِ بالا/پایین (۲ فریمِ کوانتیزه) + سایهٔ ۲px زیرِ بدن
+function bird(r, bx, by, flap, wingUp) {
+  r.rect(bx, by, 3, 2, B.body);                       // بدنِ ۳×۲
+  r.px(bx + 1, by + 1, B.belly); r.px(bx, by, B.bodyHi);
+  r.px(bx + 2, by, B.bodyHi); r.px(bx + 3, by, B.beak); // سر + منقار
+  r.px(bx + 2, by - 1, B.eye);
+  if (flap) {
+    if (wingUp) { r.rect(bx, by - 2, 2, 1, B.wing); r.px(bx + 2, by - 2, B.wing2); }
+    else { r.rect(bx, by + 2, 2, 1, B.wing); r.px(bx + 2, by + 2, B.wing2); }
+    r.rect(bx + 1, by + 3, 2, 1, B.sh);               // سایهٔ کوچکِ زیرِ پرنده‌ی در پرواز (۲px)
+  }
+}
 export function drawBirds(r, trees, cx, cy, time, heroX, heroY, n = 5) {
   const m = Math.min(n, trees.length);
+  const wingUp = (Math.floor(time * 6) & 1) === 0;     // ۲ فریمِ بال (~۶Hz) — فقط هنگامِ پرواز
   for (let i = 0; i < m; i++) {
-    const t = trees[(i * 7 + 3) % trees.length]; // پخش قطعی روی درخت‌های مرئی
+    const t = trees[(i * 7 + 3) % trees.length];     // پخش قطعی روی درخت‌های مرئی
     let bx = t.x * 16 - cx + 2 + (i % 3) * 4;
-    let by = t.y * 16 - cy - 12 + (i % 2) * 3; // روی شکم تاج
+    let by = t.y * 16 - cy - 12 + (i % 2) * 3;       // روی شکمِ تاج
     const nearHero = Math.hypot(t.x * 16 + 8 - heroX, t.y * 16 + 8 - heroY) < 30;
-    let flap = false; // ن۳۶: نشسته = بی‌حرکت؛ فقط هنگام فرار بال می‌زند
-    if (nearHero) { // جنگل‌نشین‌ها می‌پرند! بالا + بالِ همیشه
+    let flap = false;
+    if (nearHero) {                                   // جنگل‌نشین‌ها می‌پرند! بالا + بالِ همیشه
       bx += Math.round(Math.sin(time * 9 + i) * 4);
       by -= 8 + Math.round(Math.sin(time * 7 + i * 1.3) * 3);
       flap = true;
     }
     bx = Math.round(bx); by = Math.round(by);
     if (bx < -8 || by < -8 || bx > r.w || by > r.h) continue;
-    r.px(bx, by, B_BODY); r.px(bx + 1, by, B_BODY2);
-    r.px(bx, by + 1, B_BODY); r.px(bx + 1, by + 1, B_BELLY);
-    r.px(bx + 2, by, B_BODY2); r.px(bx + 3, by, B_BEAK); // سر + منقار
-    r.px(bx + 2, by - 1, B_EYE); // چشم
-    if (flap) { r.px(bx, by - 1, B_WING); r.px(bx + 1, by - 1, B_WING2); r.px(bx - 1, by, B_WING2); }
+    bird(r, bx, by, flap, wingUp);
+  }
+}
+
+// ---------- S5.6: پروانه — فقط روز، ۲ رنگِ رمپ، بالِ ۲ فریمی، مسیرِ کوانتیزهٔ آرام ----------
+const BF = { wA: rp('gold', 6), wB: rp('clothRed', 6), body: rp('ink', 2), sh: rp('grass', 0) };
+export function drawButterflies(r, cx, cy, time, n = 1) {
+  for (let i = 0; i < n; i++) {                        // ← مسیرِ قطعیِ ۱۲s در باغِ گل، پله‌های ۰٫۵s
+    const t = time * 0.5 + i * 3.1;
+    const bxx = 12 * 16 + 8 + Math.round(Math.sin(t * 0.9) * 22);
+    const byy = 17 * 16 + 6 + Math.round(Math.sin(t * 1.7 + 1) * 10) - (Math.floor(t) % 2 ? 0 : 1);
+    const px = bxx - cx, py = byy - cy;
+    if (px < -6 || py < -6 || px > r.w + 6 || py > r.h + 6) continue;
+    const open = (Math.floor(time * 4 + i) & 1) === 0; // ۲ فریمِ بال
+    r.rect(px, py, 2, 1, BF.body);                     // بدنِ ۲px
+    if (open) { r.rect(px - 2, py - 1, 2, 1, BF.wA); r.rect(px + 2, py - 1, 2, 1, BF.wB); r.rect(px - 1, py, 1, 2, BF.wA); r.rect(px + 2, py, 1, 2, BF.wB); }
+    else { r.rect(px - 2, py, 2, 1, BF.wA); r.rect(px + 2, py, 2, 1, BF.wB); }
+    r.px(px, py + 2, BF.sh); r.px(px + 1, py + 2, BF.sh); // سایهٔ کوچکِ ۲px زیرِ پروانه
   }
 }

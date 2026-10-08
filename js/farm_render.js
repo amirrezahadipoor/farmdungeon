@@ -7,7 +7,7 @@ import { drawTree } from './art/tree.js';
 import { drawFarmhouse, drawFarmhouseGlow, drawScarecrow, drawSprinkler, drawBasketCrate } from './art/farm_buildings.js';
 import { HOUSE, SCARECROW } from './farm_layout.js';
 import { applyNight, nightFactor } from './night.js';
-import { drawBirds } from './art/critters.js';
+import { drawBirds, drawButterflies } from './art/critters.js';
 import { drawMotes } from './art/motes.js'; // S4.8: گرده‌ی آرامِ روز
 import { drawRain, isRaining, lightningK, flashTint, drawLightning, drawPondRipples, drawRainGround } from './art/weather.js';
 import { drawHeroFrame, frameKey, framePhase, halfSprite } from './art/hero.js';
@@ -190,4 +190,5 @@ export function renderFarm(game, r) {
       if (lk > 0) { flashTint(r, lk); drawLightning(r, game.time); }
     }
     if (nf < 0.25) drawMotes(r, 'farm', 0, cx, cy, game.time, r.w, r.h); // S4.8: گرده (≤۴) — فقط روز
+    if (nf < 0.25) drawButterflies(r, cx, cy, game.time, 1); // S5.6: یک پروانه در باغِ گل — فقط روز
   }
