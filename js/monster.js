@@ -9,7 +9,7 @@ const STATS = {
   slime:    { hp: 20,  speed: 24, range: 18, windup: 0.35, dmg: 4,  stride: 10, cool: 1.1 },
   bat:      { hp: 12,  speed: 42, range: 16, windup: 0.32, dmg: 3,  stride: 12, cool: 0.9 },
   wolf:     { hp: 28,  speed: 58, range: 18, windup: 0.38, dmg: 7,  stride: 18, cool: 1.0 },
-  skeleton: { hp: 24,  speed: 32, range: 18, windup: 0.42, dmg: 6,  stride: 12, cool: 1.1 },
+  skeleton: { hp: 24,  speed: 32, range: 18, windup: 0.42, dmg: 6,  stride: 16, cool: 1.1 }, // S6.3: stride فقط فازِ گام (۱۲→۱۶ = L قهرمان؛ cadence 2.3→~1.8) — سرعت حرکت دست‌نخورده
   golem:    { hp: 60,  speed: 13, range: 20, windup: 0.50, dmg: 12, stride: 16, cool: 1.6 },
   spider:   { hp: 16,  speed: 38, range: 16, windup: 0.34, dmg: 4,  stride: 14, cool: 0.9 },
   ghost:    { hp: 18,  speed: 28, range: 18, windup: 0.40, dmg: 5,  stride: 12, cool: 1.2 },

@@ -4,6 +4,7 @@ import { MC } from './monster_parts.js';
 import { ease } from '../skeleton.js';
 import { rp } from './ramps.js'; // S1.5b: سایه از رمپ جوهری
 import { bake } from './bake.js'; // S6.1: خط لولهٔ واحدِ پخت (outline/flash/shadow/snap)
+import { motionFor, motionProxy, drawMotionFx } from './mob_motion.js'; // S6.3
 
 const BSPR = 128;
 const OX = 64, OY = 112; // باس بزرگ است: مبدأ پایین‌تر تا داخل بوم جا شود
@@ -27,7 +28,9 @@ export function drawBossFrame(o) {
   const f = { state: o.state || 'idle', t: o.t ?? 0, ph: o.ph ?? 0, time: o.time ?? 0, face: o.face ?? 1 };
   const atk = o.atk || 'slam';
   const phase = o.phase || 1;
-  const r = new Raster(BSPR, BSPR);
+  const r0 = new Raster(BSPR, BSPR);
+  const mv = motionFor('boss', f); // S6.3: idle زنده + anticipation — فقط ظاهر
+  const r = motionProxy(r0, mv, OY);
   const g = lm(r, f.face);
 
   let bob = sin(f.time * 0.9) * 1.5, lean = 0, armA = 0.45, shake = 0, warn = 0, dead = 0, jaw = 0, inhale = 0;
@@ -131,5 +134,6 @@ export function drawBossFrame(o) {
   if (o.hit) steps.push({ op: 'flash', color: MC.white });
   steps.push({ op: 'shadow', spec: 'boss', x: OX, y: OY, color: rp('ink', 0) }); // S1.5b: ۵ باند آلفا (M4)
   steps.push({ op: 'snap' });                                                    // S4.6c
-  return bake(r, steps);
+  drawMotionFx(r0, 'boss', f, mv, OX, OY); // S6.3: خاکسترِ معلق
+  return bake(r0, steps);
 }

@@ -6,12 +6,15 @@ import { bake } from './bake.js';       // S6.1: خط لولهٔ واحدِ پخ
 import { MSPR, MOX, MOY, MC } from './monster_parts.js';
 import { MBODY, MSHW } from './monster_registry.js'; // ن۴۷: رجیستری ادغام
 import { rp } from './ramps.js'; // S1.5a: سایه از رمپ جوهری
+import { motionFor, motionProxy, drawMotionFx } from './mob_motion.js'; // S6.3: idle زنده + anticipation حمله
 
 // فریم نهایی: بدنه → rim-light → outline → فلش سفید → سایه‌ی نرم
 export function drawMonsterFrame(kind, o) {
   const f = { state: o.state || 'idle', t: o.t ?? 0, ph: o.ph ?? 0, face: o.face ?? 1, time: o.time ?? 0 };
   const body = new Raster(MSPR, MSPR);
-  MBODY[kind](body, f);
+  const mv = motionFor(kind, f); // S6.3: فقط ظاهر — محرکِ t/ph (در کلید کش)
+  MBODY[kind](motionProxy(body, mv, MOY), f);
+  drawMotionFx(body, kind, f, mv);
   // S6.1: rim → outline → flash → سایهٔ ۵ باندی → snap پالت، همه از خط لولهٔ واحد
   const hiC = MC[kind + 'Hi'];
   const [sw, sh2] = MSHW[kind];

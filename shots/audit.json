@@ -1,7 +1,7 @@
 {
- "ts": "2026-10-08T20:35:18.317Z",
- "score": 8.2,
- "passed": 9,
+ "ts": "2026-10-08T21:48:02.608Z",
+ "score": 9.1,
+ "passed": 10,
  "goals": {
   "M1": true,
   "M2": true,
@@ -11,14 +11,14 @@
   "M6": true,
   "M7": true,
   "M8": true,
-  "M9": false,
+  "M9": true,
   "M10": true
  },
  "metrics": {
   "M1": {
-   "min": 25.86300170819427,
-   "bat": 29.4,
-   "boss": 26.8,
+   "min": 25.97226927576184,
+   "bat": 29.3,
+   "boss": 26.7,
    "hero": 33.7,
    "floorL": [
     58,
@@ -31,28 +31,28 @@
    "rows": [
     {
      "k": "slime",
-     "L": 93.9,
-     "dL": 34.5
+     "L": 97.6,
+     "dL": 38.1
     },
     {
      "k": "bat",
-     "L": 28.2,
-     "dL": 29.4
+     "L": 28.3,
+     "dL": 29.3
     },
     {
      "k": "wolf",
-     "L": 117,
-     "dL": 57.6
+     "L": 117.3,
+     "dL": 57.9
     },
     {
      "k": "skeleton",
-     "L": 122.3,
-     "dL": 62.9
+     "L": 122.6,
+     "dL": 63.1
     },
     {
      "k": "golem",
-     "L": 85.3,
-     "dL": 25.9
+     "L": 85.4,
+     "dL": 26
     },
     {
      "k": "spider",
@@ -66,8 +66,8 @@
     },
     {
      "k": "mummy",
-     "L": 118.1,
-     "dL": 58.7
+     "L": 120.4,
+     "dL": 61
     },
     {
      "k": "archer",
@@ -76,18 +76,18 @@
     },
     {
      "k": "ram",
-     "L": 95,
-     "dL": 35.5
+     "L": 95.3,
+     "dL": 35.8
     },
     {
      "k": "yeti",
-     "L": 145.4,
-     "dL": 85.9
+     "L": 146.5,
+     "dL": 87
     },
     {
      "k": "imp",
-     "L": 124.9,
-     "dL": 65.5
+     "L": 123.3,
+     "dL": 63.9
     },
     {
      "k": "bandit",
@@ -96,13 +96,13 @@
     },
     {
      "k": "hare",
-     "L": 106.6,
-     "dL": 47.1
+     "L": 105.3,
+     "dL": 45.8
     },
     {
      "k": "boss",
      "L": 86.2,
-     "dL": 26.8
+     "dL": 26.7
     }
    ]
   },
@@ -117,11 +117,11 @@
     ],
     [
      "ram",
-     22.4
+     22.6
     ],
     [
      "golem",
-     22.3
+     22.2
     ]
    ]
   },
@@ -148,7 +148,7 @@
     ],
     [
      "golem",
-     12
+     13
     ],
     [
      "spider",
@@ -184,11 +184,11 @@
     ],
     [
      "hare",
-     14
+     15
     ],
     [
      "boss",
-     14
+     15
     ]
    ]
   },
@@ -330,65 +330,61 @@
    ]
   },
   "M9": {
-   "idleMin": 0,
+   "idleMin": 45.2,
    "idle": {
-    "slime": 0,
-    "bat": 0,
-    "wolf": 0,
-    "skeleton": 0,
-    "golem": 0,
-    "spider": 0,
-    "ghost": 0,
-    "mummy": 0,
+    "slime": 46.9,
+    "bat": 69,
+    "wolf": 1.6,
+    "skeleton": 18.8,
+    "golem": 0.2,
+    "spider": 59.9,
+    "ghost": 39.6,
+    "mummy": 51.7,
     "archer": 0,
-    "ram": 0,
-    "yeti": 0,
-    "imp": 0,
-    "bandit": 0,
-    "hare": 0,
-    "boss": 0
+    "ram": 46.7,
+    "yeti": 28.7,
+    "imp": 69.9,
+    "bandit": 44.2,
+    "hare": 56.4,
+    "boss": 16.1
    },
    "idleAmp": {
-    "slime": 10.5,
-    "bat": 87,
-    "wolf": 49.3,
-    "skeleton": 60.4,
-    "golem": 0,
-    "spider": 41.1,
+    "slime": 48.4,
+    "bat": 87.9,
+    "wolf": 50.9,
+    "skeleton": 63.4,
+    "golem": 52.1,
+    "spider": 59.9,
     "ghost": 87.3,
-    "mummy": 54.8,
-    "archer": 54.6,
-    "ram": 44.1,
-    "yeti": 25.2,
+    "mummy": 66.6,
+    "archer": 53.7,
+    "ram": 56.4,
+    "yeti": 45.2,
     "imp": 71.8,
-    "bandit": 49.9,
-    "hare": 39.8,
-    "boss": 4.5
+    "bandit": 57,
+    "hare": 63.9,
+    "boss": 56.3
    },
-   "skelAtk": 20.1,
-   "archerAtk": 24.1,
+   "skelAtk": 81.8,
+   "archerAtk": 78.1,
    "atk": {
-    "slime": 91.5,
-    "bat": 93.7,
-    "wolf": 34.3,
-    "skeleton": 20.1,
-    "golem": 10.8,
-    "spider": 40.1,
-    "ghost": 0,
-    "mummy": 78,
-    "archer": 24.1,
-    "ram": 77.7,
-    "yeti": 60.5,
-    "imp": 83.1,
-    "bandit": 62.1,
-    "hare": 80.3,
-    "boss": 34.1
+    "slime": 92,
+    "bat": 93.8,
+    "wolf": 35.5,
+    "skeleton": 81.8,
+    "golem": 53.3,
+    "spider": 55.2,
+    "ghost": 66.1,
+    "mummy": 92,
+    "archer": 78.1,
+    "ram": 77.3,
+    "yeti": 60,
+    "imp": 82.5,
+    "bandit": 75.2,
+    "hare": 82.4,
+    "boss": 32.8
    },
-   "idleWeak": [
-    "slime:10.5",
-    "golem:0",
-    "boss:4.5"
-   ]
+   "idleWeak": []
   },
   "M10": {
    "min": 13,
@@ -405,7 +401,7 @@
   }
  },
  "anchors": {
-  "bat_dL": 29.4,
+  "bat_dL": 29.3,
   "outline_sd": 3.6,
   "hero_colors": 21
  }
