@@ -1,7 +1,8 @@
 // art/light.js — سیستم نور و تاریکی دانجن (جداشده از run_render.js)
 // تاریکی پایه = مه آبی‌مه‌آلود (نه سیاهی مطلق)؛ نورها با «استامپ» از پیش‌محاسبه‌شده
 import { Raster } from '../raster.js';
-import { rp } from './ramps.js'; // S4.1: رنگِ نورها از رمپ‌های پالت (M5)
+import { rp } from './ramps.js';
+import { PM_SNAP, pmSnapTable, pmSnapIdx } from './pm_snap.js'; // S4.6b: قفلِ پالتِ صحنه (جبرانِ M5) // S4.1: رنگِ نورها از رمپ‌های پالت (M5)
 import { BAYER4 } from './dither.js'; // S4.2: کوانتیزه‌ی آلفای تاریکی با دیترِ ترتیبی
 
 let DARK_R = 13, DARK_G = 11, DARK_B = 26; // S4.3: رنگِ تاریکی per تم (گریدینگ)
@@ -191,12 +192,27 @@ export function applyDarkness(r, dk, flat, flatC, camX = 0, camY = 0) {
   }
   // blend با LUT (ن۳۹) — بدون ضرب/تقسیم در حلقه
   const sd = r.d;
-  for (let i = 0; i < dd.length; i += 4) {
-    const a = dd[i + 3];
-    if (a <= 0) { sd[i] = _G0R[sd[i]]; sd[i + 1] = _G0G[sd[i + 1]]; sd[i + 2] = _G0B[sd[i + 2]]; continue; } // S4.3: گریدینگِ نواحیِ کاملاً روشن
-    if (sd[i + 3] < 8) { sd[i] = DARK_R; sd[i + 1] = DARK_G; sd[i + 2] = DARK_B; sd[i + 3] = a; continue; }
-    const q = a << 8;
-    sd[i] = _GR[q | sd[i]]; sd[i + 1] = _GG[q | sd[i + 1]]; sd[i + 2] = _GB[q | sd[i + 2]];
+  // S4.6b: قفلِ پالتِ صحنه — گریدینگِ تم پیکسل‌ها را از پالت بیرون می‌برد (M5 ↓۱۰٫۹٪)؛
+  // در همان گذر، رنگِ نهایی روی نزدیک‌ترین رنگِ پالتِ مستر می‌نشیند (جدولِ ۵بیتی/کانال).
+  const su = (PM_SNAP.on && r.u32 && (sd.byteOffset & 3) === 0 && (sd.length & 3) === 0) ? r.u32() : null;
+  const ST = su ? pmSnapTable() : null;
+  if (ST) {
+    for (let i = 0, k = 0; i < dd.length; i += 4, k++) {
+      const a = dd[i + 3];
+      let rr, gg, bb, al = sd[i + 3];
+      if (a <= 0) { rr = _G0R[sd[i]]; gg = _G0G[sd[i + 1]]; bb = _G0B[sd[i + 2]]; }        // S4.3: نواحیِ کاملاً روشن
+      else if (al < 8) { rr = DARK_R; gg = DARK_G; bb = DARK_B; al = a; }
+      else { const q = a << 8; rr = _GR[q | sd[i]]; gg = _GG[q | sd[i + 1]]; bb = _GB[q | sd[i + 2]]; }
+      su[k] = (al << 24) | (ST[((rr >> 3) << 10) | ((gg >> 3) << 5) | (bb >> 3)] & 0xFFFFFF);
+    }
+  } else {
+    for (let i = 0; i < dd.length; i += 4) {
+      const a = dd[i + 3];
+      if (a <= 0) { sd[i] = _G0R[sd[i]]; sd[i + 1] = _G0G[sd[i + 1]]; sd[i + 2] = _G0B[sd[i + 2]]; continue; } // S4.3: گریدینگِ نواحیِ کاملاً روشن
+      if (sd[i + 3] < 8) { sd[i] = DARK_R; sd[i + 1] = DARK_G; sd[i + 2] = DARK_B; sd[i + 3] = a; continue; }
+      const q = a << 8;
+      sd[i] = _GR[q | sd[i]]; sd[i + 1] = _GG[q | sd[i + 1]]; sd[i + 2] = _GB[q | sd[i + 2]];
+    }
   }
   // ---------- S4.1: پاسِ رنگ — افزودنی با clamp، روی تایل‌های روشن هم اعمال می‌شود ----------
   if (flatC && COLOR_LIGHTS.on) {
@@ -219,6 +235,7 @@ export function applyDarkness(r, dk, flat, flatC, camX = 0, camY = 0) {
               sd[s2] += (lit * ar) >> 8;                          // اشباع خودکار (Uint8ClampedArray)
               const ag = add[a2 + 1]; if (ag) sd[s2 + 1] += (lit * ag) >> 8;
               const ab = add[a2 + 2]; if (ab) sd[s2 + 2] += (lit * ab) >> 8;
+              if (ST) { const t2 = ST[pmSnapIdx(sd[s2], sd[s2 + 1], sd[s2 + 2])]; su[s2 >> 2] = (sd[s2 + 3] << 24) | (t2 & 0xFFFFFF); } // S4.6b
             }
           }
         }

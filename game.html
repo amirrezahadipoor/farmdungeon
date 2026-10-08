@@ -2970,6 +2970,7 @@ const __m_art_light = (() => {
 
 
 
+
 let DARK_R = 13, DARK_G = 11, DARK_B = 26; // S4.3: رنگِ تاریکی per تم (گریدینگ)
 const DARK_A = 118;
 
@@ -3157,12 +3158,27 @@ function applyDarkness(r, dk, flat, flatC, camX = 0, camY = 0) {
   }
   // blend با LUT (ن۳۹) — بدون ضرب/تقسیم در حلقه
   const sd = r.d;
-  for (let i = 0; i < dd.length; i += 4) {
-    const a = dd[i + 3];
-    if (a <= 0) { sd[i] = _G0R[sd[i]]; sd[i + 1] = _G0G[sd[i + 1]]; sd[i + 2] = _G0B[sd[i + 2]]; continue; } // S4.3: گریدینگِ نواحیِ کاملاً روشن
-    if (sd[i + 3] < 8) { sd[i] = DARK_R; sd[i + 1] = DARK_G; sd[i + 2] = DARK_B; sd[i + 3] = a; continue; }
-    const q = a << 8;
-    sd[i] = _GR[q | sd[i]]; sd[i + 1] = _GG[q | sd[i + 1]]; sd[i + 2] = _GB[q | sd[i + 2]];
+  // S4.6b: قفلِ پالتِ صحنه — گریدینگِ تم پیکسل‌ها را از پالت بیرون می‌برد (M5 ↓۱۰٫۹٪)؛
+  // در همان گذر، رنگِ نهایی روی نزدیک‌ترین رنگِ پالتِ مستر می‌نشیند (جدولِ ۵بیتی/کانال).
+  const su = (PM_SNAP.on && r.u32 && (sd.byteOffset & 3) === 0 && (sd.length & 3) === 0) ? r.u32() : null;
+  const ST = su ? pmSnapTable() : null;
+  if (ST) {
+    for (let i = 0, k = 0; i < dd.length; i += 4, k++) {
+      const a = dd[i + 3];
+      let rr, gg, bb, al = sd[i + 3];
+      if (a <= 0) { rr = _G0R[sd[i]]; gg = _G0G[sd[i + 1]]; bb = _G0B[sd[i + 2]]; }        // S4.3: نواحیِ کاملاً روشن
+      else if (al < 8) { rr = DARK_R; gg = DARK_G; bb = DARK_B; al = a; }
+      else { const q = a << 8; rr = _GR[q | sd[i]]; gg = _GG[q | sd[i + 1]]; bb = _GB[q | sd[i + 2]]; }
+      su[k] = (al << 24) | (ST[((rr >> 3) << 10) | ((gg >> 3) << 5) | (bb >> 3)] & 0xFFFFFF);
+    }
+  } else {
+    for (let i = 0; i < dd.length; i += 4) {
+      const a = dd[i + 3];
+      if (a <= 0) { sd[i] = _G0R[sd[i]]; sd[i + 1] = _G0G[sd[i + 1]]; sd[i + 2] = _G0B[sd[i + 2]]; continue; } // S4.3: گریدینگِ نواحیِ کاملاً روشن
+      if (sd[i + 3] < 8) { sd[i] = DARK_R; sd[i + 1] = DARK_G; sd[i + 2] = DARK_B; sd[i + 3] = a; continue; }
+      const q = a << 8;
+      sd[i] = _GR[q | sd[i]]; sd[i + 1] = _GG[q | sd[i + 1]]; sd[i + 2] = _GB[q | sd[i + 2]];
+    }
   }
   // ---------- S4.1: پاسِ رنگ — افزودنی با clamp، روی تایل‌های روشن هم اعمال می‌شود ----------
   if (flatC && COLOR_LIGHTS.on) {
@@ -3185,6 +3201,7 @@ function applyDarkness(r, dk, flat, flatC, camX = 0, camY = 0) {
               sd[s2] += (lit * ar) >> 8;                          // اشباع خودکار (Uint8ClampedArray)
               const ag = add[a2 + 1]; if (ag) sd[s2 + 1] += (lit * ag) >> 8;
               const ab = add[a2 + 2]; if (ab) sd[s2 + 2] += (lit * ab) >> 8;
+              if (ST) { const t2 = ST[pmSnapIdx(sd[s2], sd[s2 + 1], sd[s2 + 2])]; su[s2 >> 2] = (sd[s2 + 3] << 24) | (t2 & 0xFFFFFF); } // S4.6b
             }
           }
         }
@@ -3197,6 +3214,69 @@ function applyDarkness(r, dk, flat, flatC, camX = 0, camY = 0) {
 return {THEME_GRADE, COLOR_LIGHTS, CL_DEBUG, C_RAD_CAP, C_MAX, DARK_LEVELS, DITHER_DARK, GRADE, setThemeGrade, setColorRadCap, setColorMax, darkLevelCount, applyDarkness};
 })();
 const {THEME_GRADE, COLOR_LIGHTS, CL_DEBUG, C_RAD_CAP, C_MAX, DARK_LEVELS, DITHER_DARK, GRADE, setThemeGrade, setColorRadCap, setColorMax, darkLevelCount, applyDarkness} = __m_art_light;
+const __m_art_pm_snap = (() => {
+// art/pm_snap.js — S4.6b: قفلِ پالتِ صحنه (جبرانِ M5 پس از گریدینگِ S4.3)
+// پس از گریدینگِ تم + آمیزشِ تاریکی، هر پیکسل به **نزدیک‌ترین رنگِ پالتِ مستر** می‌چسبد تا
+// پوششِ پالت (M5) از افتِ گریدینگِ رندر-زمانی جبران شود (درس ۱۰۳: «نگاشتِ پالتی»).
+// جدولِ ثابتِ ۵بیتی/کانال (۳۲³ = ۳۲٬۷۶۸ سلول) که **یک‌بار** با انتشارِ چمفر ساخته می‌شود (~۱ms).
+
+
+// پیش‌فرض **خاموش**: قفلِ پالت M5 را از ۱۰٫۶٪ به ۹۹٫۷٪ می‌برد ولی ~+۰٫۴۹ms در فریمِ دانجن
+// می‌افزاید و فاصله‌ی تم‌ها را کم می‌کند ⇒ تصمیمِ روشن/خاموش با کاربر (ن۸۸ در MEMORY.md)
+const PM_SNAP = { on: false };                                   // توگل (QA/A-B)
+const PM_SNAP_INFO = { built: 0, ms: 0, cells: 0, pal: 0 };      // شمارشِ ساخت (QA)
+
+const N = 32, CELLS = N * N * N;
+const _t = new Uint32Array(CELLS);                                      // بسته‌بندیِ ABGR (LE)
+let _built = false;
+
+function build() {
+  const t0 = performance.now();
+  const dist = new Float32Array(CELLS).fill(Infinity);
+  const idx = new Int32Array(CELLS).fill(-1);
+  const K = PALETTE_MASTER.length;
+  for (let k = 0; k < K; k++) {                                          // بذرها: خودِ رنگ‌های پالت
+    const c = PALETTE_MASTER[k];
+    const cx = c[0] >> 3, cy = c[1] >> 3, cz = c[2] >> 3;
+    const i = (cx << 10) | (cy << 5) | cz;
+    const dx = (cx << 3 | 4) - c[0], dy = (cy << 3 | 4) - c[1], dz = (cz << 3 | 4) - c[2];
+    const d = dx * dx + dy * dy + dz * dz;                               // فاصله تا مرکزِ سلول
+    if (d < dist[i]) { dist[i] = d; idx[i] = k; }
+  }
+  // انتشارِ چمفر (۲ سوئیپ، همسایه‌ی ۶گانه درون‌خطی): وزنِ هر گامِ سلولی = ۸ واحد در یک کانال ⇒ ۸²=۶۴
+  const W = 64;
+  const step = (i, j) => {
+    const dj = j, di = i;
+    const k = idx[dj]; if (k < 0) return;
+    const d2 = dist[dj] + W;
+    if (d2 < dist[di]) { dist[di] = d2; idx[di] = k; }
+  };
+  for (let pass = 0; pass < 2; pass++) {
+    for (let x = 0; x < N; x++) for (let y = 0; y < N; y++) for (let z = 0; z < N; z++) {
+      const i = (x << 10) | (y << 5) | z;
+      if (x > 0) step(i, i - 1024); if (y > 0) step(i, i - 32); if (z > 0) step(i, i - 1);
+    }
+    for (let x = N - 1; x >= 0; x--) for (let y = N - 1; y >= 0; y--) for (let z = N - 1; z >= 0; z--) {
+      const i = (x << 10) | (y << 5) | z;
+      if (x < N - 1) step(i, i + 1024); if (y < N - 1) step(i, i + 32); if (z < N - 1) step(i, i + 1);
+    }
+  }
+  for (let i = 0; i < CELLS; i++) {
+    const c = PALETTE_MASTER[idx[i] >= 0 ? idx[i] : 0];
+    _t[i] = (255 << 24) | (c[2] << 16) | (c[1] << 8) | c[0];
+  }
+  _built = true; PM_SNAP_INFO.built++; PM_SNAP_INFO.ms = performance.now() - t0;
+  PM_SNAP_INFO.cells = CELLS; PM_SNAP_INFO.pal = K;
+  return _t;
+}
+
+function pmSnapTable() { return _built ? _t : build(); }
+const pmSnapIdx = (r, g, b) => ((r >> 3) << 10) | ((g >> 3) << 5) | (b >> 3); // اندیسِ سلولِ ۵بیتی
+function pmSnapColor(c) { const t = pmSnapTable(); return t[pmSnapIdx(c[0], c[1], c[2])]; } // برای سنجه/شیت
+
+return {PM_SNAP, PM_SNAP_INFO, pmSnapIdx, pmSnapTable, pmSnapColor};
+})();
+const {PM_SNAP, PM_SNAP_INFO, pmSnapIdx, pmSnapTable, pmSnapColor} = __m_art_pm_snap;
 const __m_art_quality = (() => {
 // art/quality.js — کیفیت تطبیقی: در دستگاه ضعیف افکت‌های غیرضروری خودکار کم می‌شوند
 // level 1 = کامل (پیش‌فرض) | 0 = حداقل (گوشی ضعیف) — فقط main_app تنظیم می‌کند
