@@ -1405,6 +1405,153 @@ const autoCacheSize = () => _cache.size;
 return {BLOB47, IDX_MASK, BLOB_MIRROR, autoCacheSize, mask4, mask8, mirror8, canon8, blob47, setAutoBuilder, autoSprite};
 })();
 const {BLOB47, IDX_MASK, BLOB_MIRROR, autoCacheSize, mask4, mask8, mirror8, canon8, blob47, setAutoBuilder, autoSprite} = __m_art_autotile;
+const __m_art_water = (() => {
+// art/water.js — آب و کرانه (S2.7): **یک منبع** برای مزرعه و دانجن
+// سه لایه: (۱) بدنه بر اساسِ عمق (فاصله تا خشکی → shallow/mid/deep) + کاستیکِ ۴ فریم با فازِ جهانی
+//          (۲) ساحلِ ۱–۳px از تُنِ «زمینِ ساحلی» با گوشه‌ی گرد (mask4)
+//          (۳) کفِ موجِ خط‌چین با نوسانِ ±۱px روی لبه‌ی درونیِ ساحل
+// هر سه لایه در یک اسپرایتِ ۱۶×۱۶ پخته و با **کلید عددی** کش می‌شوند (مسیر داغ: هر تایلِ آب، هر فریم)
+// قانونِ تُن: هر گذر (خشکی→ساحل→کم‌عمق→میان→عمیق، و کاستیک/موج) **یک پله** (ΔL≈۱۳)
+// ⇒ هیچ مرزِ سختی پدید نمی‌آید (M8 آب↔زمین = ۰) و عمق با ditherِ تایل‌به‌تایل نیاز ندارد.
+
+
+
+
+
+
+// ضلع‌ها (بیت‌های mask4): [بیت، افقی، ازابتدا، ضلعِ مجاور در آغاز، ضلعِ مجاور در پایان، dx، dy]
+const SIDE = [[1, 1, 1, 8, 2, 0, -1], [2, 0, 0, 1, 4, 1, 0], [4, 1, 0, 8, 2, 0, 1], [8, 0, 1, 1, 4, -1, 0]];
+const MAXD = 3;
+
+// پالت‌های ساحل: تُنِ خشکی + کف + بدنه/کاستیک/موج به‌ازای هر عمق
+// مزرعه: ساحلِ ماسه‌ایِ **هم‌تراز با چمن** (sand[3] همان L چمنِ پایه است ⇒ ΔL با تُفتِ تیره/روشن هم ≤۱۳)
+const SHORE_FARM = {
+  id: 'f', n: 0,
+  // ساحلِ عادی: ماسه‌ای **هم‌تراز با چمنِ پایه** (L۶۵ در برابر تُفت‌های ۵۲/۷۹ و چمنِ ۶۶ ⇒ بیشینه ΔL ۱۴)
+  // ساحلِ تیره (کنارِ پرچین/سازه): ماسه‌ی خیس ⇒ در برابر پرچین (L۲۵/۳۹/۵۲) بیشینه ΔL ۱۴
+  rim: [rp('sand', 4), rp('sand', 2)], speck: [rp('sand', 5), rp('sand', 3)], speckD: [rp('sand', 3), rp('sand', 1)],
+  dark: { hedge: 1 }, foam: E.sparkle, // کفِ سفید-آبی
+  body: [rp('water', 3), rp('water', 2), rp('water', 1)],
+  up: [rp('water', 4), rp('water', 3), rp('water', 2)],
+  dn: [rp('water', 2), rp('water', 1), rp('water', 0)],
+};
+// دانجن: ساحلِ سنگیِ هم‌تُن با کفِ همان تم (کف = floorA/floorB؛ لبه‌ی برخورد = stoneSh)
+const _dsh = [];
+function dungeonShore(t) {
+  if (!_dsh[t]) {
+    const P = DPAL(t);
+    _dsh[t] = {
+      // ساحلِ **تیره**: سنگِ خیس یک پله زیرِ کف (L۳۹ در برابر کفِ L۵۲) — غار تاریک است و
+      // روشناییِ لبه از کفِ موج می‌آید نه از سنگ؛ آبِ کم‌عمق یک پله روشن‌تر از ساحل ⇒ مرزِ سخت نداریم
+      n: 1 + t, id: 'd' + t, rim: [P.mortar, P.stone], speck: [P.floorA, P.stoneHi], speckD: [P.brickOut, P.floorB],
+      dark: {}, bevel: [4 | 2, 'dfloor'], // کفِ دانجن در بالا/چپ بِوِلِ روشن (stoneHi) دارد ⇒ ساحلِ روشن روبه‌رویش
+      foam: rp('water', 4),
+      body: [rp('water', 3), rp('water', 2), rp('water', 1)],
+      up: [rp('water', 4), rp('water', 3), rp('water', 2)],
+      dn: [rp('water', 2), rp('water', 1), rp('water', 0)],
+    };
+  }
+  return _dsh[t];
+}
+
+// عمق = فاصله‌ی چبیشف تا نخستین تایلِ غیرآب (۱ = کنار ساحل · ۳ = عمیق)
+function waterDepth(isW, tx, ty) {
+  for (let d = 1; d <= MAXD; d++) {
+    for (let dy = -d; dy <= d; dy++) for (let dx = -d; dx <= d; dx++) {
+      if (Math.abs(dx) !== d && Math.abs(dy) !== d) continue; // فقط پوسته‌ی مربع
+      if (!isW(tx + dx, ty + dy)) return d;
+    }
+  }
+  return MAXD;
+}
+// عرضِ نوارِ ساحل در امتدادِ ضلع — قطعی از مختصاتِ **جهانی** (تکرارِ ۱۶px ندارد)
+function rimW(tx, ty, bit, a, horiz) {
+  const ga = horiz ? tx * TILE + a : ty * TILE + a;
+  const h = hash2(bit * 37 + (horiz ? ty * 131 : tx * 131) + 11, ga, 43);
+  return 1 + (h > 0.52 ? 1 : 0) + (h > 0.84 ? 1 : 0); // ۱..۳px
+}
+// کشِ بدنه با **کلید عددی** (مسیر داغ هر فریم است: رشته نساز — درسِ S2.2)
+const _body = new Map();
+function body(sh, tx, ty, side4, dk, d, ph) {
+  const k = ((((sh.n * 20 + ty) * 30 + tx) * 16 + side4) * 16 + dk) * 16 + d * 4 + ph;
+  let s = _body.get(k);
+  if (!s) { s = new Raster(TILE, TILE); paint(s, sh, tx, ty, side4, dk, d, ph); s.markOpaque(); _body.set(k, s); }
+  return s;
+}
+// یادداشتِ اطلاعاتِ تایل (عمق/ماسک/تُنِ ساحل): پویشِ حلقه‌ها فقط وقتی سلول‌ها عوض شوند
+// (تعویضِ طبقه ⇒ شیء‌های سلول تازه ⇒ ناهماهنگی با یادداشت ⇒ بازپویش؛ در غیر این صورت ۵ فراخوانی به‌جای ~۵۶)
+const _info = new Map();
+function info(cell, tx, ty, sh, c0, cN, cE, cS, cW) {
+  const key = tx * 64 + ty, e = _info.get(key);
+  if (e && e[0] === c0 && e[1] === cN && e[2] === cE && e[3] === cS && e[4] === cW) return e;
+  const isW = (c) => !!c && c.kind === 'water';
+  const m8 = (isW(cN) ? 1 : 0) | (isW(cE) ? 2 : 0) | (isW(cS) ? 4 : 0) | (isW(cW) ? 8 : 0);
+  const d = waterDepth((x, y) => isW(cell(x, y)), tx, ty);
+  let dk = 0;
+  for (const [bit, horiz, fromStart, sAdj, eAdj, dx, dy] of SIDE) {
+    if (m8 & bit) continue;
+    const nc = dx > 0 ? cE : dx < 0 ? cW : dy > 0 ? cS : cN;
+    if (!nc || (sh.dark && sh.dark[nc.kind])) dk |= bit;                            // همسایه‌ی تیره/سازه
+    else if (sh.bevel && (sh.bevel[0] & bit) && nc.kind === sh.bevel[1]) dk |= bit;  // لبه‌ی روشنِ کف
+  }
+  const out = [c0, cN, cE, cS, cW, m8, d, dk];
+  _info.set(key, out);
+  return out;
+}
+// بدنه‌ی کش‌شده: عمق + کاستیکِ هم‌فاز‌نشده + ساحل (کف روی آن می‌آید)
+function paint(r, sh, tx, ty, side4, dk, d, ph) {
+  const i = d - 1;
+  r.rect(0, 0, TILE, TILE, sh.body[i]);
+  // کاستیکِ ۴ فریم: دو نوارِ روشن + یک موجِ تیره که با فازِ جهانی می‌لغزند (تایل‌ها هم‌فاز نیستند)
+  r.rect(1 + ph, 4 + ph, 5, 1, sh.up[i]);
+  r.rect(9 - ph, 9 + ph, 4, 1, sh.up[i]);
+  r.rect(4 + ph, 13 - ph, 5, 1, sh.dn[i]);
+  r.px(11 - ph, 2 + (ph & 1), E.sparkle); // جلای سطح (یک پیکسل)
+  // ساحل: نوارِ ۱–۳px روی هر ضلعِ بی‌همسایه، گوشه با قوسِ ۲px (دو ضلعِ مجاور = گوشه‌ی گرد)
+  for (const [bit, horiz, fromStart, sAdj, eAdj] of SIDE) {
+    if (side4 & bit) continue;                       // ضلعِ داخلی (آب↔آب): باز
+    const j = (dk & bit) ? 1 : 0;                    // همسایه‌ی تیره (سازه/پرچین) ⇒ ساحلِ تیره
+    const rimC = sh.rim[j], spC = sh.speck[j], spDC = sh.speckD[j];
+    for (let a = 0; a < TILE; a++) {
+      let w = rimW(tx, ty, bit, a, horiz);
+      if (a < 2 && !(side4 & sAdj)) w -= 2 - a;
+      else if (a > TILE - 3 && !(side4 & eAdj)) w -= 2 - (TILE - 1 - a);
+      for (let k = 0; k < w; k++) {
+        const hh = hash2(bit * 29 + a, k * 7 + 3, 47);
+        const c = hh > 0.90 ? spC : (hh < 0.08 ? spDC : rimC); // لکه‌های ماسه/سنگ روی ساحل
+        const p = fromStart ? k : TILE - 1 - k;
+        if (horiz) r.px(a, p, c); else r.px(p, a, c);
+      }
+    }
+  }
+  // کفِ موج: خط‌چینِ ۱px روی نخستین پیکسلِ آب پس از نوار با نوسانِ ±۱px — **در بدنه پخته می‌شود**
+  // (جایِ کف فقط به فاز وابسته است، نه به زمانِ پیوسته ⇒ هیچ هزینه‌ای هر فریم ندارد)
+  const off = ph < 2 ? 0 : 1;
+  for (const [bit, horiz, fromStart, sAdj, eAdj, dx, dy] of SIDE) {
+    if (side4 & bit) continue;
+    for (let a = 0; a < TILE; a++) {
+      let w = rimW(tx, ty, bit, a, horiz);
+      if (a < 2 && !(side4 & sAdj)) w -= 2 - a;
+      else if (a > TILE - 3 && !(side4 & eAdj)) w -= 2 - (TILE - 1 - a);
+      if (w <= 0) continue;
+      const ga = horiz ? tx * TILE + a : ty * TILE + a;
+      if (hash2(bit * 53 + 7, ga, 41) > 0.42) continue; // خط‌چینِ قطعی (~۴۲٪ پوشش)
+      const k = w + off, p = fromStart ? k : TILE - 1 - k; // نخستین پیکسلِ آب پس از نوار (نه روی خودِ نوار)
+      if (horiz) r.px(a, p, sh.foam); else r.px(p, a, sh.foam);
+    }
+  }
+}
+// یک تایلِ آب — cell(x,y) سلول را برمی‌گرداند (بیرونِ نقشه = undefined)
+function drawWater(r, sx, sy, cell, tx, ty, frame, sh) {
+  const c0 = cell(tx, ty), cN = cell(tx, ty - 1), cE = cell(tx + 1, ty), cS = cell(tx, ty + 1), cW = cell(tx - 1, ty);
+  const [, , , , , side4, d, dk] = info(cell, tx, ty, sh, c0, cN, cE, cS, cW);
+  const ph = (frame + ((tx * 5 + ty * 3) & 3)) & 3; // فازِ جهانی: موج از تایلی به تایل هم‌فاز نیست
+  body(sh, tx, ty, side4, dk, d, ph).over(r, sx, sy); // بدنه + کاستیک + ساحل + کف — همه کش‌شده
+}
+
+return {SHORE_FARM, dungeonShore, waterDepth, drawWater};
+})();
+const {SHORE_FARM, dungeonShore, waterDepth, drawWater} = __m_art_water;
 const __m_art_crops = (() => {
 // art/crops.js — اسپرایت محصولات ۴ مرحله‌ای (هویج/گندم/کدو)
 
@@ -2528,6 +2675,7 @@ const __m_farm_terrain = (() => {
 
 
 
+
 let cache = null;      // Raster کل دنیا (۴۸۰×۳۲۰)
 let bound = null;      // فارمِ متصل به کش (هر Game کش خودش را دارد)
 const dirty = new Set();
@@ -2614,14 +2762,14 @@ function bakeTile(f, tx, ty, r, wf = 0) {
   else if (c.kind === 'path') base = groundSprite('path', pathVar(f, tx, ty)); // S2.5: واریانتِ جهت‌دار
   else if (c.kind === 'tree') base = groundSprite('grass', (hash2(tx, ty, 32) * 8) | 0);
   else if (c.kind === 'soil') base = groundSprite('soil', (hash2(tx, ty, 24) * 8) | 0, c.wet); // S2.6: دانه‌بندیِ per-تایل
-  else if (c.kind === 'water') base = groundSprite('water', (tx * 5 + ty * 3) & 3, false, wf);
+  else if (c.kind === 'water') base = null; // S2.7: تایلِ آب کامل در bakeWater (بدنه+کاستیک+ساحل+کف)
   else if (c.kind === 'hedge') base = groundSprite('hedge');
   else if (c.kind === 'gate') base = groundSprite(c.gL ? 'gateL' : 'gateR', ty === f.gate.y ? 0 : 1);
   else if (c.kind === 'sign') base = groundSprite('grass', 0);
   else if (c.kind === 'house') base = groundSprite('grass', 0);
   else if (c.kind === 'scarecrow') base = groundSprite('grass', 0);
   else { groundSprite('grass', (tx * 5 + ty * 3) & 3).over(r, sx, sy); base = groundSprite(c.fenceH ? 'fence' : 'fencePost'); }
-  base.over(r, sx, sy);
+  if (base) base.over(r, sx, sy);
   // S2.4: تُنِ ماکرو روی زمینِ چمنی (سازه‌ها هم چون پایه‌شان چمن است یکدست می‌مانند)
   if (c.kind === 'grass' || c.kind === 'tree' || c.kind === 'sign' || c.kind === 'house' || c.kind === 'scarecrow') tuftBake(r, sx, sy, tx, ty);
   if (c.kind === 'path') drawPathEdge(r, sx, sy, tx, ty, f);
@@ -2634,13 +2782,12 @@ function bakeTile(f, tx, ty, r, wf = 0) {
   }
 }
 
-// آب: تایل متحرک + کرانه‌ها (کرانه فقط روی مرز) — هم در پخت کش و هم هر فریم استفاده می‌شود
+// آب (S2.7): بدنه بر اساسِ عمق + کاستیکِ ۴ فریم + ساحلِ mask4 + کفِ موج — همه در art/water.js (یک منبع با دانجن)
+let _bf = null;
+const _bcell = (x, y) => _bf.cell(x, y);
 function bakeWater(r, f, tx, ty, sx, sy, wf) {
-  groundSprite('water', (tx * 5 + ty * 3) & 3, false, wf).over(r, sx, sy);
-  if (!f.cell(tx, ty - 1) || f.cell(tx, ty - 1).kind !== 'water') r.rect(sx, sy, 16, 1, E.waterSh);
-  if (!f.cell(tx, ty + 1) || f.cell(tx, ty + 1).kind !== 'water') { r.rect(sx, sy + 14, 16, 1, E.waterSh); r.rect(sx, sy + 15, 16, 1, E.waterSh); }
-  if (!f.cell(tx - 1, ty) || f.cell(tx - 1, ty).kind !== 'water') r.rect(sx, sy, 1, 16, E.waterSh);
-  if (!f.cell(tx + 1, ty) || f.cell(tx + 1, ty).kind !== 'water') r.rect(sx + 15, sy, 1, 16, E.waterSh);
+  _bf = f;
+  drawWater(r, sx, sy, _bcell, tx, ty, wf, SHORE_FARM);
 }
 
 // امضای ورودی‌های استاتیک یک سلول (kind/variant/wet/fenceH/gL/farmable + ردیف دروازه)
@@ -3127,12 +3274,15 @@ const __m_farm_render = (() => {
 
 
 
+
 const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
 const FENTS = []; // pool موجودات مزرعه
 const _gP = [255, 210, 90, 0]; // درخشش طلایی — اسکرچ
 const TREES = []; // درخت‌های مرئی — بازمصرف برای پرندگان // pool موجودات مزرعه (درخت/قهرمان/کارگر) — بازمصرف
 const _sprCache = new Map(); // کش اسپرایت قهرمان مزرعه
 const WF_SEQ = [0, 1, 2, 1]; // موج آب: ۳ فریم با سیکل نرم — ثابت، بدون تخصیص هر فریم
+let _fr = null; // S2.7: نگاشتِ سلولِ مزرعه برای پیش‌بینیِ آب (بدون تخصیص هر فریم)
+const _fcell = (x, y) => _fr.cell(x, y);
 // اسکرچ گزینه‌های اسپرایت — بدون آبجکت/spread جدید در هر فریم (فقط خوانده می‌شود)
 const _ho = { dir: 'down', anim: 'idle', phase: 0, breath: 0, moveW: 0, tool: 'none', actP: -1, blink: false, equip: null };
 
@@ -3160,7 +3310,7 @@ function farmHeroSprite(game) {
 function renderFarm(game, r) {
     const cx = Math.round(clamp(game.cam.x, Math.min(0, (WORLD_W - r.w) / 2), Math.max(0, WORLD_W - r.w)));
     const cy = Math.round(clamp(game.cam.y, Math.min(0, (WORLD_H - r.h) / 2), Math.max(0, WORLD_H - r.h)));
-    const f = game.farm, wf = [0, 1, 2, 1][Math.floor(game.time * 0.9) % 4]; // موج آب: سیکل آرام ~۱٫۱ث/فریم (ن۳۷)
+    const f = game.farm, wf = [0, 1, 2, 1][Math.floor(game.time * 0.9) % 4]; _fr = f; // موج آب: سیکل آرام ~۱٫۱ث/فریم (ن۳۷)
     const x0 = Math.max(0, Math.floor(cx / TILE)), x1 = Math.min(COLS - 1, Math.ceil((cx + r.w) / TILE));
     const y0 = Math.max(0, Math.floor(cy / TILE)), y1 = Math.min(ROWS - 1, Math.ceil((cy + r.h) / TILE));
     // S2.1: لایه‌ی استاتیک از کش (blit تایل‌به‌تایل؛ تایلِ مات = کپیِ u32، بدون blend) — dirtyها پیش از blit بازپخت می‌شوند
@@ -3176,7 +3326,7 @@ function renderFarm(game, r) {
       const c = f.cell(tx, ty);
       const sx = tx * TILE - cx, sy = ty * TILE - cy;
       if (!allOp && !rowOp) terr.blit(r, tx * TILE, ty * TILE, TILE, TILE, sx, sy, OPAQUE[ty * COLS + tx] !== 0);
-      if (c.kind === 'water') bakeWater(r, f, tx, ty, sx, sy, wf); // آب متحرک: هر فریم روی کش
+      if (c.kind === 'water') drawWater(r, sx, sy, _fcell, tx, ty, wf, SHORE_FARM); // S2.7: آب متحرک (عمق+کاستیک+ساحل+کف) هر فریم روی کش
       if (c.crop) { // S2.6: سایهٔ تماسِ ۲px زیر گیاه (محصول روی خاک «نشانده» می‌شود)
         r.rect(sx + 5, sy + 14, 6, 1, c.wet ? E.soilWetSh : E.soilSh);
         r.rect(sx + 6, sy + 15, 4, 1, c.wet ? rp('soilWet', 1) : rp('soil', 1));
@@ -7456,6 +7606,7 @@ const __m_run_render = (() => {
 
 
 
+
 const _sprCache = new Map(); // کش اسپرایت قهرمان (LRU)
 const ENTS = []; // لیست موجودات قابل رندر — بازمصرف بین فریم‌ها
 const _lights = []; // لیست تخت نورها — بدون تخصیص آبجکت
@@ -7516,8 +7667,10 @@ function blitRegion(dst, src, sx0, sy0, w, h) {
 }
 
 // رندر کامل صحنه‌ی دانجن در Raster
+let _dr = null; // S2.7: نگاشتِ سلولِ دانجن برای پیش‌بینیِ آب (بدون تخصیصِ هر فریم)
+const _dcell = (x, y) => _dr.cell(x, y);
 function renderRun(run, r) {
-    const D = run.dungeon, h = run.hero;
+    const D = run.dungeon, h = run.hero; _dr = D;
     const [shx, shy] = run.fx.offset(run.time);
     let cx = clamp(Math.round(run.cam.x) + shx, 0, WORLD_W - r.w);
     let cy = clamp(Math.round(run.cam.y) + shy, 0, WORLD_H - r.h);
@@ -7527,15 +7680,8 @@ function renderRun(run, r) {
     const dwf = [0, 1, 2, 1][Math.floor(run.time * 0.9) % 4]; // ن۳۷: سیکل آرام آب دانجن
     for (let ty = Math.floor(cy / TILE); ty <= Math.min(ROWS - 1, Math.ceil((cy + r.h) / TILE)); ty++)
       for (let tx = Math.floor(cx / TILE); tx <= Math.min(COLS - 1, Math.ceil((cx + r.w) / TILE)); tx++)
-        if (D.cell(tx, ty).kind === 'water') { // آب گودال دانجن + کرانه‌ی مرزی (ن۳۸)
-          groundSprite('water', (tx * 5 + ty * 3) & 3, false, dwf).over(r, tx * TILE - cx, ty * TILE - cy); // ن۳۸: فاز موج per-tile
-          const W8 = (x2, y2) => { const c2 = D.cell(x2, y2); return !c2 || c2.kind !== 'water'; };
-          const wx = tx * TILE - cx, wy = ty * TILE - cy;
-          if (W8(tx, ty - 1)) r.rect(wx, wy, 16, 1, E.waterSh);
-          if (W8(tx, ty + 1)) { r.rect(wx, wy + 14, 16, 1, E.waterSh); r.rect(wx, wy + 15, 16, 1, E.waterSh); }
-          if (W8(tx - 1, ty)) r.rect(wx, wy, 1, 16, E.waterSh);
-          if (W8(tx + 1, ty)) r.rect(wx + 15, wy, 1, 16, E.waterSh);
-        }
+        // S2.7: همان ماژولِ آبِ مزرعه — عمق + کاستیک + ساحلِ سنگیِ هم‌تُن با کفِ تم
+        if (D.cell(tx, ty).kind === 'water') drawWater(r, tx * TILE - cx, ty * TILE - cy, _dcell, tx, ty, dwf, dungeonShore(D.theme));
     {
       const sc = D.stairs;
       const sx = sc.x * TILE - cx, sy = sc.y * TILE - cy;

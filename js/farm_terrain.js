@@ -9,6 +9,7 @@ import { mask4 } from './art/autotile.js'; // S2.6: لبهٔ خاک/گزارهٔ
 import { fbm, hash2, vnoise } from './art/noise.js';
 import { bayer4 } from './art/dither.js';
 import { rp } from './art/ramps.js';
+import { drawWater, SHORE_FARM } from './art/water.js'; // S2.7: آب و کرانه — یک منبع
 
 let cache = null;      // Raster کل دنیا (۴۸۰×۳۲۰)
 let bound = null;      // فارمِ متصل به کش (هر Game کش خودش را دارد)
@@ -96,14 +97,14 @@ function bakeTile(f, tx, ty, r, wf = 0) {
   else if (c.kind === 'path') base = groundSprite('path', pathVar(f, tx, ty)); // S2.5: واریانتِ جهت‌دار
   else if (c.kind === 'tree') base = groundSprite('grass', (hash2(tx, ty, 32) * 8) | 0);
   else if (c.kind === 'soil') base = groundSprite('soil', (hash2(tx, ty, 24) * 8) | 0, c.wet); // S2.6: دانه‌بندیِ per-تایل
-  else if (c.kind === 'water') base = groundSprite('water', (tx * 5 + ty * 3) & 3, false, wf);
+  else if (c.kind === 'water') base = null; // S2.7: تایلِ آب کامل در bakeWater (بدنه+کاستیک+ساحل+کف)
   else if (c.kind === 'hedge') base = groundSprite('hedge');
   else if (c.kind === 'gate') base = groundSprite(c.gL ? 'gateL' : 'gateR', ty === f.gate.y ? 0 : 1);
   else if (c.kind === 'sign') base = groundSprite('grass', 0);
   else if (c.kind === 'house') base = groundSprite('grass', 0);
   else if (c.kind === 'scarecrow') base = groundSprite('grass', 0);
   else { groundSprite('grass', (tx * 5 + ty * 3) & 3).over(r, sx, sy); base = groundSprite(c.fenceH ? 'fence' : 'fencePost'); }
-  base.over(r, sx, sy);
+  if (base) base.over(r, sx, sy);
   // S2.4: تُنِ ماکرو روی زمینِ چمنی (سازه‌ها هم چون پایه‌شان چمن است یکدست می‌مانند)
   if (c.kind === 'grass' || c.kind === 'tree' || c.kind === 'sign' || c.kind === 'house' || c.kind === 'scarecrow') tuftBake(r, sx, sy, tx, ty);
   if (c.kind === 'path') drawPathEdge(r, sx, sy, tx, ty, f);
@@ -116,13 +117,12 @@ function bakeTile(f, tx, ty, r, wf = 0) {
   }
 }
 
-// آب: تایل متحرک + کرانه‌ها (کرانه فقط روی مرز) — هم در پخت کش و هم هر فریم استفاده می‌شود
+// آب (S2.7): بدنه بر اساسِ عمق + کاستیکِ ۴ فریم + ساحلِ mask4 + کفِ موج — همه در art/water.js (یک منبع با دانجن)
+let _bf = null;
+const _bcell = (x, y) => _bf.cell(x, y);
 export function bakeWater(r, f, tx, ty, sx, sy, wf) {
-  groundSprite('water', (tx * 5 + ty * 3) & 3, false, wf).over(r, sx, sy);
-  if (!f.cell(tx, ty - 1) || f.cell(tx, ty - 1).kind !== 'water') r.rect(sx, sy, 16, 1, E.waterSh);
-  if (!f.cell(tx, ty + 1) || f.cell(tx, ty + 1).kind !== 'water') { r.rect(sx, sy + 14, 16, 1, E.waterSh); r.rect(sx, sy + 15, 16, 1, E.waterSh); }
-  if (!f.cell(tx - 1, ty) || f.cell(tx - 1, ty).kind !== 'water') r.rect(sx, sy, 1, 16, E.waterSh);
-  if (!f.cell(tx + 1, ty) || f.cell(tx + 1, ty).kind !== 'water') r.rect(sx + 15, sy, 1, 16, E.waterSh);
+  _bf = f;
+  drawWater(r, sx, sy, _bcell, tx, ty, wf, SHORE_FARM);
 }
 
 // امضای ورودی‌های استاتیک یک سلول (kind/variant/wet/fenceH/gL/farmable + ردیف دروازه)

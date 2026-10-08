@@ -8,6 +8,7 @@ import { applyRim } from './art/rim.js';
 import { clamp } from './dungeon.js';
 import { drawDungeonDepth } from './art/dungeon_depth.js';
 import { drawTorches, drawChests, drawDrops, drawShrines } from './art/dungeon_props.js';
+import { drawWater, dungeonShore } from './art/water.js'; // S2.7: آب و کرانه (یک منبع با مزرعه)
 import { drawProjs } from './projectiles.js'; // ن۴۴
 import { applyDarkness } from './art/light.js';
 import { t, faNum } from './i18n.js';
@@ -72,8 +73,10 @@ function blitRegion(dst, src, sx0, sy0, w, h) {
 }
 
 // رندر کامل صحنه‌ی دانجن در Raster
+let _dr = null; // S2.7: نگاشتِ سلولِ دانجن برای پیش‌بینیِ آب (بدون تخصیصِ هر فریم)
+const _dcell = (x, y) => _dr.cell(x, y);
 export function renderRun(run, r) {
-    const D = run.dungeon, h = run.hero;
+    const D = run.dungeon, h = run.hero; _dr = D;
     const [shx, shy] = run.fx.offset(run.time);
     let cx = clamp(Math.round(run.cam.x) + shx, 0, WORLD_W - r.w);
     let cy = clamp(Math.round(run.cam.y) + shy, 0, WORLD_H - r.h);
@@ -83,15 +86,8 @@ export function renderRun(run, r) {
     const dwf = [0, 1, 2, 1][Math.floor(run.time * 0.9) % 4]; // ن۳۷: سیکل آرام آب دانجن
     for (let ty = Math.floor(cy / TILE); ty <= Math.min(ROWS - 1, Math.ceil((cy + r.h) / TILE)); ty++)
       for (let tx = Math.floor(cx / TILE); tx <= Math.min(COLS - 1, Math.ceil((cx + r.w) / TILE)); tx++)
-        if (D.cell(tx, ty).kind === 'water') { // آب گودال دانجن + کرانه‌ی مرزی (ن۳۸)
-          groundSprite('water', (tx * 5 + ty * 3) & 3, false, dwf).over(r, tx * TILE - cx, ty * TILE - cy); // ن۳۸: فاز موج per-tile
-          const W8 = (x2, y2) => { const c2 = D.cell(x2, y2); return !c2 || c2.kind !== 'water'; };
-          const wx = tx * TILE - cx, wy = ty * TILE - cy;
-          if (W8(tx, ty - 1)) r.rect(wx, wy, 16, 1, E.waterSh);
-          if (W8(tx, ty + 1)) { r.rect(wx, wy + 14, 16, 1, E.waterSh); r.rect(wx, wy + 15, 16, 1, E.waterSh); }
-          if (W8(tx - 1, ty)) r.rect(wx, wy, 1, 16, E.waterSh);
-          if (W8(tx + 1, ty)) r.rect(wx + 15, wy, 1, 16, E.waterSh);
-        }
+        // S2.7: همان ماژولِ آبِ مزرعه — عمق + کاستیک + ساحلِ سنگیِ هم‌تُن با کفِ تم
+        if (D.cell(tx, ty).kind === 'water') drawWater(r, tx * TILE - cx, ty * TILE - cy, _dcell, tx, ty, dwf, dungeonShore(D.theme));
     {
       const sc = D.stairs;
       const sx = sc.x * TILE - cx, sy = sc.y * TILE - cy;

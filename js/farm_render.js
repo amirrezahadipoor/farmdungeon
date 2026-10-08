@@ -10,7 +10,8 @@ import { applyNight, nightFactor } from './night.js';
 import { drawBirds } from './art/critters.js';
 import { drawRain, isRaining, lightningK, flashTint, drawLightning, drawPondRipples } from './art/weather.js';
 import { drawHeroFrame, frameKey, framePhase, halfSprite } from './art/hero.js';
-import { flushDirty, bakeWater, OPAQUE } from './farm_terrain.js'; // S2.1: کش زمین + dirty-tile
+import { flushDirty, OPAQUE } from './farm_terrain.js'; // S2.1: کش زمین + dirty-tile
+import { drawWater, SHORE_FARM } from './art/water.js'; // S2.7: آب و کرانه (یک منبع با دانجن)
 import { HOX, HOY } from './art/hero_pose.js';
 import { applyRim } from './art/rim.js';
 
@@ -20,6 +21,8 @@ const _gP = [255, 210, 90, 0]; // درخشش طلایی — اسکرچ
 const TREES = []; // درخت‌های مرئی — بازمصرف برای پرندگان // pool موجودات مزرعه (درخت/قهرمان/کارگر) — بازمصرف
 const _sprCache = new Map(); // کش اسپرایت قهرمان مزرعه
 const WF_SEQ = [0, 1, 2, 1]; // موج آب: ۳ فریم با سیکل نرم — ثابت، بدون تخصیص هر فریم
+let _fr = null; // S2.7: نگاشتِ سلولِ مزرعه برای پیش‌بینیِ آب (بدون تخصیص هر فریم)
+const _fcell = (x, y) => _fr.cell(x, y);
 // اسکرچ گزینه‌های اسپرایت — بدون آبجکت/spread جدید در هر فریم (فقط خوانده می‌شود)
 const _ho = { dir: 'down', anim: 'idle', phase: 0, breath: 0, moveW: 0, tool: 'none', actP: -1, blink: false, equip: null };
 
@@ -47,7 +50,7 @@ export function farmHeroSprite(game) {
 export function renderFarm(game, r) {
     const cx = Math.round(clamp(game.cam.x, Math.min(0, (WORLD_W - r.w) / 2), Math.max(0, WORLD_W - r.w)));
     const cy = Math.round(clamp(game.cam.y, Math.min(0, (WORLD_H - r.h) / 2), Math.max(0, WORLD_H - r.h)));
-    const f = game.farm, wf = [0, 1, 2, 1][Math.floor(game.time * 0.9) % 4]; // موج آب: سیکل آرام ~۱٫۱ث/فریم (ن۳۷)
+    const f = game.farm, wf = [0, 1, 2, 1][Math.floor(game.time * 0.9) % 4]; _fr = f; // موج آب: سیکل آرام ~۱٫۱ث/فریم (ن۳۷)
     const x0 = Math.max(0, Math.floor(cx / TILE)), x1 = Math.min(COLS - 1, Math.ceil((cx + r.w) / TILE));
     const y0 = Math.max(0, Math.floor(cy / TILE)), y1 = Math.min(ROWS - 1, Math.ceil((cy + r.h) / TILE));
     // S2.1: لایه‌ی استاتیک از کش (blit تایل‌به‌تایل؛ تایلِ مات = کپیِ u32، بدون blend) — dirtyها پیش از blit بازپخت می‌شوند
@@ -63,7 +66,7 @@ export function renderFarm(game, r) {
       const c = f.cell(tx, ty);
       const sx = tx * TILE - cx, sy = ty * TILE - cy;
       if (!allOp && !rowOp) terr.blit(r, tx * TILE, ty * TILE, TILE, TILE, sx, sy, OPAQUE[ty * COLS + tx] !== 0);
-      if (c.kind === 'water') bakeWater(r, f, tx, ty, sx, sy, wf); // آب متحرک: هر فریم روی کش
+      if (c.kind === 'water') drawWater(r, sx, sy, _fcell, tx, ty, wf, SHORE_FARM); // S2.7: آب متحرک (عمق+کاستیک+ساحل+کف) هر فریم روی کش
       if (c.crop) { // S2.6: سایهٔ تماسِ ۲px زیر گیاه (محصول روی خاک «نشانده» می‌شود)
         r.rect(sx + 5, sy + 14, 6, 1, c.wet ? E.soilWetSh : E.soilSh);
         r.rect(sx + 6, sy + 15, 4, 1, c.wet ? rp('soilWet', 1) : rp('soil', 1));
