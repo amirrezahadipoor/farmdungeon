@@ -41,7 +41,7 @@ export class Dungeon {
 
   _gen() {
     const R = this.rng;
-    this.theme = Math.floor((this.floor - 1) / 5) % 4; // تم: سنگ→خزه→گدازه→یخ
+    this.theme = Math.floor((this.floor - 1) / 5) % 6; // S3.10: ۶ تم — سنگ→خزه→گدازه→یخ→**باتلاق**→**معدن**
     const bp = floor10(this.floor) ? BOSS_BLUEPRINT : BLUEPRINTS[Math.floor(R() * BLUEPRINTS.length)];
     const flip = R() < 0.5; // قرینه‌ی افقی برای تنوع — اتصال حفظ می‌شود
     const FX = (x) => (flip ? this.cols - 1 - x : x);

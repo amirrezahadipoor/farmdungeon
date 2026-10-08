@@ -10,7 +10,7 @@ import { DPAL } from './ground.js';
 import { bayer4 } from './dither.js';
 
 export const AO_PROF = [1, 0.62, 0.3, 0.12];  // پوششِ هر پله بر حسبِ فاصله از دیوار (px)
-const K = [1, 0.95, 0.7, 0.85];               // شدت per تم
+const K = [1, 0.95, 0.7, 0.85, 1.05, 0.9]; // شدت per تم (S3.10: باتلاق/معدن)
 
 const kindAt = (D, x, y) => { const c = D.cell(x, y); return c ? c.kind : 'wall'; };
 const isWall = (D, x, y) => kindAt(D, x, y) === 'wall';

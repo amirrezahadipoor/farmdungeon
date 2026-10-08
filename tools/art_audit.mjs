@@ -76,13 +76,13 @@ function spriteStats(s, th = 200, yMax = 1e9) {
 }
 
 // ---------- کفِ هر تم دانجن (میانگین L کاشی‌های dfloor) ----------
-const floorL = [0, 1, 2, 3].map((t) => {
+const floorL = [0, 1, 2, 3, 4, 5].map((t) => { // S3.10: ۶ تم
   const rr = new Raster(16 * 8, 16);
   for (let i = 0; i < 8; i++) groundSprite('dfloor', i % 4, false, 0, t).over(rr, i * 16, 0);
   const st = spriteStats(rr);
   return st.avgL;
 });
-const floorAvg = floorL[1] ? (floorL[0] + floorL[1] + floorL[2] + floorL[3]) / 4 : 0;
+const floorAvg = floorL[1] ? floorL.reduce((a, b) => a + b, 0) / floorL.length : 0;
 
 // ---------- صحنه‌های مرجع ----------
 // random قطعی برای ساخت صحنه (Monster/موجودات زمان تصادفی می‌گیرند → درز M6 ناپایدار می‌شد)

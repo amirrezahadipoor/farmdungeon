@@ -32,8 +32,8 @@ const _dsh = [];
 export function dungeonShore(t) {
   if (!_dsh[t]) {
     const P = DPAL(t);
-    const WB = ['water', 'water', 'stoneForge', 'magicCyan'][t] || 'water';   // رمپِ بدنه‌ی آبِ تم
-    const WF = [['water', 4], ['water', 4], ['fire', 6], ['magicCyan', 6]][t] || ['water', 4]; // [رمپِ کفِ موج، پله]
+    const WB = ['water', 'water', 'stoneForge', 'magicCyan', 'leaf', 'metal'][t] || 'water';   // رمپِ بدنه‌ی آبِ تم (S3.10: باتلاق سبز · معدن خاکستریِ معدنی)
+    const WF = [['water', 4], ['water', 4], ['fire', 6], ['magicCyan', 6], ['leaf', 6], ['metal', 6]][t] || ['water', 4]; // [رمپِ کفِ موج، پله]
     _dsh[t] = {
       // ساحلِ **تیره**: سنگِ خیس یک پله زیرِ کف (L۳۹ در برابر کفِ L۵۲) — غار تاریک است و
       // روشناییِ لبه از کفِ موج می‌آید نه از سنگ؛ آبِ کم‌عمق یک پله روشن‌تر از ساحل ⇒ مرزِ سخت نداریم

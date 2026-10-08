@@ -6,15 +6,17 @@ import { hash2 } from './noise.js'; // S2.4: خوشه‌های چمنِ قطعی
 // ---------- تایل‌های زمین ----------
 // کش عددی — حلقه‌ی رندر ~۶۰۰ بار/فریم صدا می‌زند؛ کلید رشته‌ای = زبال‌ساز پنهان
 export const KIND_ID = { grass: 0, soil: 1, path: 2, hedge: 3, water: 4, fence: 5, dfloor: 6, wall: 7, stairs: 8, gateL: 9, gateR: 10, pillar: 11, decor: 12, bush: 13, fencePost: 14 };
-const _gnum = new Array(15 * 512 * 4).fill(null); // S2.8: ۶۴ واریانت × (خیس/نه) × ۴ فریم = ۵۱۲ اسلات به‌ازای هر کیند؛ ۴ تم دانجن (ن۳۲)
+const _gnum = new Array(15 * 512 * 6).fill(null); // S2.8: ۶۴ واریانت × (خیس/نه) × ۴ فریم = ۵۱۲ اسلات/کیند · S3.10: ۶ تم دانجن
 
 // تم رنگی دانجن (ن۳۲ → S1.4): هر تم یک رمپ سنگ + رمپِ هویتِ خزه/گدازه/یخ
 // قانون کنتراست S1.4 (اندازه‌گیری‌شده): L کف ≈ ۵۲/۶۵ · نمای دیوار (brick) = ۳۸ → ΔL ۲۰ ✓ · کلاهک (stone) = ۷۸ → ΔL ۲۰ ✓
 // کلیدهای قدیمی DPAL حفظ شده‌اند (brick/brickHi/brickOut/stone/stoneHi/stoneSh/warm/mortar/cap/moss/mossD/stairs/stairsSh/glint) + تازه: floorA/floorB
 // S3.9: تم ۳ (یخ) از رمپِ **موجودِ** waterDeep می‌آید (هم‌نردبانِ L با بقیه‌ی تم‌ها: brick[2]/floor[3]/[4]) —
 // «مجموعه‌ی رمپ‌ها» دست‌نخورده می‌ماند چون outline.js برای اسپرایت‌های مزرعه (درخت/خانه) از همین مجموعه رنگ می‌گیرد (درس ۸۹)
-const STONE_THEMES = ['stoneCool', 'stoneMoss', 'stoneForge', 'waterDeep'];  // تم ۰..۳
-const MOSS_THEMES = ['leaf', 'leaf', 'fire', 'magicCyan'];                  // هویتِ خزه/گدازه/یخ
+// S3.10: تم ۴ «باتلاق» = familyِ grassDry (خاک‌رنگِ لجنی) · تم ۵ «معدن» = familyِ dust (سنگِ خامِ گرم)
+// همه از خانواده‌های **موجودِ** رمپ (درس ۸۹: مجموعهٔ رمپ‌ها دست‌نخورده ⇒ outline/پالت مسترِ مزرعه بی‌تغییر)
+const STONE_THEMES = ['stoneCool', 'stoneMoss', 'stoneForge', 'waterDeep', 'grassDry', 'dust']; // تم ۰..۵
+const MOSS_THEMES = ['leaf', 'leaf', 'fire', 'magicCyan', 'leaf', 'gold']; // هویتِ خزه/گدازه/یخ/باتلاق(گیاه)/معدن(طلا)
 const DTHEME = STONE_THEMES.map((X, t) => {
   const M = MOSS_THEMES[t];
   const O = {
