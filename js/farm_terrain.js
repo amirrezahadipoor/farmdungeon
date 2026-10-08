@@ -89,6 +89,32 @@ function soilBake(r, f, tx, ty, sx, sy) {
   }
 }
 // ترتیب رسمِ قدیمیِ یک تایل استاتیک — عیناً از farm_render منتقل شد
+// S2.8: شکلِ حصار/پرچین از mask4 (همسایهٔ هم‌جنس) + واریانتِ چوب/برگ از هشِ per-تایل
+// ⇒ ریل/تیرک فقط آن‌جایی که همسایه هست کشیده می‌شود و بافت هر ۱۶px تکرار نمی‌شود
+const fenceVar = (f, tx, ty) =>
+  mask4((x, y) => { const c = f.cell(x, y); return !!c && c.kind === 'fence'; }, tx, ty) |
+  ((((hash2(tx, ty, 34) * 3) | 0) & 3) << 4);
+const hedgeVar = (f, tx, ty) =>
+  mask4((x, y) => { const c = f.cell(x, y); return !!c && c.kind === 'hedge'; }, tx, ty) |
+  ((((hash2(tx, ty, 33) * 4) | 0) & 3) << 4);
+// S2.8: سایهٔ تماس روی چمن (۲px، SE) — هنگامِ پختِ تایلِ چمن از همسایهٔ N/W خوانده می‌شود
+// (بوته روی تایلِ چمنی است ⇒ همان شرطِ کشیدنِ بوته در bakeTile این‌جا «سازه» حساب می‌شود)
+const hasBush = (f, tx, ty) => {
+  const c = f.cell(tx, ty);
+  if (!c || c.kind !== 'grass' || c.farmable || !f.insideFence(tx, ty)) return false;
+  const b = f.cell(tx, ty + 1);
+  return !!b && b.farmable && b.kind === 'grass';
+};
+const isStruct = (f, tx, ty) => {
+  const c = f.cell(tx, ty);
+  return !!c && (c.kind === 'fence' || c.kind === 'hedge' || hasBush(f, tx, ty));
+};
+function structShadow(r, f, tx, ty, sx, sy) {
+  const sh = rp('grass', 3); // یک پله تیره‌تر از چمنِ پایه (L۵۲ در برابر L۶۶ ⇒ ΔL ۱۴)
+  if (isStruct(f, tx, ty - 1)) { r.rect(sx, sy, TILE, 1, sh); r.rect(sx + 1, sy + 1, TILE - 1, 1, sh); }
+  if (isStruct(f, tx - 1, ty)) { r.rect(sx, sy, 1, TILE, sh); r.rect(sx + 1, sy + 1, 1, TILE - 1, sh); }
+}
+
 function bakeTile(f, tx, ty, r, wf = 0) {
   const c = f.cell(tx, ty); if (!c) return;
   const sx = tx * TILE, sy = ty * TILE;
@@ -98,15 +124,20 @@ function bakeTile(f, tx, ty, r, wf = 0) {
   else if (c.kind === 'tree') base = groundSprite('grass', (hash2(tx, ty, 32) * 8) | 0);
   else if (c.kind === 'soil') base = groundSprite('soil', (hash2(tx, ty, 24) * 8) | 0, c.wet); // S2.6: دانه‌بندیِ per-تایل
   else if (c.kind === 'water') base = null; // S2.7: تایلِ آب کامل در bakeWater (بدنه+کاستیک+ساحل+کف)
-  else if (c.kind === 'hedge') base = groundSprite('hedge');
+  else if (c.kind === 'hedge') base = groundSprite('hedge', hedgeVar(f, tx, ty)); // S2.8: ۱۶ شکلِ mask4
   else if (c.kind === 'gate') base = groundSprite(c.gL ? 'gateL' : 'gateR', ty === f.gate.y ? 0 : 1);
   else if (c.kind === 'sign') base = groundSprite('grass', 0);
   else if (c.kind === 'house') base = groundSprite('grass', 0);
   else if (c.kind === 'scarecrow') base = groundSprite('grass', 0);
-  else { groundSprite('grass', (tx * 5 + ty * 3) & 3).over(r, sx, sy); base = groundSprite(c.fenceH ? 'fence' : 'fencePost'); }
+  else if (c.kind === 'fence') { // S2.8: چمنِ زیر + ریل/تیرکِ mask4 (ریل فقط به سمتِ همسایهٔ حصار می‌رود)
+    groundSprite('grass', (tx * 5 + ty * 3) & 3).over(r, sx, sy);
+    base = groundSprite('fence', fenceVar(f, tx, ty));
+  }
+  else { groundSprite('grass', (tx * 5 + ty * 3) & 3).over(r, sx, sy); base = null; }
   if (base) base.over(r, sx, sy);
   // S2.4: تُنِ ماکرو روی زمینِ چمنی (سازه‌ها هم چون پایه‌شان چمن است یکدست می‌مانند)
   if (c.kind === 'grass' || c.kind === 'tree' || c.kind === 'sign' || c.kind === 'house' || c.kind === 'scarecrow') tuftBake(r, sx, sy, tx, ty);
+  if (c.kind === 'grass') structShadow(r, f, tx, ty, sx, sy); // S2.8: سایهٔ تماسِ حصار/پرچین/بوته (SE)
   if (c.kind === 'path') drawPathEdge(r, sx, sy, tx, ty, f);
   if (c.kind === 'soil') soilBake(r, f, tx, ty, sx, sy); // S2.6
   if (c.kind === 'water') bakeWater(r, f, tx, ty, sx, sy, wf);

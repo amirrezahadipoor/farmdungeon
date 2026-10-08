@@ -1,11 +1,12 @@
 // art/ground.js — تایل‌های زمین مزرعه: چمن/خاک/آب/پرچین/حصار/دروازه/بوته
 import { TILE, E, sprite, h2 } from './palette_env.js';
 import { rp } from './ramps.js';
+import { drawFence, drawHedge } from './fence.js'; // S2.8
 import { hash2 } from './noise.js'; // S2.4: خوشه‌های چمنِ قطعی
 // ---------- تایل‌های زمین ----------
 // کش عددی — حلقه‌ی رندر ~۶۰۰ بار/فریم صدا می‌زند؛ کلید رشته‌ای = زبال‌ساز پنهان
 export const KIND_ID = { grass: 0, soil: 1, path: 2, hedge: 3, water: 4, fence: 5, dfloor: 6, wall: 7, stairs: 8, gateL: 9, gateR: 10, pillar: 11, decor: 12, bush: 13, fencePost: 14 };
-const _gnum = new Array(15 * 64 * 4).fill(null); // S2.4: ۸ واریانت → ۶۴ اسلات به‌ازای هر کیند؛ ۴ تم دانجن (ن۳۲)
+const _gnum = new Array(15 * 512 * 4).fill(null); // S2.8: ۶۴ واریانت × (خیس/نه) × ۴ فریم = ۵۱۲ اسلات به‌ازای هر کیند؛ ۴ تم دانجن (ن۳۲)
 
 // تم رنگی دانجن (ن۳۲ → S1.4): هر تم یک رمپ سنگ + رمپِ هویتِ خزه/گدازه/یخ
 // قانون کنتراست S1.4 (اندازه‌گیری‌شده): L کف ≈ ۵۲/۶۵ · نمای دیوار (brick) = ۳۸ → ΔL ۲۰ ✓ · کلاهک (stone) = ۷۸ → ΔL ۲۰ ✓
@@ -26,7 +27,7 @@ const DTHEME = STONE_THEMES.map((X, t) => {
 export const DPAL = (t) => DTHEME[t] || DP0;
 
 export function groundSprite(kind, variant = 0, wet = false, waterFrame = 0, theme = 0) {
-  const nk = theme * 960 + KIND_ID[kind] * 64 + (variant & 7) * 8 + (wet ? 4 : 0) + (waterFrame & 3); // S2.4: ۸ واریانت
+  const nk = theme * 7680 + KIND_ID[kind] * 512 + ((variant & 63) | (wet ? 64 : 0)) * 4 + (waterFrame & 3); // S2.8: ۶۴ واریانت
   let cached = _gnum[nk];
   if (cached) return cached;
   const P = DPAL(theme); // پالت سنگ دانجن — تم ۰ همان E است
@@ -76,38 +77,10 @@ export function groundSprite(kind, variant = 0, wet = false, waterFrame = 0, the
       if (ns) { r.rect(5, 0, 1, 16, rut); r.rect(11, 0, 1, 16, rut); }
       // بافتِ سطح **عمداً صفر** است: تُنِ بومیِ تایل فقط base + رِیل است و همه‌ی دانه‌بندی/لکه‌ها
       // از میدان‌های **جهانی** در drawPathEdge می‌آید ⇒ جهشِ L در مرزِ دو تایلِ راه ≈۰ (پذیرشِ S2.5: ≤۴)
-    } else if (kind === 'hedge') {
-      r.rect(0, 0, 16, 16, E.hedgeSh);
-      for (const [bx, by] of [[2, 3], [7, 2], [12, 4], [4, 8], [10, 9], [13, 12], [2, 12], [7, 12]]) {
-        r.rect(bx, by, 3, 3, (bx + by) % 3 ? E.hedge : E.hedgeHi);
-        r.px(bx + 1, by, E.hedgeHi);
-        r.rect(bx, by + 2, 3, 1, E.hedgeSh);
-      }
-      // ن۳۸: ردیف‌های تختِ hedgeSh (y0,1,6,7,15) با dither روشن شکسته شدند — حذف نوار تیره‌ی هر-۱۶px در حصار عمودی
-      for (let x = 0; x < 16; x++) {
-        const m = x & 3;
-        if (m === 1 || m === 3) r.px(x, 15, E.hedge);
-        else if (m === 2) r.px(x, 15, E.hedgeHi);
-        if (m === 0 || m === 2) r.px(x, 0, E.hedge);
-        else if (m === 1) r.px(x, 0, E.hedgeHi);
-        if (m === 0) { r.px(x, 1, E.hedge); r.px(x, 6, E.hedge); }
-        else if (m === 2) { r.px(x, 1, E.hedgeHi); r.px(x, 7, E.hedgeHi); }
-        else if (m === 3) r.px(x, 7, E.hedge);
-      }
-    } else if (kind === 'water') { // ۳ فریم موجی: سیکل 0→1→2→1 — یکدست (ن۳۸: نوارهای هر-تایلی حذف شدند؛ لبه‌ی کرانه در رندر صحنه بر اساس همسایه‌ها)
-      r.rect(0, 0, 16, 16, E.water);
-      // ن۳۸: فاز موج = فریم + واریانتِ مختصاتی → تایل‌های مجاور هم‌فاز نیستند، شبکه‌ی ۱۶px نامرئی
-      const ph = (waterFrame + (variant & 3)) & 3;
-      r.rect(2, 4 + ph, 5, 1, E.waterHi);
-      r.rect(9, 9 - ph, 5, 1, E.waterHi);
-      r.rect(4 + ph, 12, 4, 1, E.waterSh);
-      r.px(12 + ph, 3, E.sparkle);
-      r.px(3, 8 - waterFrame, E.sparkle);
-    } else if (kind === 'fence') { // ریل در تمام عرض → اتصال به همسایه‌های چپ/راست
-      r.rect(0, 5, 16, 2, E.wood); r.rect(0, 11, 16, 2, E.wood);
-      r.rect(0, 5, 16, 1, E.woodHi); r.rect(0, 11, 16, 1, E.woodHi);
-      r.rect(6, 2, 4, 12, E.wood); r.rect(6, 2, 1, 12, E.woodHi); r.rect(9, 2, 1, 12, E.woodSh);
-      r.rect(6, 1, 4, 1, E.woodHi); r.rect(6, 13, 4, 1, E.woodSh);
+    } else if (kind === 'hedge') { // S2.8: ۱۶ شکلِ mask4 + رویه‌ی روشن + سایه‌ی پایین + گوشه‌ی گرد
+      drawHedge(r, variant);
+    } else if (kind === 'fence') { // S2.8: ریل/تیرک بر اساسِ mask4 (در farm_terrain ساخته می‌شود)
+      drawFence(r, variant);
     } else if (kind === 'dfloor') {
       // سنگ‌فرش با دو تُن متناوب + درز تیره + جزئیات
       const warm = variant % 2 ? P.floorB : P.floorA;

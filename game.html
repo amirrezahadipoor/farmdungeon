@@ -1051,10 +1051,11 @@ const __m_art_ground = (() => {
 
 
 
+
 // ---------- تایل‌های زمین ----------
 // کش عددی — حلقه‌ی رندر ~۶۰۰ بار/فریم صدا می‌زند؛ کلید رشته‌ای = زبال‌ساز پنهان
 const KIND_ID = { grass: 0, soil: 1, path: 2, hedge: 3, water: 4, fence: 5, dfloor: 6, wall: 7, stairs: 8, gateL: 9, gateR: 10, pillar: 11, decor: 12, bush: 13, fencePost: 14 };
-const _gnum = new Array(15 * 64 * 4).fill(null); // S2.4: ۸ واریانت → ۶۴ اسلات به‌ازای هر کیند؛ ۴ تم دانجن (ن۳۲)
+const _gnum = new Array(15 * 512 * 4).fill(null); // S2.8: ۶۴ واریانت × (خیس/نه) × ۴ فریم = ۵۱۲ اسلات به‌ازای هر کیند؛ ۴ تم دانجن (ن۳۲)
 
 // تم رنگی دانجن (ن۳۲ → S1.4): هر تم یک رمپ سنگ + رمپِ هویتِ خزه/گدازه/یخ
 // قانون کنتراست S1.4 (اندازه‌گیری‌شده): L کف ≈ ۵۲/۶۵ · نمای دیوار (brick) = ۳۸ → ΔL ۲۰ ✓ · کلاهک (stone) = ۷۸ → ΔL ۲۰ ✓
@@ -1075,7 +1076,7 @@ const DTHEME = STONE_THEMES.map((X, t) => {
 const DPAL = (t) => DTHEME[t] || DP0;
 
 function groundSprite(kind, variant = 0, wet = false, waterFrame = 0, theme = 0) {
-  const nk = theme * 960 + KIND_ID[kind] * 64 + (variant & 7) * 8 + (wet ? 4 : 0) + (waterFrame & 3); // S2.4: ۸ واریانت
+  const nk = theme * 7680 + KIND_ID[kind] * 512 + ((variant & 63) | (wet ? 64 : 0)) * 4 + (waterFrame & 3); // S2.8: ۶۴ واریانت
   let cached = _gnum[nk];
   if (cached) return cached;
   const P = DPAL(theme); // پالت سنگ دانجن — تم ۰ همان E است
@@ -1125,38 +1126,10 @@ function groundSprite(kind, variant = 0, wet = false, waterFrame = 0, theme = 0)
       if (ns) { r.rect(5, 0, 1, 16, rut); r.rect(11, 0, 1, 16, rut); }
       // بافتِ سطح **عمداً صفر** است: تُنِ بومیِ تایل فقط base + رِیل است و همه‌ی دانه‌بندی/لکه‌ها
       // از میدان‌های **جهانی** در drawPathEdge می‌آید ⇒ جهشِ L در مرزِ دو تایلِ راه ≈۰ (پذیرشِ S2.5: ≤۴)
-    } else if (kind === 'hedge') {
-      r.rect(0, 0, 16, 16, E.hedgeSh);
-      for (const [bx, by] of [[2, 3], [7, 2], [12, 4], [4, 8], [10, 9], [13, 12], [2, 12], [7, 12]]) {
-        r.rect(bx, by, 3, 3, (bx + by) % 3 ? E.hedge : E.hedgeHi);
-        r.px(bx + 1, by, E.hedgeHi);
-        r.rect(bx, by + 2, 3, 1, E.hedgeSh);
-      }
-      // ن۳۸: ردیف‌های تختِ hedgeSh (y0,1,6,7,15) با dither روشن شکسته شدند — حذف نوار تیره‌ی هر-۱۶px در حصار عمودی
-      for (let x = 0; x < 16; x++) {
-        const m = x & 3;
-        if (m === 1 || m === 3) r.px(x, 15, E.hedge);
-        else if (m === 2) r.px(x, 15, E.hedgeHi);
-        if (m === 0 || m === 2) r.px(x, 0, E.hedge);
-        else if (m === 1) r.px(x, 0, E.hedgeHi);
-        if (m === 0) { r.px(x, 1, E.hedge); r.px(x, 6, E.hedge); }
-        else if (m === 2) { r.px(x, 1, E.hedgeHi); r.px(x, 7, E.hedgeHi); }
-        else if (m === 3) r.px(x, 7, E.hedge);
-      }
-    } else if (kind === 'water') { // ۳ فریم موجی: سیکل 0→1→2→1 — یکدست (ن۳۸: نوارهای هر-تایلی حذف شدند؛ لبه‌ی کرانه در رندر صحنه بر اساس همسایه‌ها)
-      r.rect(0, 0, 16, 16, E.water);
-      // ن۳۸: فاز موج = فریم + واریانتِ مختصاتی → تایل‌های مجاور هم‌فاز نیستند، شبکه‌ی ۱۶px نامرئی
-      const ph = (waterFrame + (variant & 3)) & 3;
-      r.rect(2, 4 + ph, 5, 1, E.waterHi);
-      r.rect(9, 9 - ph, 5, 1, E.waterHi);
-      r.rect(4 + ph, 12, 4, 1, E.waterSh);
-      r.px(12 + ph, 3, E.sparkle);
-      r.px(3, 8 - waterFrame, E.sparkle);
-    } else if (kind === 'fence') { // ریل در تمام عرض → اتصال به همسایه‌های چپ/راست
-      r.rect(0, 5, 16, 2, E.wood); r.rect(0, 11, 16, 2, E.wood);
-      r.rect(0, 5, 16, 1, E.woodHi); r.rect(0, 11, 16, 1, E.woodHi);
-      r.rect(6, 2, 4, 12, E.wood); r.rect(6, 2, 1, 12, E.woodHi); r.rect(9, 2, 1, 12, E.woodSh);
-      r.rect(6, 1, 4, 1, E.woodHi); r.rect(6, 13, 4, 1, E.woodSh);
+    } else if (kind === 'hedge') { // S2.8: ۱۶ شکلِ mask4 + رویه‌ی روشن + سایه‌ی پایین + گوشه‌ی گرد
+      drawHedge(r, variant);
+    } else if (kind === 'fence') { // S2.8: ریل/تیرک بر اساسِ mask4 (در farm_terrain ساخته می‌شود)
+      drawFence(r, variant);
     } else if (kind === 'dfloor') {
       // سنگ‌فرش با دو تُن متناوب + درز تیره + جزئیات
       const warm = variant % 2 ? P.floorB : P.floorA;
@@ -1305,6 +1278,79 @@ function groundSprite(kind, variant = 0, wet = false, waterFrame = 0, theme = 0)
 return {KIND_ID, DPAL, groundSprite};
 })();
 const {KIND_ID, DPAL, groundSprite} = __m_art_ground;
+const __m_art_fence = (() => {
+// art/fence.js — حصار و پرچینِ متصل (S2.8)
+// شکل از **mask4** (در farm_terrain از همسایه‌ی هم‌جنس ساخته می‌شود) · بافت از هشِ per-تایل
+// variant = mask4 | (واریانتِ چوب/برگ << ۴) ⇒ شبکه‌ی ۱۶px دیده نمی‌شود
+// قانونِ تُن (ادامه‌ی S2.6/S2.7): هر لبه یک پله ⇒ M8 پرچین/حصار↔چمن = ۰ (سایه‌ی تماس در farm_terrain کاملش می‌کند)
+
+
+
+const BN = 1, BE = 2, BS = 4, BW = 8;
+// [بیت، افقی، ازابتدا، ضلعِ مجاور در آغاز، ضلعِ مجاور در پایان]
+const SIDE = [[BN, 1, 1, BW, BE], [BE, 0, 0, BN, BS], [BS, 1, 0, BW, BE], [BW, 0, 1, BN, BS]];
+
+// حصار — روی چمن کشیده می‌شود (زمینه‌ی تایل را farm_terrain می‌کشد؛ این‌جا فقط چوب است)
+// ریل در امتدادِ هر محور که **همسایه‌ی حصار** دارد می‌رود؛ سرِ باز پیش از لبه با کلاهک تمام می‌شود
+// ⇒ ریل هیچ‌وقت روی چمنِ همسایه بیرون نمی‌زند (اتصالِ درست + حذفِ جهشِ L در مرز)
+// تیرک فقط در انتها/گوشه/تقاطع/تک — در **راستای ساده** نمی‌آید (حصار شلوغ نمی‌شود)
+function drawFence(r, v) {
+  const m = v & 15, wv = (v >> 4) & 3;
+  const wood = E.wood, hi = E.woodHi, sh = E.woodSh;
+  if (m & (BE | BW)) { // ریلِ افقی (بالا + پایین، هر کدام ۲px با هایلایتِ رویه)
+    const x0 = (m & BW) ? 0 : 1, x1 = (m & BE) ? TILE : TILE - 1;
+    r.rect(x0, 5, x1 - x0, 2, wood); r.rect(x0, 5, x1 - x0, 1, hi);
+    r.rect(x0, 11, x1 - x0, 2, wood); r.rect(x0, 11, x1 - x0, 1, hi);
+    if (!(m & BW)) { r.px(1, 6, sh); r.px(1, 12, sh); }   // کلاهکِ انتهای باز
+    if (!(m & BE)) { r.px(14, 6, sh); r.px(14, 12, sh); }
+  }
+  if (m & (BN | BS)) { // ریلِ عمودی (برای حصارِ ایستاده)
+    const y0 = (m & BN) ? 0 : 1, y1 = (m & BS) ? TILE : TILE - 1;
+    r.rect(5, y0, 2, y1 - y0, wood); r.rect(5, y0, 1, y1 - y0, hi);
+    r.rect(11, y0, 2, y1 - y0, wood); r.rect(11, y0, 1, y1 - y0, hi);
+    if (!(m & BN)) { r.px(6, 1, sh); r.px(12, 1, sh); }
+    if (!(m & BS)) { r.px(6, 14, sh); r.px(12, 14, sh); }
+  }
+  if (m !== (BE | BW) && m !== (BN | BS)) { // تیرک: انتها / گوشه / تقاطع / تک
+    r.rect(6, 2, 4, 12, wood); r.rect(6, 2, 1, 12, hi); r.rect(9, 2, 1, 12, sh);
+    r.rect(6, 1, 4, 1, hi); r.rect(6, 13, 4, 1, sh);
+    if (wv === 1) { r.px(7, 7, sh); r.px(8, 7, sh); r.px(7, 8, sh); }      // گره‌ی چوب
+    else if (wv === 2) { r.px(7, 5, sh); r.px(8, 8, sh); r.px(7, 9, sh); } // ترک
+    else r.px(7, 6, hi);                                                   // رگه
+  } else if (wv === 1) { r.px(3, 6, sh); r.px(12, 12, sh); }               // گره روی ریلِ راستا
+  else if (wv === 2) { r.px(2, 5, sh); r.px(13, 11, sh); }
+}
+
+// پرچین — تایلِ کدر (حاشیه‌ی جهان): بدنه + رویه‌ی روشن و سایه‌ی تیره **فقط روی ضلعِ بی‌همسایه**
+// (روی ضلعِ دارای همسایه کشیده نمی‌شود ⇒ نوارِ تختِ هر-۱۶px ساخته نمی‌شود — همان درسِ ن۳۸)
+// + لبه‌ی نمایانِ ۱px هم‌تراز با چمن (hedgeHi = L۵۲ در برابر چمنِ L۶۶ ⇒ ΔL ۱۴؛ با سایه‌ی تماس ⇒ ۰)
+function drawHedge(r, v) {
+  const m = v & 15, lv = (v >> 4) & 3;
+  r.rect(0, 0, TILE, TILE, E.hedge);                              // بدنه (L۳۹)
+  if (!(m & BN)) r.rect(0, 0, TILE, 2, E.hedgeHi);                // رویه‌ی روشن (تاج)
+  if (!(m & BS)) r.rect(0, TILE - 2, TILE, 2, E.hedgeSh);         // سایه‌ی تیره‌ی لبه‌ی پایین
+  // تودرتوی برگِ خوشه‌ای (۷ لکه با جابه‌جاییِ هش — نه شبکه‌ی ۳×۳ مربعی)
+  for (let i = 0; i < 7; i++) {
+    const a = hash2(lv * 31 + i, i * 7 + 3, 51), b = hash2(i * 13, lv * 17 + i, 51);
+    const bx = 1 + ((a * 12) | 0), by = 3 + ((b * 7) | 0), s = 2 + ((a * 3) | 0);
+    r.rect(bx, by, s, s, (i & 1) ? E.hedgeHi : E.hedge);
+    r.rect(bx, by + s, s, 1, E.hedgeSh);                          // زیرِ برگ
+    r.px(bx, by, E.hedgeHi);                                      // جلا
+  }
+  // لبه‌ی نمایان: ۱px روشن با گوشه‌ی گرد (قوسِ ۲px)
+  for (const [bit, horiz, fromStart, sAdj, eAdj] of SIDE) {
+    if (m & bit) continue;                                        // ضلعِ متصل: باز می‌ماند
+    for (let a = 0; a < TILE; a++) {
+      if ((a < 2 && !(m & sAdj)) || (a > TILE - 3 && !(m & eAdj))) continue; // قوسِ گوشه
+      const p = fromStart ? 0 : TILE - 1;
+      if (horiz) r.px(a, p, E.hedgeHi); else r.px(p, a, E.hedgeHi);
+    }
+  }
+}
+
+return {drawFence, drawHedge};
+})();
+const {drawFence, drawHedge} = __m_art_fence;
 const __m_art_autotile = (() => {
 // art/autotile.js — autotiling: mask4/mask8 + جدول ۴۷ تایلی (blob47) + کش لیزِ تایل ۱۶×۱۶ (S2.2)
 // قاعده‌ی blob47 (استاندارد): بیتِ گوشه فقط وقتی معنا دارد که **هر دو ضلع مجاورش** پر باشند
@@ -2754,6 +2800,32 @@ function soilBake(r, f, tx, ty, sx, sy) {
   }
 }
 // ترتیب رسمِ قدیمیِ یک تایل استاتیک — عیناً از farm_render منتقل شد
+// S2.8: شکلِ حصار/پرچین از mask4 (همسایهٔ هم‌جنس) + واریانتِ چوب/برگ از هشِ per-تایل
+// ⇒ ریل/تیرک فقط آن‌جایی که همسایه هست کشیده می‌شود و بافت هر ۱۶px تکرار نمی‌شود
+const fenceVar = (f, tx, ty) =>
+  mask4((x, y) => { const c = f.cell(x, y); return !!c && c.kind === 'fence'; }, tx, ty) |
+  ((((hash2(tx, ty, 34) * 3) | 0) & 3) << 4);
+const hedgeVar = (f, tx, ty) =>
+  mask4((x, y) => { const c = f.cell(x, y); return !!c && c.kind === 'hedge'; }, tx, ty) |
+  ((((hash2(tx, ty, 33) * 4) | 0) & 3) << 4);
+// S2.8: سایهٔ تماس روی چمن (۲px، SE) — هنگامِ پختِ تایلِ چمن از همسایهٔ N/W خوانده می‌شود
+// (بوته روی تایلِ چمنی است ⇒ همان شرطِ کشیدنِ بوته در bakeTile این‌جا «سازه» حساب می‌شود)
+const hasBush = (f, tx, ty) => {
+  const c = f.cell(tx, ty);
+  if (!c || c.kind !== 'grass' || c.farmable || !f.insideFence(tx, ty)) return false;
+  const b = f.cell(tx, ty + 1);
+  return !!b && b.farmable && b.kind === 'grass';
+};
+const isStruct = (f, tx, ty) => {
+  const c = f.cell(tx, ty);
+  return !!c && (c.kind === 'fence' || c.kind === 'hedge' || hasBush(f, tx, ty));
+};
+function structShadow(r, f, tx, ty, sx, sy) {
+  const sh = rp('grass', 3); // یک پله تیره‌تر از چمنِ پایه (L۵۲ در برابر L۶۶ ⇒ ΔL ۱۴)
+  if (isStruct(f, tx, ty - 1)) { r.rect(sx, sy, TILE, 1, sh); r.rect(sx + 1, sy + 1, TILE - 1, 1, sh); }
+  if (isStruct(f, tx - 1, ty)) { r.rect(sx, sy, 1, TILE, sh); r.rect(sx + 1, sy + 1, 1, TILE - 1, sh); }
+}
+
 function bakeTile(f, tx, ty, r, wf = 0) {
   const c = f.cell(tx, ty); if (!c) return;
   const sx = tx * TILE, sy = ty * TILE;
@@ -2763,15 +2835,20 @@ function bakeTile(f, tx, ty, r, wf = 0) {
   else if (c.kind === 'tree') base = groundSprite('grass', (hash2(tx, ty, 32) * 8) | 0);
   else if (c.kind === 'soil') base = groundSprite('soil', (hash2(tx, ty, 24) * 8) | 0, c.wet); // S2.6: دانه‌بندیِ per-تایل
   else if (c.kind === 'water') base = null; // S2.7: تایلِ آب کامل در bakeWater (بدنه+کاستیک+ساحل+کف)
-  else if (c.kind === 'hedge') base = groundSprite('hedge');
+  else if (c.kind === 'hedge') base = groundSprite('hedge', hedgeVar(f, tx, ty)); // S2.8: ۱۶ شکلِ mask4
   else if (c.kind === 'gate') base = groundSprite(c.gL ? 'gateL' : 'gateR', ty === f.gate.y ? 0 : 1);
   else if (c.kind === 'sign') base = groundSprite('grass', 0);
   else if (c.kind === 'house') base = groundSprite('grass', 0);
   else if (c.kind === 'scarecrow') base = groundSprite('grass', 0);
-  else { groundSprite('grass', (tx * 5 + ty * 3) & 3).over(r, sx, sy); base = groundSprite(c.fenceH ? 'fence' : 'fencePost'); }
+  else if (c.kind === 'fence') { // S2.8: چمنِ زیر + ریل/تیرکِ mask4 (ریل فقط به سمتِ همسایهٔ حصار می‌رود)
+    groundSprite('grass', (tx * 5 + ty * 3) & 3).over(r, sx, sy);
+    base = groundSprite('fence', fenceVar(f, tx, ty));
+  }
+  else { groundSprite('grass', (tx * 5 + ty * 3) & 3).over(r, sx, sy); base = null; }
   if (base) base.over(r, sx, sy);
   // S2.4: تُنِ ماکرو روی زمینِ چمنی (سازه‌ها هم چون پایه‌شان چمن است یکدست می‌مانند)
   if (c.kind === 'grass' || c.kind === 'tree' || c.kind === 'sign' || c.kind === 'house' || c.kind === 'scarecrow') tuftBake(r, sx, sy, tx, ty);
+  if (c.kind === 'grass') structShadow(r, f, tx, ty, sx, sy); // S2.8: سایهٔ تماسِ حصار/پرچین/بوته (SE)
   if (c.kind === 'path') drawPathEdge(r, sx, sy, tx, ty, f);
   if (c.kind === 'soil') soilBake(r, f, tx, ty, sx, sy); // S2.6
   if (c.kind === 'water') bakeWater(r, f, tx, ty, sx, sy, wf);
