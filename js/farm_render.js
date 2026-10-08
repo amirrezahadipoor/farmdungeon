@@ -2,7 +2,7 @@
 // افکت‌ها، شب/شب‌تاب، پروانه/ماهی، آب‌وهوا (باران/ابر) — فقط رسم، هیچ منطقی
 import { groundSprite, cropSprite, E, TILE, COLS, ROWS, WORLD_W, WORLD_H } from './tiles.js';
 import { rp } from './art/ramps.js'; // S2.6: تُنِ سایهٔ تماسِ محصول
-import { drawMeadow, drawReadySparkle, drawWaterLife, drawSaleSign, drawPathEdge } from './art/farm_decor.js';
+import { drawReadySparkle, drawWaterLife, drawSaleSign, drawPathEdge } from './art/farm_decor.js';
 import { drawTree } from './art/tree.js';
 import { drawFarmhouse, drawFarmhouseGlow, drawScarecrow, drawSprinkler, drawBasketCrate } from './art/farm_buildings.js';
 import { HOUSE, SCARECROW } from './farm_layout.js';
@@ -79,7 +79,7 @@ export function renderFarm(game, r) {
       // ---- دکور زنده‌ی مزرعه (آرت جدا در js/art/) ----
       if (c.kind === 'sign') drawSaleSign(r, sx, sy, game.time);
       else if (c.kind === 'scarecrow') drawScarecrow(r, sx, sy, game.time); // نگهبان پرنده‌ها
-      else if (c.kind === 'grass' && !f.insideFence(tx, ty)) drawMeadow(r, sx, sy, tx, ty, game.time, c.db); // db = نزدیکی مسیر/آب → گل بیشتر
+      // S2.9: دکال‌های چمنزار (تافت/شبدر/گل‌دسته/سنگ‌ریزه) حالا در کشِ زمین پخته می‌شوند ⇒ هر فریم صفر هزینه
       if (tx === 26 && ty === 14 && game.toolLvls.sprinkler) drawSprinkler(r, sx, sy, game.time); // آبپاش: بالای حوضچه، از آن آب می‌کشد
       if (tx === 18 && ty === 16 && game.toolLvls.basket) drawBasketCrate(r, sx, sy, game.time); // سبد: کنار خانه
       else if (c.kind === 'water') drawWaterLife(r, sx, sy, tx, ty, game.time);

@@ -10,6 +10,7 @@ import { fbm, hash2, vnoise } from './art/noise.js';
 import { bayer4 } from './art/dither.js';
 import { rp } from './art/ramps.js';
 import { drawWater, SHORE_FARM } from './art/water.js'; // S2.7: آب و کرانه — یک منبع
+import { bakeDecals, drawForest } from './art/decal.js'; // S2.9: دکال‌های خوشه‌ای + نوارِ جنگلِ لبه (هر دو پخته‌شده)
 
 let cache = null;      // Raster کل دنیا (۴۸۰×۳۲۰)
 let bound = null;      // فارمِ متصل به کش (هر Game کش خودش را دارد)
@@ -135,9 +136,11 @@ function bakeTile(f, tx, ty, r, wf = 0) {
   }
   else { groundSprite('grass', (tx * 5 + ty * 3) & 3).over(r, sx, sy); base = null; }
   if (base) base.over(r, sx, sy);
+  if (c.kind === 'hedge') drawForest(r, sx, sy, tx, ty); // S2.9: نوارِ جنگلِ لبه‌ی نقشه (تاج‌های پخته‌شده)
   // S2.4: تُنِ ماکرو روی زمینِ چمنی (سازه‌ها هم چون پایه‌شان چمن است یکدست می‌مانند)
   if (c.kind === 'grass' || c.kind === 'tree' || c.kind === 'sign' || c.kind === 'house' || c.kind === 'scarecrow') tuftBake(r, sx, sy, tx, ty);
   if (c.kind === 'grass') structShadow(r, f, tx, ty, sx, sy); // S2.8: سایهٔ تماسِ حصار/پرچین/بوته (SE)
+  if (c.kind === 'grass') bakeDecals(r, f, tx, ty, sx, sy); // S2.9: دکال‌های خوشه‌ای (فقط چمنِ بیرونِ حصار)
   if (c.kind === 'path') drawPathEdge(r, sx, sy, tx, ty, f);
   if (c.kind === 'soil') soilBake(r, f, tx, ty, sx, sy); // S2.6
   if (c.kind === 'water') bakeWater(r, f, tx, ty, sx, sy, wf);

@@ -4,27 +4,6 @@ import { E } from './palette_env.js';
 
 const hash = (x, y) => { let h = (x * 374761393 + y * 668265263) | 0; h = (h ^ (h >> 13)) * 1274126177; return ((h ^ (h >> 16)) >>> 0) / 4294967295; };
 
-// گل/چمن‌بلند/سنگ روی چمنِ بیرون حصار — تصادفیِ قطعی بر اساس مختصات
-export function drawMeadow(r, sx, sy, tx, ty) {
-  const h0 = hash(tx, ty);
-  if (h0 >= 0.061) return; // ن۳۶: چگالی ~۱۲٪ روی نقشه (hash سوگیریٔ پایینی دارد — آستانه کالیبره شد)
-  const fxp = 2 + Math.floor(hash(tx * 3, ty * 7) * 12), fyp = 2 + Math.floor(hash(tx * 11, ty * 5) * 12);
-  if (h0 < 0.028) { // دسته‌گل (~۴۶٪ از دکور)
-    r.px(sx + fxp, sy + fyp, hash(tx, ty * 13) < 0.5 ? E.flowerY : E.flowerW);
-    r.px(sx + fxp, sy + fyp + 1, E.grassBlade);
-    if (hash(tx * 17, ty) < 0.4) r.px(sx + fxp + 3, sy + fyp + 2, hash(tx, ty * 19) < 0.5 ? E.berry : E.gold);
-  } else if (h0 < 0.045) { // چمن بلند (~۲۸٪)
-    r.px(sx + fxp, sy + fyp + 1, E.grassSh); // ن۳۸: استاتیک — تابِ بی‌هدف حذف
-    r.px(sx + fxp, sy + fyp, E.grassBlade);
-    r.px(sx + fxp + 2, sy + fyp + 1, E.grassBlade);
-    r.px(sx + fxp + 1, sy + fyp + 2, E.grassSh);
-  } else { // سنگ‌ریزه‌ی خاکستری
-    r.px(sx + fxp, sy + fyp, E.stoneHi);
-    r.px(sx + fxp + 1, sy + fyp, E.stone);
-    r.px(sx + fxp, sy + fyp + 1, E.stoneSh);
-  }
-}
-
 // اسپارکل چشمک‌زن روی محصول رسیده — از دور قابل‌دیدن
 import { rp } from './ramps.js';
 import { vnoise, hash2 } from './noise.js';           // S2.5: میدان‌های نویزِ جهانی (hash2 توزیعِ یکنواخت دارد؛ hash محلی سوگیریِ پایینی دارد)
