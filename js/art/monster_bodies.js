@@ -1,7 +1,9 @@
-// monster_bodies.js — بدنه‌ی ۷ هیولا (اسلایم/خفاش/گرگ/اسکلت/گولم/عنکبوت/روح) — جداسازی از monsters.js (ن۳۴)
+// monster_bodies.js — بدنه‌ی ۴ هیولای کلاسیک (اسلایم/گرگ/اسکلت/گولم) — جداسازی از monsters.js (ن۳۴)
+// بخش‌بندیِ S6.4: خفاش/عنکبوت/روح به monster_bodies3.js رفتند (سقفِ ۲۸۰ خط) و این‌جا ادغام می‌شوند.
 // هر بدنه: (r, f) با f={state,t,ph,face,time} — فقط هندسه/انیمیشن؛ rim/outline/سایه در monsters.js
 import { ik, ease } from '../skeleton.js';
 import { MC, MOY, lm, wind } from './monster_parts.js';
+import { MBODY_A3, MOUT_A3, MSHW_A3 } from './monster_bodies3.js';
 
 const sin = Math.sin, cos = Math.cos, PI = Math.PI; // نام‌کوتاه‌های محلی
 
@@ -27,6 +29,12 @@ function dSlime(r, f) {
   g.ellipse(xOff, cy + h * 0.06, w * 0.42, h * 0.12, MC.slimeMid); // S1.5a: پله‌ی میانی
   g.ellipse(xOff, MOY - h * 0.18 - yOff, w * 0.4, h * 0.3, MC.slimeSh);
   g.ellipse(xOff, MOY - 2 - yOff, w * 0.34, 2.5, MC.slimeDeep); // S1.5a: پله‌ی عمیق زیر بدن
+  // S6.4: هسته‌ی تیره‌ی داخلی (عمقِ ژله) + هایلایتِ خیسِ رویه
+  g.ellipse(xOff, cy + h * 0.20, w * 0.17, h * 0.13, MC.slimeDeep);
+  g.px(xOff - 1, cy + h * 0.20, MC.slimeDark);
+  g.rect(xOff - w * 0.30, cy - h * 0.34, 2, 3, MC.slimeHi);
+  g.px(xOff - w * 0.30 + 1, cy - h * 0.34 - 1, MC.white); // درخششِ ژله (نقطه‌ی براق)
+  g.px(xOff + w * 0.22, cy - h * 0.26, MC.slimeHi);       // هایلایتِ دومِ کوچک
   if (dead < 0.7) { // چشم‌های جدا
     for (const ex of [xOff - 4, xOff + 4]) {
       g.rect(ex - 1, cy - 4, 3, 3, MC.dark);
@@ -38,43 +46,6 @@ function dSlime(r, f) {
     g.px(xOff - 5, MOY - 4 - yOff, MC.slimeDeep); g.px(xOff + 4, MOY - 4 - yOff, MC.slimeDeep);
     g.rect(xOff - 8, MOY - 3 - yOff, 4, 1, MC.slimeEdge); // S1.5a: لبه‌ی عمیقِ کف‌چسب
   }
-}
-
-// ---------- خفاش: بال ۴ فریم + پرواز موجی ----------
-function dBat(r, f) {
-  const g = lm(r, f.face);
-  let yOff = -46, flap = 0, fold = 0, limp = 0, tilt = 0;
-  if (f.state === 'idle') { yOff += sin(f.time * 2) * 3; flap = sin(f.time * 5) * 0.5; }
-  else if (f.state === 'move') { yOff += sin(f.time * 3.2) * 7; flap = sin(f.ph * PI * 4); }
-  else if (f.state === 'attack') {
-    if (f.t < 0.45) { const e = wind(f.t, 0.45); yOff -= e * 12; fold = e; }                     // بالا رفتن
-    else if (f.t < 0.65) { const e = (f.t - 0.4) / 0.25; yOff += e * 22; tilt = e * 0.5; }     // شیرجه
-    else { yOff += 8; }
-  } else if (f.state === 'die') {
-    const e = f.t;
-    yOff = -46 + e * e * 40; limp = 1; tilt = sin(e * 9) * 0.4 * (1 - e);
-  }
-  const bx = 0, by = MOY + yOff;
-  const wing = (sgn) => {
-    const tipY = by - 8 - flap * 9 - fold * 5 + limp * 8;
-    const midY = by - 3 - flap * 4 - fold * 8 + limp * 6;
-    g.lineW(bx + sgn * 3, by - 3, bx + sgn * 15, tipY, 2, MC.batSh);
-    g.lineW(bx + sgn * 3, by - 3, bx + sgn * 10, midY, 2, MC.batSh);
-    g.lineW(bx + sgn * 15, tipY, bx + sgn * 10, midY, 1, MC.bat);
-    g.lineW(bx + sgn * 3, by - 1, bx + sgn * 9, by - 3 - flap * 2, 1, MC.bat); // غشای داخلی
-    g.lineW(bx + sgn * 6, by, bx + sgn * 12, tipY + 3, 1, MC.batMid); // S1.5a: پله‌ی میانی بال
-    g.px(bx + sgn * 8, by - 1, MC.batDeep); g.px(bx + sgn * 9, by, MC.batDeep); // تیره‌ی مفصل بال
-  };
-  wing(1); wing(-1);
-  g.rect(bx - 4, by - 5, 9, 9, MC.bat);          // بدن
-  g.rect(bx - 3, by - 5, 7, 2, MC.batHi);
-  g.px(bx - 4, by - 7, MC.bat); g.px(bx + 4, by - 7, MC.bat); // گوش‌ها
-  g.rect(bx - 2, by + 3, 4, 1, MC.batEdge); // S1.5a: ته بدن — خوشه
-  g.px(bx - 4, by + 1, MC.batEdge); g.px(bx + 4, by + 1, MC.batEdge);
-  if (f.state !== 'die') {
-    g.px(bx - 2, by - 2, MC.eyeRed); g.px(bx + 2, by - 2, MC.eyeRed);
-    if (f.state === 'attack' && f.t > 0.4 && f.t < 0.7) { g.px(bx, by + 3, MC.fang); g.px(bx - 2, by + 3, MC.fang); }
-  } else { g.px(bx - 2, by - 2, MC.batSh); g.px(bx + 2, by - 2, MC.batSh); }
 }
 
 // ---------- گرگ: چهارپا با تات (گام مورب) ----------
@@ -116,6 +87,11 @@ function dWolf(r, f) {
   g.lineW(back - 7, bodyY - 4, back + 2, bodyY - 4, 1, MC.wolfDeep); // رگه‌ی خز
   g.px(back - 5, bodyY - 6, MC.wolfDeep); g.px(back - 4, bodyY - 6, MC.wolfDeep); g.px(back + 1, bodyY - 8, MC.wolfDeep);
   g.px(back - 4, bodyY + 1, MC.wolfDark); g.px(back - 3, bodyY + 1, MC.wolfDark); g.px(back + 3, bodyY + 2, MC.wolfDark);
+  // S6.4: رگه‌های روشنِ خز (جهتِ خوابِ پوشش: پشت → پهلو) + کاکلِ دم
+  for (const [fx, fy] of [[-6, -4], [-1, -5], [4, -6], [-8, 0], [0, 1], [7, -3], [-3, 2]]) {
+    g.px(back + fx, bodyY + fy, MC.wolfHi); g.px(back + fx + 1, bodyY + fy, MC.wolfCream);
+  }
+  g.px(back - 17, bodyY - 8, MC.wolfCream); g.px(back - 16, bodyY - 7, MC.wolfHi); // کاکلِ دم
   // سر + پوزه
   const hx = back + 11, hy = bodyY - 4 - crouch * 1 + lunge * 1;
   g.rect(hx, hy - 5, 9, 7, MC.wolf);
@@ -160,15 +136,20 @@ function dSkeleton(r, f) {
   g.rect(cx - 4, pelY - 9, 3, 1, MC.boneWorn); g.px(cx + 3, pelY - 8, MC.boneWorn);
   g.px(cx - 3, pelY + 4, MC.boneDark); g.px(cx - 2, pelY + 4, MC.boneDark); g.px(cx + 2, pelY + 4, MC.boneDark);
   g.px(cx - 4, pelY - 12, MC.boneMid); g.px(cx + 4, pelY - 12, MC.boneMid); g.px(cx - 3, pelY - 11, MC.boneMid);
-  const ribGap = 3 + fall * 2;
-  for (let i = 0; i < 3; i++) g.lineW(cx - 5 + fall * i, pelY - 4 - i * ribGap, cx + 5 - fall * i, pelY - 4 - i * ribGap, 1, MC.bone);
-  for (let i = 0; i < 3; i++) g.lineW(cx - 5 + fall * i, pelY - 3 - i * ribGap, cx + 5 - fall * i, pelY - 3 - i * ribGap, 1, MC.boneMid); // S1.5a: سایه‌ی دنده
+  const ribGap = 3 + fall * 2; // S6.4: تیغه‌ی ۲px با فاصله‌ی ۳ (ردیفِ جمجمه اشغال نمی‌شود)
+  // S6.4: دنده‌های ۲px (حجم) + سایه‌ی زیرِ هر دنده + جناغ میانی
+  for (let i = 0; i < 3; i++) g.lineW(cx - 5 + fall * i, pelY - 4 - i * ribGap, cx + 5 - fall * i, pelY - 4 - i * ribGap, 2, MC.bone);
+  for (let i = 0; i < 3; i++) g.lineW(cx - 5 + fall * i, pelY - 2 - i * ribGap, cx + 5 - fall * i, pelY - 2 - i * ribGap, 1, MC.boneMid);
+  g.lineW(cx, pelY - 12, cx, pelY - 3, 1, MC.boneWorn); // جناغ
   // جمجمه
   const skullY = pelY - 15 - fall * (fall > 0.4 ? (fall - 0.4) * 26 : 0);
   g.rect(cx - 3, skullY - 4, 8, 8, MC.bone);
   g.rect(cx - 3, skullY - 4, 8, 1, MC.boneHi);
   g.rect(cx - 3, skullY + 3, 8, 1, MC.boneMid); // فک/سایه‌ی جمجمه
   g.px(cx - 4, skullY + 4, MC.boneEdge); g.px(cx + 4, skullY + 4, MC.boneEdge); g.px(cx - 4, skullY + 5, MC.boneEdge); // S1.5a: لبه‌ی فک
+  // S6.4: کاسه‌ی چشم (فرورفتگی) + مردمک درونِ کاسه
+  g.rect(cx - 2, skullY - 2, 3, 3, MC.boneDeep); g.rect(cx + 1, skullY - 2, 3, 3, MC.boneDeep);
+  g.px(cx - 2, skullY - 2, MC.boneOut); g.px(cx + 3, skullY - 2, MC.boneOut); // گوشه‌ی تیره‌ی کاسه
   g.px(cx - 1, skullY - 1, MC.dark); g.px(cx + 2, skullY - 1, MC.dark);
   g.rect(cx, skullY + 2, 2, 1, MC.dark);
   // بازوها: دور آزاد + نزدیک با شمشیر
@@ -213,6 +194,17 @@ function dGolem(r, f) {
   g.px(sx - 10, ty + 10, MC.mossD); g.px(sx - 9, ty + 10, MC.mossD);
   g.line(sx - 6, ty + 4, sx - 6, ty + 26, MC.golemSh); g.line(sx + 7, ty + 4, sx + 7, ty + 26, MC.golemSh);
   g.px(sx - 11, ty + 8, MC.moss); g.px(sx - 10, ty + 9, MC.moss); g.px(sx + 12, ty + 20, MC.moss);
+  // S6.4: درزهای سنگی (درزِ تیره + لبه‌ی روشنِ زیر = چمفر) و دسته‌خزه‌ها
+  for (const sy2 of [ty + 9, ty + 19]) {
+    g.line(sx - 15, sy2, sx + 14, sy2, MC.golemOut);
+    g.line(sx - 15, sy2 + 1, sx + 14, sy2 + 1, MC.golemHi);
+  }
+  g.line(sx - 15, ty + 14, sx - 1, ty + 14, MC.golemOut); g.line(sx + 1, ty + 22, sx + 14, ty + 22, MC.golemOut); // درزِ نیم‌کاره
+  g.px(sx - 13, ty + 6, MC.moss); g.px(sx - 12, ty + 7, MC.moss); g.px(sx - 12, ty + 6, MC.mossD); // دسته‌ی خزه
+  g.px(sx + 13, ty + 12, MC.mossD); g.px(sx + 14, ty + 13, MC.moss);
+  g.px(sx - 14, gy - 16, MC.moss); g.px(sx - 13, gy - 16, MC.mossD); // خزه‌ی پا
+  g.px(sx + 11, gy - 17, MC.moss); g.px(sx + 12, gy - 18, MC.moss);
+  g.px(sx + 10, gy - 18, MC.mossD); g.px(sx - 13, gy - 17, MC.mossD);
   // بازوها (بالا/پایین بسته به armUp)
   for (const sgn of [-1, 1]) {
     const ay = ty + 4 - armUp * 16;
@@ -223,7 +215,11 @@ function dGolem(r, f) {
   const hy = ty - 11 + armUp * -2;
   g.rect(sx - 6, hy, 12, 11, MC.golem);
   g.rect(sx - 6, hy, 12, 2, MC.golemHi);
-  g.rect(sx - 3, hy + 4, 7, 2, f.state === 'attack' && f.t < 0.72 ? MC.ember : MC.golemSh);
+  // S6.4: چشمِ درخشان (emissive — هسته‌ی اخگری + هاله/جرقه؛ در حمله تندتر)
+  const eyeY = hy + 4, hot = f.state === 'attack' && f.t < 0.72;
+  g.rect(sx - 3, eyeY, 7, 2, hot ? MC.ember : MC.golemSh);      // کاسه
+  g.rect(sx - 2, eyeY, 2, 2, MC.ember);                          // هسته
+  g.px(sx + 2, eyeY, MC.ember); g.px(sx - 4, eyeY + 1, MC.gold); // هاله + جرقه
   // ترک‌های مرگ
   if (crack > 0) {
     const c = MC.golemOut;
@@ -234,82 +230,7 @@ function dGolem(r, f) {
   if (f.state === 'attack' && f.t >= 0.6 && f.t < 0.8) { for (const [dx, dy] of [[-20, -3], [22, -3], [-26, -6], [27, -7]]) g.px(sx + dx, MOY + dy, MC.dust); }
 }
 
-// ---------- عنکبوت: ۸ پا با گام موجی ----------
-function dSpider(r, f) {
-  const g = lm(r, f.face);
-  let rear = 0, lunge = 0, curl = 0, bob = sin(f.time * 2.5) * 0.8;
-  if (f.state === 'attack') {
-    if (f.t < 0.5) { rear = wind(f.t, 0.5); }
-    else if (f.t < 0.72) { const e = (f.t - 0.5) / 0.22; lunge = e; rear = 1 - e; }
-    else { lunge = 1 - (f.t - 0.72) / 0.28; }
-  } else if (f.state === 'die') { curl = f.t; }
-  const cx = lunge * 12 - rear * 5;
-  const bodyY = MOY - 13 + bob + rear * -3 + curl * 9;
-  // پاها: ۴ جلو (این‌دست‌آن‌دست) + ۴ عقب
-  for (let i = 0; i < 8; i++) {
-    const front = i < 4;
-    const side = i % 2 === 0 ? 1 : -1;              // بالا/پایین تصویر
-    const baseA = front ? (-0.5 - (i >> 1) * 0.35) : (2.1 + (i & 1) * 0.3 + ((i - 4) >> 1) * 0.25);
-    const anchor = [cx + (front ? 6 : -5) + (side < 0 ? 0.5 : 0), bodyY - 2];
-    const reach = 13 + (i % 3);
-    let foot = [anchor[0] + cos(baseA) * reach, MOY - 1];
-    if (f.state === 'move' && !curl) {              // گام موجی: جفت‌های یک‌درمیان
-      const ph = (f.ph + (i % 2) * 0.5 + (front ? 0.25 : 0)) % 1;
-      const lift = ph < 0.5 ? sin(ph * PI * 2) * 4 : 0;
-      foot = [anchor[0] + cos(baseA) * (reach + sin(ph * PI * 2) * 2), MOY - 1 - lift];
-    }
-    if (front && (rear || lunge)) foot[1] -= rear * 7 + lunge * 3;  // جلو بالا در wind-up
-    if (curl) foot = [anchor[0] + (foot[0] - anchor[0]) * (1 - curl) * 0.9 + (front ? 4 : -4) * curl, bodyY - 6 - curl * 4 + (i % 3)]; // جمع‌شدن
-    const { mid } = ik([g.m(anchor[0]), anchor[1]], [g.m(foot[0]), foot[1]], 9, 9, side);
-    r.lineW(g.m(anchor[0]), anchor[1], mid[0], mid[1], 2, MC.spider);
-    r.lineW(mid[0], mid[1], g.m(foot[0]), foot[1], 2, MC.spiderSh);
-    r.px(g.m(foot[0]), foot[1], MC.spiderOut);
-  }
-  // بدن: شکم + سر
-  g.ellipse(cx - 6, bodyY, 8, 6, MC.spider);
-  g.ellipse(cx - 7, bodyY - 2, 5, 3, MC.spiderHi);
-  g.ellipse(cx - 6, bodyY + 2, 6, 2, MC.spiderMid); // S1.5a: شکم — پله‌ی میانی
-  g.ellipse(cx - 6, bodyY + 4, 3, 1, MC.spiderDeep); // نوک شکم تیره
-  g.px(cx - 9, bodyY + 1, MC.spiderEdge); g.px(cx - 8, bodyY + 1, MC.spiderEdge); g.px(cx + 3, bodyY - 5, MC.spiderMid); g.px(cx + 4, bodyY - 5, MC.spiderMid);
-  g.rect(cx + 2, bodyY - 4, 7, 6, MC.spiderSh);
-  if (!curl) {
-    for (const [ex, ey] of [[5, -2], [7, -2], [4, 0], [7, 0]]) g.px(cx + ex, bodyY + ey, MC.eyeRed);
-    if (f.state === 'attack' && f.t > 0.5 && f.t < 0.75) { g.px(cx + 9, bodyY + 1, MC.fang); g.px(cx + 8, bodyY + 2, MC.fang); }
-  } else { g.px(cx + 5, bodyY - 2, MC.spiderOut); g.px(cx + 7, bodyY - 2, MC.spiderOut); }
-}
-
-// ---------- روح: شفاف، شناور، محو ----------
-function dGhost(r, f) {
-  const g = lm(r, f.face);
-  let yOff = sin(f.time * 2) * 3, wob = 0, rage = 0, fade = 1, dash = 0;
-  if (f.state === 'idle') { yOff += sin(f.time * 0.7) * 2; }
-  else if (f.state === 'move') { yOff = sin(f.time * 3) * 4; wob = sin(f.time * 6) * 1.5; }
-  else if (f.state === 'attack') {
-    if (f.t < 0.55) { const e = wind(f.t, 0.55); rage = e; wob = e * 2; }                    // لرزش + چشم روشن
-    else if (f.t < 0.75) { dash = (f.t - 0.55) / 0.2; rage = 1; }
-    else { rage = 1 - (f.t - 0.75) / 0.25; dash = 1 - rage; }
-  } else if (f.state === 'die') { fade = 1 - f.t; yOff = -f.t * 18; }
-  const a = (col) => [col[0], col[1], col[2], Math.round(col[3] * fade)];
-  const cx = wob + dash * 14, cy = MOY - 34 + yOff - rage * 2;
-  // بدنه: نیم‌بیضی بالا + دنباله‌ی موجی
-  const body = MC.ghost, hi = MC.ghostHi, sh = MC.ghostSh;
-  for (let dy = -14; dy <= 10; dy++) {
-    let w2 = dy < 0 ? Math.round(10 * Math.sqrt(1 - (dy / 15) ** 2)) : Math.round(10 - dy * 0.35);
-    if (dy > 4) { const k = (dy - 4) / 6; w2 = Math.round((10 - dy * 0.35) * (0.75 + 0.25 * Math.abs(sin(f.time * 4 + k * 6))) * (1 - k * 0.5)); }
-    if (w2 < 1) continue;
-    const row = a(dy < -6 ? hi : dy > 8 ? MC.ghostDeep : dy > 6 ? sh : dy > 4 ? MC.ghostDe2 : dy > 2 ? MC.ghostMid : dy > -1 ? MC.ghostVeil : body); // S1.5a: پله‌های روشنایی روح
-    for (let dx = -w2; dx <= w2; dx++) g.px(cx + dx, cy + dy, row);
-  }
-  // چشم‌ها + دهان
-  const eyeC = rage > 0.4 ? a(MC.ghostHi) : [20, 26, 34, Math.round(200 * fade)];
-  for (const ex of [-4, 3]) { g.rect(cx + ex, cy - 4, 3, 4, eyeC); }
-  if (f.state === 'attack' && f.t > 0.55 && f.t < 0.8) g.rect(cx - 1, cy + 2, 4, 3 + rage * 2, [20, 26, 34, Math.round(200 * fade)]);
-  else g.rect(cx - 1, cy + 2, 3, 1, [20, 26, 34, Math.round(160 * fade)]);
-  // رشته‌های محوشدن در مرگ
-  if (f.state === 'die') for (let i = 0; i < 4; i++) g.px(cx + (i - 2) * 4, cy - 16 - f.t * 10 - i * 3, a(hi));
-}
-
-// بدنه‌های کلاسیک (۷) — رجیستری ادغام در monster_registry.js (ن۴۷)
-export const MBODY_A = { slime: dSlime, bat: dBat, wolf: dWolf, skeleton: dSkeleton, golem: dGolem, spider: dSpider, ghost: dGhost };
-export const MOUT_A = { slime: MC.slimeOut, bat: MC.batOut, wolf: MC.wolfOut, skeleton: MC.boneOut, golem: MC.golemOut, spider: MC.spiderOut, ghost: null };
-export const MSHW_A = { slime: [11, 4], bat: [8, 3], wolf: [14, 4], skeleton: [10, 3], golem: [16, 5], spider: [13, 4], ghost: [9, 3] };
+// بدنه‌های کلاسیک (۷ = ۴ این‌جا + ۳ از monster_bodies3) — رجیستری ادغام در monster_registry.js (ن۴۷)
+export const MBODY_A = { slime: dSlime, wolf: dWolf, skeleton: dSkeleton, golem: dGolem, ...MBODY_A3 };
+export const MOUT_A = { slime: MC.slimeOut, wolf: MC.wolfOut, skeleton: MC.boneOut, golem: MC.golemOut, ...MOUT_A3 };
+export const MSHW_A = { slime: [11, 4], wolf: [14, 4], skeleton: [10, 3], golem: [16, 5], ...MSHW_A3 };
