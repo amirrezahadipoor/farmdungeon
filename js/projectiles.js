@@ -1,4 +1,5 @@
 // projectiles.js — پرتابه‌های دشمن (ن۴۴): تیر کماندار (تند/مستقیم) + گلوله‌ی آتش آتش‌جان (کند/روشن)
+import { projTrail } from './art/battle_fx.js'; // S6.7: دنباله‌ی ۲–۳ پیکسلی
 // بدون تخصیص در حلقه — آرایه‌ی run.projs؛ برخورد با قهرمان/دیوار همان قواعد مبارزه
 export const PROJ = {
   arrow: { sp: 155, life: 1.4, r: 7 },
@@ -33,11 +34,12 @@ export function drawProjs(r, list, cx, cy) {
       r.lineW(px - ux * 5, py - uy * 5, px + ux * 3, py + uy * 3, 1, [138, 106, 58, 255]); // بدنه‌ی چوبی
       r.px(px + ux * 4, py + uy * 4, [242, 239, 228, 255]); // نوک
       r.px(px - ux * 6, py - uy * 6, [232, 231, 220, 140]); // پر
+      projTrail(r, px, py, ux, uy, 'arrow'); // S6.7: دنباله
     } else { // گلوله‌ی آتش
       r.ellipse(px, py, 4, 4, [176, 84, 38, 255]);
       r.ellipse(px - ux, py - uy, 3, 3, [224, 138, 74, 255]);
       r.px(px, py, [255, 195, 106, 255]); // هسته
-      r.px(px - ux * 5, py - uy * 5, [224, 138, 74, 120]); // ردِ محو
+      projTrail(r, px, py, ux, uy, 'fire'); // S6.7: دنباله (جایگزینِ ردِ تک‌پیکسلی)
     }
   }
 }

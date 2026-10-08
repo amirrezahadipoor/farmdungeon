@@ -1,6 +1,6 @@
 // run_loot.js — غنیمت‌های جنگی دانجن (جداسازی از run.js — ن۳۰):
 // کشتار→ذرات/کمبو/دراپ، آهن‌ربای جمع‌آوری، بازکردن صندوق — اقتصادِ میدان نبرد
-import { DEATH_COLORS } from './art/monster_parts.js';
+import { deathFx } from './art/battle_fx.js'; // S6.7
 import { rollItemDrop, rollSeedDrop, rollCoinDrop } from './items.js';
 import { TILE } from './tiles.js';
 
@@ -13,7 +13,7 @@ export function lootKill(run, e) {
   run.comboN++; run.comboT = 4; if (run.comboN > run._maxCombo) run._maxCombo = run.comboN; // کمبو کشتار
   if (run.comboN >= 2) run.fx.float(h.x, h.y - 58, 'x' + run.comboN, 'gold', { scale: 1 });
   run.fx.stop(e.isBoss ? 0.12 : 0.035);
-  run.fx.burst(e.x, e.y - 10, DEATH_COLORS[e.kind], e.isBoss ? 26 : 12, { sp: e.isBoss ? 60 : 34, up: 30, life: 0.55 });
+  deathFx(run.fx, e); // S6.7: خرده‌های رنگِ بدن + دود/تکه/اخگرِ per نوع (سقفِ ذرات داخلِ fx)
   if (e.kind === 'imp') { // ن۴۴: اخگرِ مرگ — نزدیک نایستید
     run.fx.burst(e.x, e.y - 8, [[255, 195, 106, 255], [224, 138, 74, 255], [176, 84, 38, 255]], 12, { sp: 50, up: 22, life: 0.45 });
     const h2 = run.hero;

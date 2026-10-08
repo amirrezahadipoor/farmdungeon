@@ -6983,6 +6983,117 @@ function drawBossFrame(o) {
 return {drawBossFrame};
 })();
 const {drawBossFrame} = __m_art_boss;
+const __m_art_battle_fx = (() => {
+// battle_fx.js — S6.7: افکت‌های نبرد — فقط **رندر و ذره**؛ هیچ منطقِ گیم‌پلی این‌جا نیست
+// (runHit دست‌نخورده ماند: جرقه‌ی برخورد از محلِ شناورِ خسارت زده می‌شود، نه از محاسبه‌ی آسیب)
+
+
+const MAX_PARTS = 40;    // پذیرشِ S6.7: سقفِ ذراتِ همزمان
+const HIT_SPARK_DY = 34; // شناورِ خسارت ۴۶px بالاتر از مرکز است ⇒ جرقه روی تنه می‌نشیند (y-12)
+const FRAME = 1 / 60;
+const SLASH_LIFE = 0.14;        // ۳ فریم (۰٫۰۴۷ × ۳)
+const SPARK_LIFE = 0.045;       // ≈۳ فریم (burst آن را ۰٫۷–۱٫۳× می‌کند ⇒ ۱٫۹–۳٫۵ فریم)
+
+// رمپِ فلزِ تیغه: هسته‌ی سفید → فولاد → لبه‌ی تیره (۳ لایه)
+const STEEL = [[242, 239, 228, 255], [198, 206, 220, 225], [126, 140, 168, 170]];
+// جرقه: سفیدِ داغ → کهربا → نارنجیِ رو به خاموشی
+const SPARK = [[255, 255, 255, 255], [255, 232, 150, 255], [255, 196, 60, 255], [226, 140, 60, 210]];
+const SCRATCH = [0, 0, 0, 0];   // بازنویسی‌شونده — بدون تخصیص در حلقه‌ی رندر
+
+// دود/گرد: رنگ‌های ثابت (بیرون از قفلِ پالتِ اسپرایت — افکت‌ها پالتِ مستر را نمی‌شمارند)
+const DUST = [150, 142, 126, 120], SMOKE = [124, 120, 138, 95];
+
+// ================= برشِ شمشیر: کمانِ ۳ فریمی =================
+// فریم ۰: لبه‌ی پیشرو (باریک، دورتر، درخشان) · فریم ۱: کمانِ کاملِ سه‌لایه + هایلایت · فریم ۲: ردِ محو
+function slashFrame(t) { return Math.max(0, Math.min(2, Math.floor(t / (SLASH_LIFE / 3)))); }
+
+function drawSlash(r, s, cx, cy) {
+  const f = slashFrame(s.t), k = 1 - s.t / SLASH_LIFE;
+  const rad = f === 0 ? s.r + 2 : f === 1 ? s.r : s.r - 3;
+  const spread = f === 1 ? 3 : 2;
+  const layers = f === 0 ? 2 : f === 1 ? 3 : 1;             // ۰ = پیشرو · ۱ = کامل · ۲ = رد
+  for (let i = -spread; i <= spread; i++) {
+    const ang = s.ang + i * 0.16, ux = Math.cos(ang), uy = Math.sin(ang) * 0.8;
+    for (let L = 0; L < layers; L++) {
+      const src = STEEL[L], a = Math.round(src[3] * k * (f === 1 ? 1 : 0.7));
+      if (a <= 0) continue;
+      SCRATCH[0] = src[0]; SCRATCH[1] = src[1]; SCRATCH[2] = src[2]; SCRATCH[3] = a;
+      r.px(Math.round(s.x - cx + ux * (rad - L * 2)), Math.round(s.y - cy + uy * (rad - L * 2)), SCRATCH);
+    }
+    if (f === 1 && Math.abs(i) <= 1) { // هایلایت: دو پیکسلِ سفید روی میانه‌ی تیغه
+      SCRATCH[0] = 255; SCRATCH[1] = 255; SCRATCH[2] = 255; SCRATCH[3] = Math.round(230 * k);
+      r.px(Math.round(s.x - cx + ux * (rad + 1)), Math.round(s.y - cy + uy * (rad + 1)), SCRATCH);
+    }
+  }
+}
+
+// ================= جرقه‌ی برخورد (۳ فریم · ۴–۶ ذره · ۱–۲px) =================
+// crit ⇒ بزرگ‌تر: ذراتِ بیشتر، همه ۲px، سرعت/عمرِ بیشتر
+function sparkBurst(fx, x, y, crit) {
+  const n = crit ? 9 + (Math.random() * 3 | 0) : 4 + (Math.random() * 3 | 0);
+  fx.burst(x, y, crit ? SPARK : SPARK.slice(1), n, {
+    sp: crit ? 62 : 42, up: crit ? 12 : 8, g: 60,
+    life: SPARK_LIFE * (crit ? 1.6 : 1), s: crit ? 2 : (Math.random() < 0.4 ? 2 : 1),
+  });
+}
+
+// ================= مرگِ per نوع: خرده‌های رنگِ بدن + دود/تکه‌ی اضافه =================
+// رنگ‌های «اضافه» عمداً **غیرِ** رنگ‌های DEATH_COLORS همان کیندند (وگرنه خرده با بدنه یکی دیده می‌شود)
+const DEATH_EXTRA = {
+  golem: (fx, x, y) => { chunks(fx, x, y, [MC.golemMid, MC.golemCrack, MC.moss], 5); fx.dust(x, y + 4, 3, DUST); },
+  boss: (fx, x, y) => {
+    chunks(fx, x, y, [MC.bossMid, MC.bossCrack, MC.bossGold], 5);
+    fx.dust(x, y + 6, 3, DUST);
+    fx.burst(x, y - 14, [MC.ember, MC.bossRed, MC.ember], 5, { sp: 26, up: 18, g: -30, life: 0.7, s: 1 }); // اخگرِ گدازه‌ای (۳ اخگر از ۵)
+  },
+  skeleton: (fx, x, y) => { chunks(fx, x, y, [MC.boneMid, MC.boneWorn], 4); fx.dust(x, y + 4, 3, DUST); },
+  archer: (fx, x, y) => { chunks(fx, x, y, [MC.boneMid, MC.archerBow, MC.archerFeather], 4); fx.dust(x, y + 4, 2, DUST); },
+  ghost: (fx, x, y) => { fx.burst(x, y - 8, [MC.ghostMid, MC.ghostDe2, SMOKE], 6, { sp: 12, up: 8, g: -20, life: 0.9, s: 2 }); },
+  mummy: (fx, x, y) => { fx.burst(x, y - 6, [MC.mummyBand, MC.mummyStain], 4, { sp: 30, up: 16, g: 40, life: 0.6, s: 1 }); fx.dust(x, y + 4, 3, DUST); },
+  imp: (fx, x, y) => { fx.burst(x, y - 8, [MC.impMid, MC.impHorn, MC.gold], 6, { sp: 26, up: 20, g: -32, life: 0.55, s: 1 }); },
+  slime: (fx, x, y) => { fx.burst(x, y - 6, [MC.slimeDeep, MC.slimeEdge, MC.moss], 5, { sp: 38, up: 8, g: 160, life: 0.35, s: 1 }); fx.dust(x, y + 4, 2, DUST); },
+  bat: (fx, x, y) => { fx.burst(x, y - 8, [MC.batEdge, MC.batDeep, SMOKE], 5, { sp: 18, up: 4, g: 22, life: 0.5, s: 1 }); },
+  spider: (fx, x, y) => { fx.burst(x, y - 6, [MC.spiderMid, MC.spiderEdge, MC.spiderDeep], 5, { sp: 22, up: 10, g: 60, life: 0.45, s: 1 }); },
+  wolf: (fx, x, y) => { fur(fx, x, y, [MC.wolfMid, MC.wolfCream, MC.wolfDeep]); },
+  yeti: (fx, x, y) => { fur(fx, x, y, [MC.yetiMid, MC.yetiIce, MC.yetiSkin]); },
+  ram: (fx, x, y) => { fur(fx, x, y, [MC.ramMid, MC.ramHorn]); fx.dust(x, y + 4, 2, DUST); },
+  hare: (fx, x, y) => { fur(fx, x, y, [MC.hareMid, MC.hareFoot]); },
+  bandit: (fx, x, y) => { fx.burst(x, y - 8, [MC.banditMid, MC.banditSash, MC.gold], 5, { sp: 30, up: 14, g: 70, life: 0.5, s: 1 }); },
+};
+
+function chunks(fx, x, y, cols, n) { // خرده‌ی سنگ/استخوان: می‌افتد (g مثبتِ زیاد)
+  fx.burst(x, y - 8, cols, n, { sp: 40, up: 26, g: 130, life: 0.5, s: 2 });
+}
+function fur(fx, x, y, cols) { // توده‌ی خز/پشم: شناور می‌ماند و آرام می‌نشیند
+  fx.burst(x, y - 8, cols, 5, { sp: 16, up: 10, g: -8, life: 0.75, s: 1 });
+}
+
+function deathFx(fx, e) {
+  const big = e.isBoss || e.kind === 'boss';            // باس همیشه بزرگ — حتی اگر پرچم جا مانده باشد
+  const cols = DEATH_COLORS[e.kind] || DEATH_COLORS.golem;
+  fx.burst(e.x, e.y - 10, cols, big ? 20 : 12, { sp: big ? 60 : 34, up: 30, life: 0.55 });
+  (DEATH_EXTRA[e.kind] || DEATH_EXTRA.golem)(fx, e.x, e.y);
+}
+
+// ================= دنباله‌ی پرتابه (۲–۳ پیکسل پشتِ سر، α کاهشی) =================
+const TRAIL = {
+  arrow: [[232, 231, 220, 150], [232, 231, 220, 95], [206, 200, 184, 55]],
+  fire: [[224, 138, 74, 145], [176, 84, 38, 95], [140, 66, 34, 55]],
+};
+function projTrail(r, px, py, ux, uy, kind) {
+  const T = TRAIL[kind] || TRAIL.fire;
+  for (let i = 0; i < 3; i++) { // ۲–۳ پیکسلِ دنباله
+    const d = 7 + i * 2;
+    SCRATCH[0] = T[i][0]; SCRATCH[1] = T[i][1]; SCRATCH[2] = T[i][2]; SCRATCH[3] = T[i][3];
+    r.px(Math.round(px - ux * d), Math.round(py - uy * d), SCRATCH);
+  }
+}
+
+const BATTLE_FX = { MAX_PARTS, SLASH_LIFE, SPARK_LIFE, FRAME, STEEL, SPARK, TRAIL, DUST, SMOKE, kinds: Object.keys(DEATH_EXTRA) };
+
+return {MAX_PARTS, HIT_SPARK_DY, BATTLE_FX, slashFrame, drawSlash, sparkBurst, deathFx, projTrail};
+})();
+const {MAX_PARTS, HIT_SPARK_DY, BATTLE_FX, slashFrame, drawSlash, sparkBurst, deathFx, projTrail} = __m_art_battle_fx;
 const __m_mobs_new = (() => {
 // mobs_new.js — رفتارهای هیولاهای ن۴۴ (ن۳۴: هر رفتار تک‌وظیفه، بدون چرخه‌ی import)
 // AI_EXT[kind](m, dt, target, hooks, s, spd) → true یعنی «این فریم را من مدیریت کردم»
@@ -7164,6 +7275,7 @@ return {MOB_TAGS, AI_EXT};
 const {MOB_TAGS, AI_EXT} = __m_mobs_new;
 const __m_projectiles = (() => {
 // projectiles.js — پرتابه‌های دشمن (ن۴۴): تیر کماندار (تند/مستقیم) + گلوله‌ی آتش آتش‌جان (کند/روشن)
+
 // بدون تخصیص در حلقه — آرایه‌ی run.projs؛ برخورد با قهرمان/دیوار همان قواعد مبارزه
 const PROJ = {
   arrow: { sp: 155, life: 1.4, r: 7 },
@@ -7198,11 +7310,12 @@ function drawProjs(r, list, cx, cy) {
       r.lineW(px - ux * 5, py - uy * 5, px + ux * 3, py + uy * 3, 1, [138, 106, 58, 255]); // بدنه‌ی چوبی
       r.px(px + ux * 4, py + uy * 4, [242, 239, 228, 255]); // نوک
       r.px(px - ux * 6, py - uy * 6, [232, 231, 220, 140]); // پر
+      projTrail(r, px, py, ux, uy, 'arrow'); // S6.7: دنباله
     } else { // گلوله‌ی آتش
       r.ellipse(px, py, 4, 4, [176, 84, 38, 255]);
       r.ellipse(px - ux, py - uy, 3, 3, [224, 138, 74, 255]);
       r.px(px, py, [255, 195, 106, 255]); // هسته
-      r.px(px - ux * 5, py - uy * 5, [224, 138, 74, 120]); // ردِ محو
+      projTrail(r, px, py, ux, uy, 'fire'); // S6.7: دنباله (جایگزینِ ردِ تک‌پیکسلی)
     }
   }
 }
@@ -7824,6 +7937,7 @@ const OFF = [0, 0]; // آفست لرزش — مشترک
 
 
 
+
 const VIG_LEVELS = 6;  // S4.2: سطوحِ α وینیت (کوانتیزه + دیتر ⇒ بدونِ نوارِ گرادیان)
 
 class FX {
@@ -7832,8 +7946,11 @@ class FX {
     this.shakeAmp = 0; this.shakeT = 0; this.hitstop = 0;
   }
   shake(amp, t) { this.shakeAmp = Math.max(this.shakeAmp, amp); this.shakeT = Math.max(this.shakeT, t); }
+  // S6.7: سقفِ ذرات — قدیمی‌ترین‌ها کنار می‌روند تا هیچ‌وقت از MAX_PARTS بیشتر نباشد
+  _room(n) { const over = this.parts.length + n - MAX_PARTS; if (over > 0) this.parts.splice(0, over); }
   stop(t) { this.hitstop = Math.max(this.hitstop, t); }
   burst(x, y, cols, n = 10, o = {}) {
+    this._room(n);
     for (let i = 0; i < n; i++) {
       const a = (o.ang != null ? o.ang + (Math.random() - 0.5) * (o.spread ?? Math.PI * 2) : Math.random() * Math.PI * 2);
       const sp = (o.sp ?? 24) * (0.4 + Math.random() * 0.9);
@@ -7842,12 +7959,15 @@ class FX {
     }
   }
   dust(x, y, n = 4, col) {
+    this._room(n);
     const c = col ?? [138, 128, 106, 120];
     for (let i = 0; i < n; i++) this.parts.push({ x: x + (Math.random() - 0.5) * 5, y: y + (Math.random() - 0.5) * 2,
       vx: (Math.random() - 0.5) * 14, vy: -6 - Math.random() * 12, g: -14, t: 0, life: 0.3 + Math.random() * 0.25, col: c, s: Math.random() < 0.5 ? 2 : 1 });
   }
   float(x, y, txt, col, o = {}) {
     this.floats.push({ x, y, txt, col, t: 0, life: o.life ?? 1, scale: o.scale ?? 1, arc: o.arc ?? 26, crit: !!o.crit });
+    // S6.7: جرقه‌ی برخورد — فقط برای شناورهایِ خسارت (runHit دست‌نخورده؛ جرقه از محلِ شناور زده می‌شود)
+    if (col === 'hit' || col === 'crit' || col === 'skill') sparkBurst(this, x, y + HIT_SPARK_DY, !!o.crit || col === 'crit');
   }
   slash(x, y, ang, r = 22) { this.slashes.push({ x, y, ang, r, t: 0 }); }
 
@@ -7887,14 +8007,7 @@ class FX {
       const px = Math.round(p.x - cx), py = Math.round(p.y - cy);
       if (p.s > 1) r.rect(px, py, 2, 2, col); else r.px(px, py, col);
     }
-    for (const s of this.slashes) { // هلال برش
-      const k = 1 - s.t / 0.14, col = [255, 255, 255, Math.round(150 * k)];
-      for (let i = -3; i <= 3; i++) {
-        const a = s.ang + i * 0.16;
-        r.px(s.x - cx + Math.cos(a) * s.r, s.y - cy + Math.sin(a) * s.r * 0.8, col);
-        if (Math.abs(i) < 2) r.px(s.x - cx + Math.cos(a) * (s.r - 2), s.y - cy + Math.sin(a) * (s.r - 2) * 0.8, col);
-      }
-    }
+    for (const s of this.slashes) drawSlash(r, s, cx, cy); // S6.7: کمانِ ۳ فریمی با رمپِ فلز + هایلایت
     for (const f of this.floats) {
       const base = FCOL[f.col] ?? FCOL.white;
       const fade = f.t > f.life * 0.75 ? Math.round(255 * (1 - (f.t - f.life * 0.75) / (f.life * 0.25))) : 255;
@@ -9367,7 +9480,7 @@ function lootKill(run, e) {
   run.comboN++; run.comboT = 4; if (run.comboN > run._maxCombo) run._maxCombo = run.comboN; // کمبو کشتار
   if (run.comboN >= 2) run.fx.float(h.x, h.y - 58, 'x' + run.comboN, 'gold', { scale: 1 });
   run.fx.stop(e.isBoss ? 0.12 : 0.035);
-  run.fx.burst(e.x, e.y - 10, DEATH_COLORS[e.kind], e.isBoss ? 26 : 12, { sp: e.isBoss ? 60 : 34, up: 30, life: 0.55 });
+  deathFx(run.fx, e); // S6.7: خرده‌های رنگِ بدن + دود/تکه/اخگرِ per نوع (سقفِ ذرات داخلِ fx)
   if (e.kind === 'imp') { // ن۴۴: اخگرِ مرگ — نزدیک نایستید
     run.fx.burst(e.x, e.y - 8, [[255, 195, 106, 255], [224, 138, 74, 255], [176, 84, 38, 255]], 12, { sp: 50, up: 22, life: 0.45 });
     const h2 = run.hero;

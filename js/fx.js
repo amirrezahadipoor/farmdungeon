@@ -6,6 +6,7 @@ const OFF = [0, 0]; // آفست لرزش — مشترک
 import { drawTextC, E } from './tiles.js';
 import { Raster } from './raster.js';
 import { BAYER4 } from './art/dither.js'; // S4.2: دیترِ ترتیبیِ وینیت
+import { drawSlash, sparkBurst, MAX_PARTS, HIT_SPARK_DY } from './art/battle_fx.js'; // S6.7: برش/جرقه/سقفِ ذرات
 export const VIG_LEVELS = 6;  // S4.2: سطوحِ α وینیت (کوانتیزه + دیتر ⇒ بدونِ نوارِ گرادیان)
 
 export class FX {
@@ -14,8 +15,11 @@ export class FX {
     this.shakeAmp = 0; this.shakeT = 0; this.hitstop = 0;
   }
   shake(amp, t) { this.shakeAmp = Math.max(this.shakeAmp, amp); this.shakeT = Math.max(this.shakeT, t); }
+  // S6.7: سقفِ ذرات — قدیمی‌ترین‌ها کنار می‌روند تا هیچ‌وقت از MAX_PARTS بیشتر نباشد
+  _room(n) { const over = this.parts.length + n - MAX_PARTS; if (over > 0) this.parts.splice(0, over); }
   stop(t) { this.hitstop = Math.max(this.hitstop, t); }
   burst(x, y, cols, n = 10, o = {}) {
+    this._room(n);
     for (let i = 0; i < n; i++) {
       const a = (o.ang != null ? o.ang + (Math.random() - 0.5) * (o.spread ?? Math.PI * 2) : Math.random() * Math.PI * 2);
       const sp = (o.sp ?? 24) * (0.4 + Math.random() * 0.9);
@@ -24,12 +28,15 @@ export class FX {
     }
   }
   dust(x, y, n = 4, col) {
+    this._room(n);
     const c = col ?? [138, 128, 106, 120];
     for (let i = 0; i < n; i++) this.parts.push({ x: x + (Math.random() - 0.5) * 5, y: y + (Math.random() - 0.5) * 2,
       vx: (Math.random() - 0.5) * 14, vy: -6 - Math.random() * 12, g: -14, t: 0, life: 0.3 + Math.random() * 0.25, col: c, s: Math.random() < 0.5 ? 2 : 1 });
   }
   float(x, y, txt, col, o = {}) {
     this.floats.push({ x, y, txt, col, t: 0, life: o.life ?? 1, scale: o.scale ?? 1, arc: o.arc ?? 26, crit: !!o.crit });
+    // S6.7: جرقه‌ی برخورد — فقط برای شناورهایِ خسارت (runHit دست‌نخورده؛ جرقه از محلِ شناور زده می‌شود)
+    if (col === 'hit' || col === 'crit' || col === 'skill') sparkBurst(this, x, y + HIT_SPARK_DY, !!o.crit || col === 'crit');
   }
   slash(x, y, ang, r = 22) { this.slashes.push({ x, y, ang, r, t: 0 }); }
 
@@ -69,14 +76,7 @@ export class FX {
       const px = Math.round(p.x - cx), py = Math.round(p.y - cy);
       if (p.s > 1) r.rect(px, py, 2, 2, col); else r.px(px, py, col);
     }
-    for (const s of this.slashes) { // هلال برش
-      const k = 1 - s.t / 0.14, col = [255, 255, 255, Math.round(150 * k)];
-      for (let i = -3; i <= 3; i++) {
-        const a = s.ang + i * 0.16;
-        r.px(s.x - cx + Math.cos(a) * s.r, s.y - cy + Math.sin(a) * s.r * 0.8, col);
-        if (Math.abs(i) < 2) r.px(s.x - cx + Math.cos(a) * (s.r - 2), s.y - cy + Math.sin(a) * (s.r - 2) * 0.8, col);
-      }
-    }
+    for (const s of this.slashes) drawSlash(r, s, cx, cy); // S6.7: کمانِ ۳ فریمی با رمپِ فلز + هایلایت
     for (const f of this.floats) {
       const base = FCOL[f.col] ?? FCOL.white;
       const fade = f.t > f.life * 0.75 ? Math.round(255 * (1 - (f.t - f.life * 0.75) / (f.life * 0.25))) : 255;
