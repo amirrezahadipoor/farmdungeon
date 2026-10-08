@@ -26,19 +26,47 @@ export function drawReadySparkle(r, sx, sy, tx, ty, time, golden = false) {
 }
 
 // نیلوفر و نیزار روی آب — ثابت (تصادفیِ قطعی)
-export function drawWaterLife(r, sx, sy, tx, ty, time = 0) {
-  const h0 = hash(tx * 29, ty * 31);
-  if (h0 < 0.30) { // نیلوفر آبی
-    const lx = 3 + Math.floor(hash(tx * 7, ty * 13) * 9), ly = 3 + Math.floor(hash(tx * 5, ty * 17) * 9);
-    r.px(sx + lx, sy + ly, E.leaf); r.px(sx + lx + 1, sy + ly, E.leafHi); r.px(sx + lx, sy + ly + 1, E.leafSh);
-    r.px(sx + lx + 1, sy + ly + 1, E.leaf);
-    if (h0 < 0.08) r.px(sx + lx, sy + ly - 1, E.berry); // شکوفه‌ی کوچک
-  } else if (h0 < 0.42) { // نیزار (لبه)
-    const rx = 2 + Math.floor(hash(tx * 3, ty * 23) * 12);
-    r.px(sx + rx, sy + 13, E.grassSh); r.px(sx + rx, sy + 12, E.grassBlade); r.px(sx + rx, sy + 11, E.grassSh);
-    r.px(sx + rx + 2, sy + 13, E.grassBlade); r.px(sx + rx + 2, sy + 12, E.grassSh);
+// ---------- S5.4: حیاتِ حوضچه (نیلوفر/نی) — قالبِ ثابت روی ۹ تایلِ حوضچه (۲۶..۲۸ × ۱۵..۱۷) ----------
+// قاعده‌ها: هیچ جزءِ < ۲px (بریدگیِ نیلوفر با «نکشیدن» ساخته می‌شود، نه پاک‌کردن) · رنگ‌ها همه از رمپ
+// · تابِ ۲حالته‌ی کوانتیزه (~۱٫۴s) ⇒ آرامشِ آب در بودجه‌ی ۱٪
+// ردیفِ میانی (y=16) عمداً باز می‌ماند: مسیرِ شنا/جهشِ ماهی از میانِ آبِ آزاد می‌گذرد
+// ⇒ سایه و پرش هیچ‌وقت روی نیلوفر/نی نمی‌افتد و رنگِ گیاهان را تکه‌تکه (۱px) نمی‌کند
+const POND_LIFE = { '26,15': 'r', '27,15': 'l', '28,15': 'r', '26,17': 'l', '27,17': 'l', '28,17': 'r' };
+const LIFE_C = {
+  pad: rp('leaf', 4), padHi: rp('leaf', 5), padSh: rp('leaf', 2),
+  stem: rp('grass', 3), stemHi: rp('grass', 4), tassel: rp('sand', 5), tasselHi: rp('gold', 5),
+  bloomA: rp('clothRed', 6), bloomB: rp('clothRed', 5),
+};
+const _sway = (time, k) => (Math.floor(time * 0.7 + k) % 2);          // تابِ کوانتیزه: ۰/۱
+
+function lilyPad(r, sx, sy, k, time) {                                // برگِ ۴×۳ با بریدگیِ گوه‌ای + شکوفه‌ی ۲px
+  const x = sx + 3 + ((k * 4 + 1) % 8), y = sy + 3 + ((k * 5 + 2) % 8);
+  const flip = (k + Math.floor(time * 0.3)) & 1;                      // جهتِ بریدگی آرام عوض می‌شود
+  r.rect(x, y, 4, 1, LIFE_C.padHi);                                   // ردیفِ بالا (۴px، لبهٔ روشن)
+  r.rect(flip ? x : x + 1, y + 2, 3, 1, LIFE_C.padSh);                // ردیفِ پایین (۳px، سایه) — گوه سمتِ مقابل
+  r.rect(x + (flip ? 0 : 0), y + 1, 3, 1, LIFE_C.pad);                // ردیفِ میانی: ۳px ⇒ بریدگیِ ۱px در یک سر
+  r.rect(x + (flip ? 3 : 0), y, 1, 2, LIFE_C.padSh);                  // لبهٔ تیره‌ی سرِ بریدگی (جفتِ عمودیِ ۲px)
+  r.rect(x + 1, y - 2, 2, 1, LIFE_C.bloomB); r.rect(x + 1, y - 1, 2, 1, LIFE_C.bloomA); // شکوفه: ۲×۲ (هر رنگ جفتِ ۲px)
+}
+
+function reedClump(r, sx, sy, k, time) {                              // خوشه‌ی ۳ ساقه (۳–۵px) + کلاله‌ی ۲px
+  const bx = sx + 2 + ((k * 5) % 7), by = sy + 13, sw = _sway(time, k);
+  const STEMS = [[0, 5, 0], [2, 4, 1], [4, 3, 0]];                    // [افستِ x، ارتفاع، تاب‌خوردن]
+  for (const [dx, h, bend] of STEMS) {
+    const x = bx + dx, top = by - h, sh = bend ? sw : 0;
+    r.rect(x + sh, top, 1, h, bend ? LIFE_C.stemHi : LIFE_C.stem);
+    if (sh) r.px(x + sh, top - 1, LIFE_C.stemHi);                     // ادامهٔ تابِ ۱px (جزءِ ≥۲px با ساقه)
   }
-  // (ن۳۸: برق آب حذف — موج آرام خود تایل کافی است)
+  r.rect(bx, by - 6, 2, 1, LIFE_C.tasselHi);                          // کلاله‌ی ساقهٔ بلند (جفتِ ۲px)
+  r.rect(bx + 2 - (1 - sw), by - 5, 2, 1, LIFE_C.tassel);             // کلالهٔ ساقهٔ میانی (جفت)
+  r.rect(bx + 4, by - 4, 2, 1, LIFE_C.tasselHi);                      // کلالهٔ ساقهٔ کوتاه (جفت)
+}
+
+export function drawWaterLife(r, sx, sy, tx, ty, time = 0) {
+  const kind = POND_LIFE[tx + ',' + ty];
+  if (!kind) return;
+  const k = Math.floor(hash(tx * 11 + 3, ty * 13 + 7) * 3);
+  if (kind === 'l') lilyPad(r, sx, sy, k, time); else reedClump(r, sx, sy, k, time);
 }
 
 

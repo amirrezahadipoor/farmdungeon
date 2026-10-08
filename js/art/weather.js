@@ -77,7 +77,7 @@ const _ripC = [200, 224, 246, 0];
 export function drawPondRipples(r, time) {
   for (let i = 0; i < 4; i++) {
     const ph = (time * 0.8 + i * 0.31 + ((i * 17) % 5) / 9) % 1;
-    const tx = 26 + ((i * 61 + 13) % 3), ty = 15 + ((i * 37 + 7) % 3);
+    const tx = 26 + ((i * 61 + 13) % 3), ty = 16; // S5.4: موجِ باران روی آبِ آزادِ ردیفِ میانی (نه روی نیلوفر/نی)
     const sx = tx * 16 + 8, sy = ty * 16 + 8;
     if (sx < -6 || sy < -6 || sx > r.w + 6 || sy > r.h + 6) continue;
     const rr = 1 + ph * 4;
@@ -85,10 +85,10 @@ export function drawPondRipples(r, time) {
     const a = _ripC[3];
     if (a < 10) continue;
     const rx = Math.round(rr), ry = Math.max(1, Math.round(rr * 0.5));
-    r.px(sx - rx, sy, _ripC); r.px(sx + rx, sy, _ripC);
-    r.px(sx, sy - ry, _ripC); r.px(sx, sy + ry, _ripC);
+    r.rect(sx - rx, sy - 1, 1, 2, _ripC); r.rect(sx + rx, sy - 1, 1, 2, _ripC);   // S5.4: جفتِ ۲px (بدونِ پیکسل منفرد)
+    r.rect(sx - 1, sy - ry, 2, 1, _ripC); r.rect(sx - 1, sy + ry, 2, 1, _ripC);
     const dx2 = Math.round(rx * 0.7), dy2 = Math.max(0, Math.round(ry * 0.7));
-    r.px(sx - dx2, sy - dy2, _ripC); r.px(sx + dx2, sy - dy2, _ripC);
+    r.rect(sx - dx2, sy - dy2, 2, 1, _ripC); r.rect(sx + dx2 - 1, sy - dy2, 2, 1, _ripC);
     r.px(sx - dx2, sy + dy2, _ripC); r.px(sx + dx2, sy + dy2, _ripC);
   }
 }
