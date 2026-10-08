@@ -3,7 +3,7 @@ import { drawMonsterFrame } from './art/monsters.js';
 import { AI_EXT } from './mobs_new.js'; // ن۴۴: رفتارهای ویژه (تیرانداز/یورش/دزدی/جهش)
 import { MONSTER_KINDS } from './art/monster_parts.js';
 import { drawBossFrame } from './art/boss.js';
-import { snapRaster } from './art/pm_snap.js'; // S4.6c
+import { makeSpriteCache } from './art/bake.js'; // S6.1: کشِ سقف‌دارِ خط لوله (snap حالا داخل bake)
 
 const STATS = {
   slime:    { hp: 20,  speed: 24, range: 18, windup: 0.35, dmg: 4,  stride: 10, cool: 1.1 },
@@ -121,11 +121,9 @@ export class Monster {
     if (!s) {
       const o = { state: this.state, t: q(this.t), ph: q(this.ph), face: this.face, time: this.time, hit: this.flash > 0 };
       s = this.isBoss ? drawBossFrame({ ...o, atk: this.atk, phase: this.phase }) : drawMonsterFrame(this.kind, o);
-      if (Monster._cache.size > 300) { const it = Monster._cache.keys(); for (let i = 0; i < 90; i++) { const k = it.next(); if (k.done) break; Monster._cache.delete(k.value); } } // سقف حافظه: ۳۰۰×۶۴KB≈۱۹MB
-      snapRaster(s); // S4.6c: یکسان‌سازیِ پالتِ موب/باس با پالتِ مستر (یک‌بار در پخت)
-      Monster._cache.set(key, s);
+      Monster._cache.set(key, s); // snap پالت داخلِ draw*Frame (خط لولهٔ S6.1) — سقف حافظه در makeSpriteCache
     }
     return s;
   }
 }
-Monster._cache = new Map();
+Monster._cache = makeSpriteCache(300, 90); // سقف ۳۰۰×۶۴KB≈۱۹MB — حذفِ ۹۰ قدیمی‌ترین در ترتیبِ درج

@@ -5,9 +5,7 @@ import { Raster, rot } from '../raster.js';
 import { ik, GAITS } from '../skeleton.js';
 import { SPR, OX, OY, DIRS, GEO, ACT, actionPose, gaitPose, poseLerp, mapPts } from './hero_pose.js';
 import { drawEquipHat, drawEquipBody, drawEquipBoots, swordPal } from './equipment.js';
-import { applyRim } from './rim.js';                     // S1.6: جلای لبه پیش از snap
-import { lockPAL } from './palette_snap.js';             // S1.6: قفل پالت (بدون رنگ سرِخود)
-import { inkOutline } from './outline.js';               // S1.7: outline انتخابیِ یکدست
+import { bake } from './bake.js';                       // S6.1: خط لولهٔ واحدِ پخت (half/rim/outline/lock)
 
 // ---------- قطعات ----------
 const TRIP = {
@@ -211,42 +209,14 @@ export function drawHeroFrame(opts) {
   drawArm(body, dir, P.arms.near, true);
   if (tool !== 'none' && toolAng !== null)
     drawTool(body, tool, Math.round(P.arms.near.hand[0]), Math.round(P.arms.near.hand[1]) + 1, toolAng, equip && equip.sword);
-  // S1.6: outline دیگر اینجا (مقیاس ۱۲۸) کشیده نمی‌شود — در halfSprite پس از کاهش‌اندازه، ۱px یکدست
-  const out = new Raster(SPR, SPR);          // سایه‌ی بیضی — ۵ لایه (هم‌سبک موب‌ها؛ M4)
-  const sc = (a) => [8, 6, 14, a];         // ۵ باند تُودرتو — همان پاصفحهٔ قبلی (۱۳×۴ روی OY+2)
-  out.ellipse(OX, OY + 2, 13, 4, sc(24)); out.ellipse(OX, OY + 2, 11, 3, sc(44)); out.ellipse(OX, OY + 2, 9, 3, sc(74));
-  out.ellipse(OX, OY + 2, 7, 2, sc(118)); out.ellipse(OX, OY + 2, 5, 2, sc(168));
-  body.over(out);
-  return out;
+  // S6.1: سایهٔ تماس از خط لولهٔ واحد (bake) — همان ۵ باندِ قبلی (۱۳×۴ روی OY+2)
+  return bake(body, [{ op: 'shadow', spec: 'hero', x: OX, y: OY + 2, color: [8, 6, 14] }]);
 }
 
-// نصف‌مقیاس ۲:۱ (ن۳۵) — S1.6: «رأی اکثریت ۲×۲» جای میانگین جعبه‌ای (تساوی ← تیره‌تر)
-// ⇒ هیچ رنگ تازه‌ای ساخته نمی‌شود؛ سپس outline (۱px در مقیاس نهایی) → rim → snap پالت
+// نصف‌مقیاس ۲:۱ سپس rim → outline جوهر → قفلِ پالت (S6.1: بدنهٔ مراحل در art/bake.js)
+// ترتیب دست‌نخورده است: half → rim → outline(ink) → lock؛ ۱px در مقیاسِ نهایی
 export function halfSprite(s) {
-  const t = new Raster(s.w >> 1, s.h >> 1);
-  const td = t.d, sd = s.d, w2 = s.w;
-  const cnt = new Map();
-  for (let y = 0; y < t.h; y++) for (let x = 0; x < t.w; x++) {
-    cnt.clear();
-    let al = 0, best = -1, bestN = 0, bestL = 1e9;
-    for (let dy = 0; dy < 2; dy++) for (let dx = 0; dx < 2; dx++) {
-      const i = ((y * 2 + dy) * w2 + x * 2 + dx) * 4;
-      if (sd[i + 3] <= 8) continue;
-      if (sd[i + 3] > al) al = sd[i + 3];
-      const k = (sd[i] << 16) | (sd[i + 1] << 8) | sd[i + 2];
-      const n = (cnt.get(k) || 0) + 1; cnt.set(k, n);
-      const L = sd[i] * 0.299 + sd[i + 1] * 0.587 + sd[i + 2] * 0.114;
-      if (n > bestN || (n === bestN && L < bestL)) { bestN = n; bestL = L; best = i; }
-    }
-    if (best < 0) continue;
-    const j = (y * t.w + x) * 4;
-    td[j] = sd[best]; td[j + 1] = sd[best + 1]; td[j + 2] = sd[best + 2]; td[j + 3] = al;
-  }
-  applyRim(t, null, 0.62); // جلای لبه‌ی بالا — هم‌قدر موب‌ها (default rim.js)
-  inkOutline(t, { mode: 'ink' }); // S1.7: حلقهٔ جوهر (پالت قهرمان سفارشی است → حلقه داخل PM می‌ماند)
-  lockPAL(t);             // قفل پالت (پیکسل‌های حلقه معاف‌اند)
-  t.rimDone = true;       // تماس‌های بعدیِ applyRim بی‌اثرند (farm_render/run_render)
-  return t;
+  return bake(s, [{ op: 'half' }, { op: 'rim', lift: 0.62 }, { op: 'outline', mode: 'ink' }, { op: 'lock' }]);
 }
 
 // کلید کش: ۸ فریم در چرخه؛ blend شروع/توقف به ۳ پله کوانت می‌شود

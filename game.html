@@ -5239,6 +5239,132 @@ function applyRim(body, hi, lift = 0.62, minA = 120) {
 return {applyRim};
 })();
 const {applyRim} = __m_art_rim;
+const __m_art_bake = (() => {
+// art/bake.js — خط لولهٔ واحدِ پختِ اسپرایت (S6.1، Parity-first)
+// ---------------------------------------------------------------------------
+// چرا: هر مسیر (قهرمان/کارگر/موب/باس) پختِ خودش را داشت و ترتیبِ مراحل در سه فایل تکرار می‌شد.
+// این ماژول **اجراکنندهٔ مراحل** است: شکل را هر مسیر خودش می‌کشد، سپس «دستورِ پخت» (recipe)
+// به ترتیب اجرا می‌شود. مراحل و اعداد بدونِ تغییر از مسیرهای قبلی منتقل شده‌اند ⇒ برابریِ پیکسلی.
+//
+// مراحل موجود (همه idempotent-safe و بدونِ تخصیصِ اضافه در فریم — فقط زمانِ پخت):
+//   half    : کاهش‌اندازهٔ ۲:۱ با «رأی اکثریتِ ۲×۲» (تساوی ← تیره‌تر) — رنگ تازه نمی‌سازد
+//   recolor : تعویضِ پالتِ اسپرایت (کارگر مزرعه) — با تابعِ نقشهٔ بیرونی
+//   rim     : جلای لبهٔ بالا (art/rim.js)
+//   outline : خطِ دورِ ۱px — mode 'ink' (رمپ جوهری) یا 'sel' (تُنِ همان ماده)
+//   flash   : فلش سفیدِ ضربه (روی پیکسل‌های مات)
+//   shadow  : سایهٔ تماسِ ۵ باندی (M4) از جدولِ واحدِ CONTACT — زیرِ بدنه کامپوزیت می‌شود
+//   lock    : قفلِ پالتِ قهرمان (palette_snap.js) + نشانِ rimDone
+//   snap    : یکسان‌سازیِ پالت با پالتِ مستر (pm_snap.js)
+//
+// ترتیبِ رسمیِ پیشنهادی (S6.2+ هم همین را نگه می‌دارد):
+//   شکل → [recolor] → [rim] → [outline] → [flash] → shadow → [half] → [lock | snap]
+// مسیرِ فعلیِ قهرمان/کارگر نصف‌سازی را **پیش از** rim/outline انجام می‌دهد (۱px یکدست در مقیاسِ نهایی)
+// و مسیرِ موب/باس snap را در پایان ⇒ دستورهای هر مسیر در فایلِ خودش صریح است.
+
+
+
+
+
+
+// ---------- سایهٔ تماس: جدولِ واحدِ نسبی (rx, ry, اختلافِ y از لنگر, آلفا) ----------
+// hero: ۵ باند روی یک لنگر · mob: شعاع‌ها از اندازهٔ بدنِ همان کیند · boss: ثابتِ بزرگ
+const CONTACT = {
+  hero: () => [[13, 4, 0, 24], [11, 3, 0, 44], [9, 3, 0, 74], [7, 2, 0, 118], [5, 2, 0, 168]],
+  mob: (sw, sh2) => [
+    [sw + 6, sh2 + 3, 4, 24], [sw + 4, sh2 + 2, 3, 44], [sw + 2, sh2 + 1, 3, 74],
+    [sw, sh2, 2, 118], [sw - 2, Math.max(1, sh2 - 1), 1, 168],
+  ],
+  boss: () => [[26, 9, 4, 24], [24, 8, 3, 44], [22, 7, 3, 74], [20, 6, 2, 118], [18, 5, 1, 168]],
+};
+
+// ---------- مراحل ----------
+// نصف‌مقیاس ۲:۱ (ن۳۵) — «رأی اکثریت ۲×۲» جای میانگین جعبه‌ای (تساوی ← تیره‌تر)
+// ⇒ هیچ رنگ تازه‌ای ساخته نمی‌شود (منبع: hero.js ن۳۵/S1.6؛ بایت‌به‌بایت منتقل شد)
+function stHalf(s) {
+  const t = new Raster(s.w >> 1, s.h >> 1);
+  const td = t.d, sd = s.d, w2 = s.w;
+  const cnt = new Map();
+  for (let y = 0; y < t.h; y++) for (let x = 0; x < t.w; x++) {
+    cnt.clear();
+    let al = 0, best = -1, bestN = 0, bestL = 1e9;
+    for (let dy = 0; dy < 2; dy++) for (let dx = 0; dx < 2; dx++) {
+      const i = ((y * 2 + dy) * w2 + x * 2 + dx) * 4;
+      if (sd[i + 3] <= 8) continue;
+      if (sd[i + 3] > al) al = sd[i + 3];
+      const k = (sd[i] << 16) | (sd[i + 1] << 8) | sd[i + 2];
+      const n = (cnt.get(k) || 0) + 1; cnt.set(k, n);
+      const L = sd[i] * 0.299 + sd[i + 1] * 0.587 + sd[i + 2] * 0.114;
+      if (n > bestN || (n === bestN && L < bestL)) { bestN = n; bestL = L; best = i; }
+    }
+    if (best < 0) continue;
+    const j = (y * t.w + x) * 4;
+    td[j] = sd[best]; td[j + 1] = sd[best + 1]; td[j + 2] = sd[best + 2]; td[j + 3] = al;
+  }
+  return t;
+}
+// سایهٔ تماس: باندها روی بومِ شفاف، سپس بدنه **روی** آن (ترتیبِ قبلیِ هر دو مسیر یکی بود)
+function stShadow(s, st) {
+  const layers = CONTACT[st.spec](...(st.size || []));
+  const out = new Raster(s.w, s.h);
+  const c = st.color;
+  for (let i = 0; i < layers.length; i++) {
+    const [rx, ry, dy, a] = layers[i];
+    out.ellipse(st.x, st.y + dy, rx, ry, [c[0], c[1], c[2], a]);
+  }
+  s.over(out);
+  return out;
+}
+// فلشِ ضربه: پیکسل‌های مات (α>۱۲۰) سفید می‌شوند.
+// ⚠ حتماً از px() استفاده کن: px آلفا را blend و با max به‌روز می‌کند (بدنهٔ نیمه‌شفافِ روح ⇒ سفیدِ کامل).
+//   نوشتنِ مستقیمِ RGB (بدونِ blend) برای روح ۵۴ فریم را عوض کرد — تستِ برابری همین را گرفت (S6.1).
+function stFlash(s, st) {
+  const d = s.d, w = s.w, h = s.h, c = st.color, minA = st.minA ?? 120;
+  for (let y = 0; y < h; y++) for (let x = 0; x < w; x++) {
+    if (d[(y * w + x) * 4 + 3] > minA) s.px(x, y, c);
+  }
+  return s;
+}
+const STEPS = {
+  recolor: (s, st) => st.fn(s),                              // کارگر: نقشهٔ تعویضِ رنگ (art/recolor.js) در همین جای خط لوله
+  half: (s) => stHalf(s),
+  rim: (s, st) => { applyRim(s, st.hi ?? null, st.lift ?? 0.62, st.minA ?? 120); return s; },
+  outline: (s, st) => { inkOutline(s, { mode: st.mode || 'sel' }); return s; },
+  flash: (s, st) => stFlash(s, st),
+  shadow: (s, st) => stShadow(s, st),
+  lock: (s) => { lockPAL(s); s.rimDone = true; return s; },   // rimDone: تماس‌های بعدیِ applyRim بی‌اثر
+  snap: (s) => { snapRaster(s); return s; },
+};
+
+// اجراکنندهٔ خط لوله — shape یا یک Raster است یا تابعی که Raster تازه می‌سازد
+function bake(shape, steps = []) {
+  let cur = typeof shape === 'function' ? shape() : shape;
+  for (let i = 0; i < steps.length; i++) {
+    const st = steps[i], next = STEPS[st.op](cur, st);
+    if (next) cur = next;
+  }
+  return cur;
+}
+
+// ---------- کشِ اسپرایت (سقف‌دار) ----------
+// رفتارِ قبلیِ Monster._cache: Map با سقفِ ۳۰۰ و حذفِ ۹۰ قدیمی‌ترین **در ترتیبِ درج**.
+// کلیدها فریم‌های تغییرناپذیرند ⇒ ترتیبِ دسترسی مهم نیست (LRUِ واقعی بی‌فایده بود) و همین
+// سیاست عیناً حفظ شده تا مصرفِ حافظه و رفتارِ پخت عوض نشود.
+function makeSpriteCache(cap = 300, evict = 90) {
+  const m = new Map();
+  return {
+    get size() { return m.size; },
+    get: (k) => m.get(k),
+    set: (k, v) => {
+      m.set(k, v);
+      if (m.size > cap) { const it = m.keys(); for (let i = 0; i < evict; i++) { const q = it.next(); if (q.done) break; m.delete(q.value); } }
+    },
+    clear: () => m.clear(),
+  };
+}
+
+return {CONTACT, STEPS, bake, makeSpriteCache};
+})();
+const {CONTACT, STEPS, bake, makeSpriteCache} = __m_art_bake;
 const __m_art_hero_pose = (() => {
 // hero_pose.js — ریاضیِ پوز قهرمان (خالص، بدون رسم): هندسه‌ی مفاصل، گام،
 // کی‌فریم ابزار، میکس پوز و نگاشت به بوم ۱۲۸ — جداسازی از hero.js (ن۳۰)
@@ -5378,8 +5504,6 @@ const {SPR, OX, OY, HOX, HOY, DIRS, GEO, ACT, ACT_DUR, actionPose, gaitPose, pos
 const __m_art_hero = (() => {
 // hero.js — رسم قهرمان: اسکلت ۱۷ مفصلی (ریاضی پوز در hero_pose.js) —
 // ۴ جهت واقعی با پای نزدیک/دور و ترتیب لایه درست. همه‌چیز رویه‌ای روی Raster 128×۱۲۸.
-
-
 
 
 
@@ -5589,42 +5713,14 @@ function drawHeroFrame(opts) {
   drawArm(body, dir, P.arms.near, true);
   if (tool !== 'none' && toolAng !== null)
     drawTool(body, tool, Math.round(P.arms.near.hand[0]), Math.round(P.arms.near.hand[1]) + 1, toolAng, equip && equip.sword);
-  // S1.6: outline دیگر اینجا (مقیاس ۱۲۸) کشیده نمی‌شود — در halfSprite پس از کاهش‌اندازه، ۱px یکدست
-  const out = new Raster(SPR, SPR);          // سایه‌ی بیضی — ۵ لایه (هم‌سبک موب‌ها؛ M4)
-  const sc = (a) => [8, 6, 14, a];         // ۵ باند تُودرتو — همان پاصفحهٔ قبلی (۱۳×۴ روی OY+2)
-  out.ellipse(OX, OY + 2, 13, 4, sc(24)); out.ellipse(OX, OY + 2, 11, 3, sc(44)); out.ellipse(OX, OY + 2, 9, 3, sc(74));
-  out.ellipse(OX, OY + 2, 7, 2, sc(118)); out.ellipse(OX, OY + 2, 5, 2, sc(168));
-  body.over(out);
-  return out;
+  // S6.1: سایهٔ تماس از خط لولهٔ واحد (bake) — همان ۵ باندِ قبلی (۱۳×۴ روی OY+2)
+  return bake(body, [{ op: 'shadow', spec: 'hero', x: OX, y: OY + 2, color: [8, 6, 14] }]);
 }
 
-// نصف‌مقیاس ۲:۱ (ن۳۵) — S1.6: «رأی اکثریت ۲×۲» جای میانگین جعبه‌ای (تساوی ← تیره‌تر)
-// ⇒ هیچ رنگ تازه‌ای ساخته نمی‌شود؛ سپس outline (۱px در مقیاس نهایی) → rim → snap پالت
+// نصف‌مقیاس ۲:۱ سپس rim → outline جوهر → قفلِ پالت (S6.1: بدنهٔ مراحل در art/bake.js)
+// ترتیب دست‌نخورده است: half → rim → outline(ink) → lock؛ ۱px در مقیاسِ نهایی
 function halfSprite(s) {
-  const t = new Raster(s.w >> 1, s.h >> 1);
-  const td = t.d, sd = s.d, w2 = s.w;
-  const cnt = new Map();
-  for (let y = 0; y < t.h; y++) for (let x = 0; x < t.w; x++) {
-    cnt.clear();
-    let al = 0, best = -1, bestN = 0, bestL = 1e9;
-    for (let dy = 0; dy < 2; dy++) for (let dx = 0; dx < 2; dx++) {
-      const i = ((y * 2 + dy) * w2 + x * 2 + dx) * 4;
-      if (sd[i + 3] <= 8) continue;
-      if (sd[i + 3] > al) al = sd[i + 3];
-      const k = (sd[i] << 16) | (sd[i + 1] << 8) | sd[i + 2];
-      const n = (cnt.get(k) || 0) + 1; cnt.set(k, n);
-      const L = sd[i] * 0.299 + sd[i + 1] * 0.587 + sd[i + 2] * 0.114;
-      if (n > bestN || (n === bestN && L < bestL)) { bestN = n; bestL = L; best = i; }
-    }
-    if (best < 0) continue;
-    const j = (y * t.w + x) * 4;
-    td[j] = sd[best]; td[j + 1] = sd[best + 1]; td[j + 2] = sd[best + 2]; td[j + 3] = al;
-  }
-  applyRim(t, null, 0.62); // جلای لبه‌ی بالا — هم‌قدر موب‌ها (default rim.js)
-  inkOutline(t, { mode: 'ink' }); // S1.7: حلقهٔ جوهر (پالت قهرمان سفارشی است → حلقه داخل PM می‌ماند)
-  lockPAL(t);             // قفل پالت (پیکسل‌های حلقه معاف‌اند)
-  t.rimDone = true;       // تماس‌های بعدیِ applyRim بی‌اثرند (farm_render/run_render)
-  return t;
+  return bake(s, [{ op: 'half' }, { op: 'rim', lift: 0.62 }, { op: 'outline', mode: 'ink' }, { op: 'lock' }]);
 }
 
 // کلید کش: ۸ فریم در چرخه؛ blend شروع/توقف به ۳ پله کوانت می‌شود
@@ -6393,29 +6489,21 @@ const __m_art_monsters = (() => {
 
 
 
-
 // فریم نهایی: بدنه → rim-light → outline → فلش سفید → سایه‌ی نرم
 function drawMonsterFrame(kind, o) {
   const f = { state: o.state || 'idle', t: o.t ?? 0, ph: o.ph ?? 0, face: o.face ?? 1, time: o.time ?? 0 };
   const body = new Raster(MSPR, MSPR);
   MBODY[kind](body, f);
-  // rim-light مشترک (art/rim.js)
+  // S6.1: rim → outline → flash → سایهٔ ۵ باندی → snap پالت، همه از خط لولهٔ واحد
   const hiC = MC[kind + 'Hi'];
-  if (hiC && f.state !== 'die' && !o.hit) applyRim(body, hiC, 0.62);
-  if (!o.hit) inkOutline(body, { mode: 'sel' }); // S1.7: یکدست برای همه‌ی کیندها (L≈۱۹)
-  if (o.hit) for (let y = 0; y < MSPR; y++) for (let x = 0; x < MSPR; x++) { const c = body.get(x, y); if (c && c[3] > 120) body.px(x, y, MC.white); }
-  const out = new Raster(MSPR, MSPR);
   const [sw, sh2] = MSHW[kind];
-  // S1.5a: سایه‌ی ۵ لایه (AO نرم + تماس) — ۵ باند آلفا برای M4؛ رنگ از رمپ جوهری
-  const inkC = rp('ink', 0);
-  const shC = (a) => [inkC[0], inkC[1], inkC[2], a];
-  out.ellipse(MOX, MOY + 4, sw + 6, sh2 + 3, shC(24)); // هاله
-  out.ellipse(MOX, MOY + 3, sw + 4, sh2 + 2, shC(44));
-  out.ellipse(MOX, MOY + 3, sw + 2, sh2 + 1, shC(74));
-  out.ellipse(MOX, MOY + 2, sw, sh2, shC(118));        // هسته
-  out.ellipse(MOX, MOY + 1, sw - 2, Math.max(1, sh2 - 1), shC(168)); // تماس تیره
-  body.over(out);
-  return out;
+  const steps = [];
+  if (hiC && f.state !== 'die' && !o.hit) steps.push({ op: 'rim', hi: hiC, lift: 0.62 });
+  if (!o.hit) steps.push({ op: 'outline', mode: 'sel' });          // S1.7: یکدست برای همه‌ی کیندها (L≈۱۹)
+  if (o.hit) steps.push({ op: 'flash', color: MC.white });
+  steps.push({ op: 'shadow', spec: 'mob', size: [sw, sh2], x: MOX, y: MOY, color: rp('ink', 0) }); // S1.5a
+  steps.push({ op: 'snap' });                                      // S4.6c: یکسان‌سازی با پالتِ مستر
+  return bake(body, steps);
 }
 
 return {drawMonsterFrame};
@@ -6549,15 +6637,13 @@ function drawBossFrame(o) {
     g.rect(sx - 6 + fall * 8, hy - 5 + fall * 26, 3, 5, B.gold); g.rect(sx - 1 + fall * 10, hy - 5 + fall * 28, 3, 5, B.gold); g.rect(sx + 4 + fall * 6, hy - 5 + fall * 25, 3, 5, B.gold);
     if (dead > 0.6) { g.rect(sx - 20, gy - 20, 14, 8, B.out); g.rect(sx + 8, gy - 14, 12, 7, B.out); } // خرده‌سنگ
   }
-  if (!o.hit) inkOutline(r, { mode: 'sel' }); // S1.7: به‌جای B.out ثابت — تُنِ ماده، L≈۱۹
-  if (o.hit) for (let y = 0; y < BSPR; y++) for (let x = 0; x < BSPR; x++) { const c = r.get(x, y); if (c && c[3] > 120) r.px(x, y, MC.white); }
-  const out = new Raster(BSPR, BSPR);
-  // S1.5b: سایه‌ی ۵ لایه (هم‌سبک موب‌ها) — ۵ باند آلفا برای M4
-  const inkC = rp('ink', 0); const shC = (a) => [inkC[0], inkC[1], inkC[2], a];
-  out.ellipse(OX, OY + 4, 26, 9, shC(24)); out.ellipse(OX, OY + 3, 24, 8, shC(44)); out.ellipse(OX, OY + 3, 22, 7, shC(74));
-  out.ellipse(OX, OY + 2, 20, 6, shC(118)); out.ellipse(OX, OY + 1, 18, 5, shC(168));
-  r.over(out);
-  return out;
+  // S6.1: outline → flash → سایهٔ ۵ باندی → snap پالت، همه از خط لولهٔ واحد
+  const steps = [];
+  if (!o.hit) steps.push({ op: 'outline', mode: 'sel' }); // S1.7: به‌جای B.out ثابت — تُنِ ماده، L≈۱۹
+  if (o.hit) steps.push({ op: 'flash', color: MC.white });
+  steps.push({ op: 'shadow', spec: 'boss', x: OX, y: OY, color: rp('ink', 0) }); // S1.5b: ۵ باند آلفا (M4)
+  steps.push({ op: 'snap' });                                                    // S4.6c
+  return bake(r, steps);
 }
 
 return {drawBossFrame};
@@ -6914,14 +7000,12 @@ class Monster {
     if (!s) {
       const o = { state: this.state, t: q(this.t), ph: q(this.ph), face: this.face, time: this.time, hit: this.flash > 0 };
       s = this.isBoss ? drawBossFrame({ ...o, atk: this.atk, phase: this.phase }) : drawMonsterFrame(this.kind, o);
-      if (Monster._cache.size > 300) { const it = Monster._cache.keys(); for (let i = 0; i < 90; i++) { const k = it.next(); if (k.done) break; Monster._cache.delete(k.value); } } // سقف حافظه: ۳۰۰×۶۴KB≈۱۹MB
-      snapRaster(s); // S4.6c: یکسان‌سازیِ پالتِ موب/باس با پالتِ مستر (یک‌بار در پخت)
-      Monster._cache.set(key, s);
+      Monster._cache.set(key, s); // snap پالت داخلِ draw*Frame (خط لولهٔ S6.1) — سقف حافظه در makeSpriteCache
     }
     return s;
   }
 }
-Monster._cache = new Map();
+Monster._cache = makeSpriteCache(300, 90); // سقف ۳۰۰×۶۴KB≈۱۹MB — حذفِ ۹۰ قدیمی‌ترین در ترتیبِ درج
 
 return {ALL_KINDS, Monster};
 })();
@@ -9640,7 +9724,6 @@ function renderRun(run, r) {
       else {
         const e = en.e, s = e.sprite();
         s.over(r, Math.round(e.x) - 64 - cx, Math.round(e.y) - (e.isBoss ? 112 : 100) - cy);
-        if (e.isElite) drawEliteMark(r, Math.round(e.x - cx), Math.round(e.y - cy), run.time, Math.round(e.y - cy) - (e.isBoss ? 118 : (MHEAD[e.kind] ?? 76))); // ن۴۷: تاج روی سرِ واقعی هر جور — و بعد از اسپرایت (قبلاً خز/گوش خود هیولا وسط تاج را می‌پوشاند)
 
       }
     }
@@ -9709,9 +9792,12 @@ function renderRun(run, r) {
     drawMotes(r, 'dungeon', D.theme, cx, cy, run.time, r.w, r.h); // S4.8: ذراتِ آرامِ تم (≤۶، ۱px)
     // افکت‌ها روی تاریکی (می‌درخشند)
     run.fx.render(r, cx, cy);
-    // ---- نوار جان + علامت حمله + کمبو: بعد از تاریکی (خوانا حتی در تاریکی) ----
+    // ---- نوار جان + علامت حمله + تاجِ نخبه + کمبو: بعد از تاریکی (خوانا حتی در تاریکی) ----
     for (const e of D.enemies) {
       if (e.dead) continue;
+      // S6.1: تاجِ نخبه **پس از تاریکی** — در S4.2 تاریکی اضافه شد و تاج که پیش از آن کشیده می‌شد خفه/تیره می‌ماند
+      // (elite47 همین را «۴/۱۴» گزارش می‌کرد). حالا مثل نوار جان/مؤلفه‌های خوانایی در لایهٔ روشن است.
+      if (e.isElite) drawEliteMark(r, Math.round(e.x - cx), Math.round(e.y - cy), run.time, Math.round(e.y - cy) - (e.isBoss ? 118 : (MHEAD[e.kind] ?? 76)));
       if (e.hp < e.maxHp) {
         const bw = e.isBoss ? 40 : 18, top = Math.round(e.y - cy) - (e.isBoss ? 100 : 64);
         const bx = Math.round(e.x - cx) - bw / 2;

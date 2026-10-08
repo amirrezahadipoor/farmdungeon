@@ -3,7 +3,7 @@ import { Raster } from '../raster.js';
 import { MC } from './monster_parts.js';
 import { ease } from '../skeleton.js';
 import { rp } from './ramps.js'; // S1.5b: سایه از رمپ جوهری
-import { inkOutline } from './outline.js'; // S1.7: outline انتخابیِ یکدست
+import { bake } from './bake.js'; // S6.1: خط لولهٔ واحدِ پخت (outline/flash/shadow/snap)
 
 const BSPR = 128;
 const OX = 64, OY = 112; // باس بزرگ است: مبدأ پایین‌تر تا داخل بوم جا شود
@@ -125,13 +125,11 @@ export function drawBossFrame(o) {
     g.rect(sx - 6 + fall * 8, hy - 5 + fall * 26, 3, 5, B.gold); g.rect(sx - 1 + fall * 10, hy - 5 + fall * 28, 3, 5, B.gold); g.rect(sx + 4 + fall * 6, hy - 5 + fall * 25, 3, 5, B.gold);
     if (dead > 0.6) { g.rect(sx - 20, gy - 20, 14, 8, B.out); g.rect(sx + 8, gy - 14, 12, 7, B.out); } // خرده‌سنگ
   }
-  if (!o.hit) inkOutline(r, { mode: 'sel' }); // S1.7: به‌جای B.out ثابت — تُنِ ماده، L≈۱۹
-  if (o.hit) for (let y = 0; y < BSPR; y++) for (let x = 0; x < BSPR; x++) { const c = r.get(x, y); if (c && c[3] > 120) r.px(x, y, MC.white); }
-  const out = new Raster(BSPR, BSPR);
-  // S1.5b: سایه‌ی ۵ لایه (هم‌سبک موب‌ها) — ۵ باند آلفا برای M4
-  const inkC = rp('ink', 0); const shC = (a) => [inkC[0], inkC[1], inkC[2], a];
-  out.ellipse(OX, OY + 4, 26, 9, shC(24)); out.ellipse(OX, OY + 3, 24, 8, shC(44)); out.ellipse(OX, OY + 3, 22, 7, shC(74));
-  out.ellipse(OX, OY + 2, 20, 6, shC(118)); out.ellipse(OX, OY + 1, 18, 5, shC(168));
-  r.over(out);
-  return out;
+  // S6.1: outline → flash → سایهٔ ۵ باندی → snap پالت، همه از خط لولهٔ واحد
+  const steps = [];
+  if (!o.hit) steps.push({ op: 'outline', mode: 'sel' }); // S1.7: به‌جای B.out ثابت — تُنِ ماده، L≈۱۹
+  if (o.hit) steps.push({ op: 'flash', color: MC.white });
+  steps.push({ op: 'shadow', spec: 'boss', x: OX, y: OY, color: rp('ink', 0) }); // S1.5b: ۵ باند آلفا (M4)
+  steps.push({ op: 'snap' });                                                    // S4.6c
+  return bake(r, steps);
 }

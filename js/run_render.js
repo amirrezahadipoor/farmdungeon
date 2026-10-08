@@ -136,7 +136,6 @@ export function renderRun(run, r) {
       else {
         const e = en.e, s = e.sprite();
         s.over(r, Math.round(e.x) - 64 - cx, Math.round(e.y) - (e.isBoss ? 112 : 100) - cy);
-        if (e.isElite) drawEliteMark(r, Math.round(e.x - cx), Math.round(e.y - cy), run.time, Math.round(e.y - cy) - (e.isBoss ? 118 : (MHEAD[e.kind] ?? 76))); // ن۴۷: تاج روی سرِ واقعی هر جور — و بعد از اسپرایت (قبلاً خز/گوش خود هیولا وسط تاج را می‌پوشاند)
 
       }
     }
@@ -205,9 +204,12 @@ export function renderRun(run, r) {
     drawMotes(r, 'dungeon', D.theme, cx, cy, run.time, r.w, r.h); // S4.8: ذراتِ آرامِ تم (≤۶، ۱px)
     // افکت‌ها روی تاریکی (می‌درخشند)
     run.fx.render(r, cx, cy);
-    // ---- نوار جان + علامت حمله + کمبو: بعد از تاریکی (خوانا حتی در تاریکی) ----
+    // ---- نوار جان + علامت حمله + تاجِ نخبه + کمبو: بعد از تاریکی (خوانا حتی در تاریکی) ----
     for (const e of D.enemies) {
       if (e.dead) continue;
+      // S6.1: تاجِ نخبه **پس از تاریکی** — در S4.2 تاریکی اضافه شد و تاج که پیش از آن کشیده می‌شد خفه/تیره می‌ماند
+      // (elite47 همین را «۴/۱۴» گزارش می‌کرد). حالا مثل نوار جان/مؤلفه‌های خوانایی در لایهٔ روشن است.
+      if (e.isElite) drawEliteMark(r, Math.round(e.x - cx), Math.round(e.y - cy), run.time, Math.round(e.y - cy) - (e.isBoss ? 118 : (MHEAD[e.kind] ?? 76)));
       if (e.hp < e.maxHp) {
         const bw = e.isBoss ? 40 : 18, top = Math.round(e.y - cy) - (e.isBoss ? 100 : 64);
         const bx = Math.round(e.x - cx) - bw / 2;
