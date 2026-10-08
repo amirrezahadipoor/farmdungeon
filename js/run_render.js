@@ -11,7 +11,7 @@ import { drawTorches, drawChests, drawDrops, drawShrines, TORCH_LIGHT } from './
 import { drawWater, dungeonShore } from './art/water.js'; // S2.7: آب و کرانه (یک منبع با مزرعه)
 import { drawPillarHead } from './art/ground.js'; // S3.8: سرستونِ بیرون‌زده (بعد از موجودات ⇒ y-sort)
 import { drawProjs } from './projectiles.js'; // ن۴۴
-import { applyDarkness, COLOR_LIGHTS, C_RAD_CAP, C_MAX } from './art/light.js'; // S4.1: پاسِ نورِ رنگی
+import { applyDarkness, COLOR_LIGHTS, C_RAD_CAP, C_MAX, setThemeGrade, GRADE } from './art/light.js'; // S4.1: پاسِ نورِ رنگی
 import { t, faNum } from './i18n.js';
 
 const _sprCache = new Map(); // کش اسپرایت قهرمان (LRU)
@@ -182,6 +182,7 @@ export function renderRun(run, r) {
       pushC(D.stairs.x * TILE + 8 - cx, D.stairs.y * TILE + 8 - cy, 14, 52, 5);
       pushC(h.x - cx, h.y - 14 - cy, 22, 44, 4);           // هالهٔ گرمِ ملایمِ قهرمان (آخر ⇒ بودجه‌ی باقی‌مانده)
     }
+    setThemeGrade(GRADE.off ? -1 : D.theme);                     // S4.3: گریدینگِ رنگیِ تم (LUT یک‌بار در هر تغییرِ تم)
     applyDarkness(r, run._dark, L, C, cx, cy); // S4.2: دوربین برای دیترِ جهانی
     // افکت‌ها روی تاریکی (می‌درخشند)
     run.fx.render(r, cx, cy);

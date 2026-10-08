@@ -4,7 +4,8 @@ import { Raster } from '../raster.js';
 import { rp } from './ramps.js'; // S4.1: رنگِ نورها از رمپ‌های پالت (M5)
 import { BAYER4 } from './dither.js'; // S4.2: کوانتیزه‌ی آلفای تاریکی با دیترِ ترتیبی
 
-const DARK_R = 13, DARK_G = 11, DARK_B = 26, DARK_A = 118;
+let DARK_R = 13, DARK_G = 11, DARK_B = 26; // S4.3: رنگِ تاریکی per تم (گریدینگ)
+const DARK_A = 118;
 
 // استامپ نور: cut = strength×(1−d²) از پیش‌محاسبه‌شده — کلید: rad×1000+strength
 const _lightSt = new Map();
@@ -23,20 +24,42 @@ function lightStamp(rad, strength) {
   return st;
 }
 
-// ن۳۹: LUT بلند — out = src·(255−a)/255 + C·a/255 برای هر (a, src) از پیش محاسبه شده
-// ۳×۶۴KB؛ حلقه‌ی بلند تبدیل به سه خواندنِ اندیس‌دار شد (~۳ برابر سریع‌تر)
-const _LR = new Uint8Array(65536), _LG = new Uint8Array(65536), _LB = new Uint8Array(65536);
-for (let a = 1; a < 256; a++) {
-  const t = a / 255, it = 1 - t;
-  for (let v = 0; v < 256; v++) {
-    const q = (a << 8) | v;
-    _LR[q] = Math.round(v * it + DARK_R * t);
-    _LG[q] = Math.round(v * it + DARK_G * t);
-    _LB[q] = Math.round(v * it + DARK_B * t);
+// ---------- S4.3: گریدینگِ رنگی per تم — LUT ۲۵۶×۳ + ادغام با LUT تاریکی (یک گذر، هزینهٔ پیکسلیِ صفر) ----------
+// grade = رنگِ سایه (= رنگِ تاریکی) + تینتِ هایلایت + کنتراست/اشباع (اشباع به‌صورتِ کنتراستِ تفاضلیِ کانالی تقریب زده می‌شود؛
+// LUT یک‌بعدی کانالی نمی‌تواند درهم‌آمیزیِ لومای سه‌کاناله را بیان کند — یادداشتِ طراحی در P4.md)
+export const THEME_GRADE = [
+  { dark: [4, 6, 30], sh: [-6, -4, 10], hi: [-6, -10, 20], sat: 1.10 },  // 0 دخمه — سردِ آبی (تیره)
+  { dark: [12, 16, 12], sh: [-4, 4, -6], hi: [6, 6, -8], sat: 1.00 },  // 1 خزه — سبز-زرد
+  { dark: [26, 13, 10], sh: [10, 0, -6], hi: [12, 2, -8], sat: 1.10 }, // 2 آهنگری — گرمِ قرمز
+  { dark: [34, 40, 52], sh: [4, 8, 14], hi: [14, 18, 30], sat: 0.90 },  // 3 یخ — آبی-سفیدِ مه‌آلود (روشن)
+  { dark: [17, 17, 10], sh: [-2, 2, -8], hi: [4, 4, -8], sat: 0.95 },  // 4 باتلاق — سبز-قهوه‌ای
+  { dark: [21, 16, 10], sh: [4, 2, -8], hi: [12, 6, -10], sat: 1.00 }, // 5 معدن — غبارِ طلایی
+];
+const GRADE_NEUTRAL = { dark: [13, 11, 26], sh: [0, 0, 0], hi: [0, 0, 0], sat: 1 }; // خنثی (QA/A-B)
+let _gradeTheme = -2;
+const _GR = new Uint8Array(65536), _GG = new Uint8Array(65536), _GB = new Uint8Array(65536);
+const _G0R = new Uint8Array(256), _G0G = new Uint8Array(256), _G0B = new Uint8Array(256);
+export function setThemeGrade(t, force) { // t: ۰..۵ = تم · ۱− = خنثی (force برای تست/QA)
+  if (t === _gradeTheme && !force) return;
+  _gradeTheme = t;
+  const g = t >= 0 ? (THEME_GRADE[t] || THEME_GRADE[0]) : GRADE_NEUTRAL;
+  DARK_R = g.dark[0]; DARK_G = g.dark[1]; DARK_B = g.dark[2];
+  const k = g.sat, S = g.sh, H = g.hi;
+  const cv = (v, sh, hi) => { const x = 128 + (v - 128) * k, w = 1 - x / 255, u = x / 255;
+    const y = x + sh * w + hi * u; return y < 0 ? 0 : y > 255 ? 255 : y | 0; };
+  const TR = new Uint8Array(256), TG = new Uint8Array(256), TB = new Uint8Array(256);
+  for (let v = 0; v < 256; v++) { TR[v] = cv(v, S[0], H[0]); TG[v] = cv(v, S[1], H[1]); TB[v] = cv(v, S[2], H[2]); }
+  _G0R.set(TR); _G0G.set(TG); _G0B.set(TB);
+  const dr = DARK_R, dg = DARK_G, db = DARK_B;
+  for (let a = 1; a < 256; a++) {
+    const t = a / 255, it = 1 - t, q0 = a << 8;
+    for (let v = 0; v < 256; v++) { const q = q0 | v;
+      _GR[q] = TR[(v * it + dr * t + 0.5) | 0]; _GG[q] = TG[(v * it + dg * t + 0.5) | 0]; _GB[q] = TB[(v * it + db * t + 0.5) | 0]; }
   }
 }
 
-
+// ن۳۹: LUT بلند — out = src·(255−a)/255 + C·a/255 برای هر (a, src) از پیش محاسبه شده
+// ۳×۶۴KB؛ حلقه‌ی بلند تبدیل به سه خواندنِ اندیس‌دار شد (~۳ برابر سریع‌تر)
 // ---------- S4.1: نور رنگی — استامپِ پیش‌محاسبه با کلیدِ عددی (صفر تخصیص در حلقهٔ رندر) ----------
 // جدول رنگ‌ها: همه از رمپ‌های پالت (M5) — شناسهٔ رنگ، اندیسِ همان جدول است
 const LCOL = [                                   // همه **دقیقاً** از رمپ‌ها (عضویتِ پالت ⇒ M5)
@@ -94,6 +117,7 @@ for (let b = 0; b < 16; b++) {
   }
 }
 export const DITHER_DARK = { on: true };
+export const GRADE = { off: false }; // QA/A-B: خاموش‌کردنِ گریدینگِ تم
 const _rects = new Int16Array(4 * 33); // اسکرچ‌آرِ مستطیل‌های نور (تخصیصِ صفر در هر فریم)
 // جدولِ فازِ افقی: cols[(camX&3)*W + x] = (x + camX) & 3 — چهار چرخش، یک‌بار در هر اندازهٔ صحنه
 let _phW = 0, _phTab = null;
@@ -105,10 +129,13 @@ function phaseTab(w) {
 }
 export function darkLevelCount() { return new Set(_QLUT).size; } // QA: تعداد سطوحِ α یکتای تاریکی (پذیرش ≤۶)
 
+setThemeGrade(-1); // پیش‌فرض: گریدینگِ خنثی (هم‌رفتار با پیش از S4.3) — رندر دانجن تم را ست می‌کند
+
 // flat = [x, y, rad, strength, ...] — لیست تختِ نورها (بدون تخصیص آبجکت)
 export function applyDarkness(r, dk, flat, flatC, camX = 0, camY = 0) {
   const dd = dk.d;
-  if (!dk._base || dk._base.length !== dd.length) {
+  if (!dk._base || dk._base.length !== dd.length || dk._baseTheme !== _gradeTheme) { // S4.3: رنگِ تاریکی per تم
+    dk._baseTheme = _gradeTheme;
     const b = dk._base = new Uint8ClampedArray(dd.length);
     for (let i = 0; i < b.length; i += 4) { b[i] = DARK_R; b[i + 1] = DARK_G; b[i + 2] = DARK_B; b[i + 3] = DARK_A; }
   }
@@ -166,10 +193,10 @@ export function applyDarkness(r, dk, flat, flatC, camX = 0, camY = 0) {
   const sd = r.d;
   for (let i = 0; i < dd.length; i += 4) {
     const a = dd[i + 3];
-    if (a <= 0) continue;
+    if (a <= 0) { sd[i] = _G0R[sd[i]]; sd[i + 1] = _G0G[sd[i + 1]]; sd[i + 2] = _G0B[sd[i + 2]]; continue; } // S4.3: گریدینگِ نواحیِ کاملاً روشن
     if (sd[i + 3] < 8) { sd[i] = DARK_R; sd[i + 1] = DARK_G; sd[i + 2] = DARK_B; sd[i + 3] = a; continue; }
     const q = a << 8;
-    sd[i] = _LR[q | sd[i]]; sd[i + 1] = _LG[q | sd[i + 1]]; sd[i + 2] = _LB[q | sd[i + 2]];
+    sd[i] = _GR[q | sd[i]]; sd[i + 1] = _GG[q | sd[i + 1]]; sd[i + 2] = _GB[q | sd[i + 2]];
   }
   // ---------- S4.1: پاسِ رنگ — افزودنی با clamp، روی تایل‌های روشن هم اعمال می‌شود ----------
   if (flatC && COLOR_LIGHTS.on) {
