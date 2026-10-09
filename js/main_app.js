@@ -16,6 +16,7 @@ import { isRaining } from './art/weather.js';
 import { questLabel } from './quests.js';
 import { initAppUI } from './app_ui.js';
 import { initScenes } from './main_scene.js';
+import { initWatchdog, wdBeat, wdError, wdEvent, wdInput } from './watchdog.js'; // S10.1
 
 const canvas = document.getElementById('game');
 const ctx = canvas.getContext('2d');
@@ -101,10 +102,17 @@ farmScene.onEvent = (k, n) => { // مأموریت‌ها: برداشت/فروش/
 // ---------- حلقه ----------
 let last = performance.now(), fps = 0, fpsT = 0, fpsN = 0, _szChk = 0;
 let _ambScene = '', _ambRain = false; // آمبینت جاری
+// S10.1: هر استثنا در بدنه‌ی فریم قبلاً rAF بعدی را نمی‌ساخت ⇒ قفلِ دائمی (صفحه یخ می‌زد). حالا فریمِ بعد همیشه زمان‌بندی می‌شود و خطا به watchdog می‌رود.
+let _lastDt = 0, _errN = 0;
 function loop(now) {
+  try { frame(now); } catch (e) { if (_errN++ < 5) console.error(e); wdError(e); }
+  requestAnimationFrame(loop);
+}
+function frame(now) {
+  wdBeat();
   const tA = performance.now(); // هزینه‌ی کار این فریم (بدون انتظار rAF)
   const dt = Math.min(0.05, Math.max(0, (now - last) / 1000));
-  last = now;
+  last = now; _lastDt = dt;
   const m = input.getMove();
   const scene = S.getScene(), run = S.getRun();
   let steer = null;
@@ -143,9 +151,11 @@ function loop(now) {
   if (scene === 'dungeon' && run && run.dungeon.shrine) { // محراب: نزدیک = باز، دور = بسته
     const sh = run.dungeon.shrine;
     const dsh = Math.hypot(run.hero.x - sh.x, run.hero.y - sh.y);
-    if (!sh.used && !UI.isShrineOpen() && dsh < 16 && !run.hero.dead) UI.openShrine(run);
+    if (sh.later && dsh > 30) sh.later = false; // S10.1: «بعداً» تا دور شدن از محراب
+    if (!sh.used && !sh.later && !UI.isShrineOpen() && dsh < 16 && !run.hero.dead && S.getFade() > 0.99) { UI.openShrine(run); wdEvent('shrineOpen'); }
     else if (UI.isShrineOpen() && (dsh > 30 || run.hero.dead)) UI.closeShrine();
   }
+  if (UI.isShrineOpen() && (scene !== 'dungeon' || !run || S.getFade() < 0.99)) UI.closeShrine(); // S10.1: فید/خروج/مرگ ⇒ هرگز باز نمی‌ماند
   if (farmScene.equipSig !== app._eqSig) UI.syncEquip(); // فقط بعد از تعویض تجهیز
   const spd = (1 + 0.06 * app.s.upgrades.boots) * (1 + app._eqStats.speed);
   if (scene === 'farm' && farmScene.speedMul !== spd) farmScene.speedMul = spd;
@@ -182,9 +192,14 @@ function loop(now) {
     const dh = dockEl ? Math.round(dockEl.offsetHeight) : 0;
     if (Math.round(innerWidth * dpr) !== canvas.width || Math.round(innerHeight * dpr) !== canvas.height || dh !== _dockH) resize();
   }
-  requestAnimationFrame(loop);
 }
 requestAnimationFrame(loop);
+initWatchdog({ // S10.1
+  getState: () => { const r = S.getRun(); return { scene: S.getScene(), floor: r ? r.floor : 0, dt: _lastDt, ents: r ? r.dungeon.enemies.length : farmScene.workers.length, shrine: UI.isShrineOpen(), fade: Math.round(S.getFade() * 100) / 100 }; },
+  onRecover: () => { try { saveNow(); } catch (e) { /* سیو خراب: همان ریلود */ } location.reload(); }, // مزرعه نقطه‌ی شروعِ بوت است
+});
+addEventListener('pointerdown', () => wdInput('tap'));
+addEventListener('keydown', (e) => wdInput('key:' + e.key));
 
 // ---------- ذخیره‌ی دوره‌ای ----------
 setInterval(saveNow, 3000);

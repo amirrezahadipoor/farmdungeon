@@ -15,8 +15,8 @@ import { bayer4 } from './art/dither.js'; // S8.1: درزِ دیترشده (با
 
 // ۱ — پایه: تایلِ زمینِ هر سلول با تمِ طبقه + فرشِ autotile (S3.8)
 const isCarpet = (D, x, y) => { const c = D.cell(x, y); return !!c && c.kind === 'decor' && c.v === 5; };
-function passBase(cache, D) {
-  for (let ty = 0; ty < ROWS; ty++) for (let tx = 0; tx < COLS; tx++) {
+function passBase(cache, D, y0 = 0, y1 = ROWS) {
+  for (let ty = y0; ty < y1; ty++) for (let tx = 0; tx < COLS; tx++) {
     const c = D.cell(tx, ty);
     // S3.8: فرشِ تالار — mask4 از همسایه‌های هم‌جنس (variant = 40+mask) ⇒ لبه فقط روی ضلعِ بی‌همسایه
     const v = (c.kind === 'decor' && c.v === 5)
@@ -79,9 +79,9 @@ setAutoBuilder((r, id, kind, variant, theme) => {
   if (kind !== 'wallMass') return;
   drawRim(r, IDX_MASK[id], DPAL(theme | 0));
 }, { opaque: false });
-function passWallMass(cache, D) {
-  const theme = D.theme | 0, dep = wallDepth(D), P = DPAL(theme);
-  for (let ty = 0; ty < ROWS; ty++) {
+function passWallMass(cache, D, y0 = 0, y1 = ROWS, dep0 = null) { // S10.1: ردیف‌ها مستقل ⇒ تکه‌پذیر
+  const theme = D.theme | 0, dep = dep0 || wallDepth(D), P = DPAL(theme);
+  for (let ty = y0; ty < y1; ty++) {
     let pat = null;   // الگو **per ردیفِ دیوار** (run) ⇒ رج‌های افقی در امتدادِ یک دیوارِ دراز پیوسته می‌مانند
     for (let tx = 0; tx < COLS; tx++) {
       const c = D.cell(tx, ty);
@@ -132,7 +132,7 @@ function seamCand(theme) {
   return _seamCand = [...set].map((c) => [c, lum3(c)]).sort((a, b) => a[1] - b[1]);
 }
 const _pick = (cand, L) => { let b = cand[0][0], bd = Infinity; for (const [c, cl] of cand) { const d = Math.abs(cl - L); if (d < bd) { bd = d; b = c; } } return b; };
-function passSeam(cache, D) {
+function passSeam(cache, D, y0 = 0, y1 = ROWS) {
   const theme = D.theme | 0, cand = seamCand(theme), d = cache.d, w = cache.w;
   const put = (x, y, c) => { if (x < 0 || x >= w) return; const i = (y * w + x) * 4; d[i] = c[0]; d[i + 1] = c[1]; d[i + 2] = c[2]; d[i + 3] = 255; };
   // پیکسلِ مرزی **یک‌دست** می‌شود (جهشِ M8 باید برود)؛ پله‌های داخلی **دیتر** می‌شوند تا
@@ -143,7 +143,7 @@ function passSeam(cache, D) {
   const shift = (x, y, tgt, ref, k) => put(x, y, _pick(cand, tgt + k * (L(x, y) - ref)));
   const L = (x, y) => { const i = (y * w + x) * 4; return lum3([d[i], d[i + 1], d[i + 2]]); };
   const op = (x, y) => x >= 0 && x < w && d[(y * w + x) * 4 + 3] > 200;
-  for (let ty = 0; ty < ROWS; ty++) for (let tx = 1; tx < COLS; tx++) {
+  for (let ty = y0; ty < y1; ty++) for (let tx = 1; tx < COLS; tx++) { // ردیف‌ها مستقل‌اند (خواندن/نوشتن فقط در همان yy) ⇒ تکه‌پذیر
     const A = D.cell(tx - 1, ty), B = D.cell(tx, ty);
     const xa = tx * TILE - 1, xb = tx * TILE;
     const floorA = isFloor(A), floorB = isFloor(B);
@@ -178,20 +178,26 @@ function passSeam(cache, D) {
 // توده تیره‌تر می‌شود (سقفِ دیوار در نمای بالا = سایه) تا فاصله‌ی میانه‌ها به READ_GAP برسد؛ اگر کف خودش
 // آن‌قدر تیره است که جا نیست، کف روشن‌تر می‌شود. ضربِ کانالی ⇒ بافت/نسبت‌ها حفظ؛ قفلِ پالتِ صحنه بعداً اسنپ می‌کند.
 export const READ_GAP = 50, READ_FLOOR = 78;
-function passReadable(cache, D) {
+function passReadable(cache, D) { const k = readableK(cache, D); if (k) readableApply(cache, D, k, 0, ROWS); }
+const _t3 = [0, 0, 0];
+function readableK(cache, D) { // S10.1: اندازه‌گیری جدا از اعمال ⇒ اعمال تکه‌تکه (ردیفی)
   const d = cache.d, w = cache.w, fl = [], wl = [];
   for (let ty = 0; ty < ROWS; ty++) for (let tx = 0; tx < COLS; tx++) {
     const c = D.cell(tx, ty); const arr = c.kind === 'dfloor' ? fl : (c.kind === 'wall' || c.kind === 'pillar') ? wl : null; if (!arr) continue;
-    for (let y = 2; y < TILE; y += 3) for (let x = 2; x < TILE; x += 3) { const i = ((ty * TILE + y) * w + tx * TILE + x) * 4; arr.push(lum3([d[i], d[i + 1], d[i + 2]])); }
+    for (let y = 2; y < TILE; y += 3) for (let x = 2; x < TILE; x += 3) { const i = ((ty * TILE + y) * w + tx * TILE + x) * 4; _t3[0] = d[i]; _t3[1] = d[i + 1]; _t3[2] = d[i + 2]; arr.push(lum3(_t3)); }
   }
-  if (!fl.length || !wl.length) return;
+  if (!fl.length || !wl.length) return null;
   const md = (a) => (a.sort((p, q) => p - q), a[a.length >> 1]);
   const Lf = md(fl), Lw = md(wl);
   // کف حداقل READ_FLOOR (تاریکی بعداً ~نصفِ فاصله را می‌خورد) و توده دست‌کم READ_GAP تیره‌تر، ولی نه زیرِ ۱۲ (سیاهیِ بی‌جزئیات)
   const kf = Lf < READ_FLOOR ? READ_FLOOR / Math.max(1, Lf) : 1, Lf2 = Lf * kf;
   const kw = Lw > Lf2 - READ_GAP ? Math.max(12, Lf2 - READ_GAP) / Math.max(1, Lw) : 1;
-  if (kw === 1 && kf === 1) return;
-  for (let ty = 0; ty < ROWS; ty++) for (let tx = 0; tx < COLS; tx++) {
+  if (kw === 1 && kf === 1) return null;
+  return { kf, kw };
+}
+function readableApply(cache, D, K, y0, y1) {
+  const d = cache.d, w = cache.w, kf = K.kf, kw = K.kw;
+  for (let ty = y0; ty < y1; ty++) for (let tx = 0; tx < COLS; tx++) {
     const c = D.cell(tx, ty); const k = (c.kind === 'wall' || c.kind === 'pillar') ? kw : (c.kind === 'dfloor' || c.kind === 'decor' || c.kind === 'stairs') ? kf : 1;
     if (k === 1) continue;
     for (let y = 0; y < TILE; y++) for (let x = 0; x < TILE; x++) {
@@ -215,4 +221,37 @@ export function bakeFloor(run) {
   passSeam(cache, D);            // ۷ — درزگیرِ مرزِ توده↔کف (S8.1)
   passStaticProps(cache, D);     // ۶
   return cache;
+}
+
+// S10.1: پختِ تکه‌تکه — همان پاس‌ها به همان ترتیب (خروجی بایت‌به‌بایت برابرِ bakeFloor) ولی با بودجه‌ی زمانی در هر فریم
+// ⇒ توقفِ ~۷۰۰ms (CPU ۴×) هنگام ورود به طبقه به چند فریمِ ≤ بودجه شکسته می‌شود. job روی run نگه داشته می‌شود.
+const _STEPS = [];
+for (let k = 0; k < 4; k++) _STEPS.push((c, D) => passBase(c, D, Math.floor(ROWS * k / 4), Math.floor(ROWS * (k + 1) / 4)));
+_STEPS.push((c, D, j) => { j.dep = wallDepth(D); });
+for (let k = 0; k < 3; k++) _STEPS.push((c, D, j) => passWallMass(c, D, Math.floor(ROWS * k / 3), Math.floor(ROWS * (k + 1) / 3), j.dep));
+_STEPS.push(passFloorPattern, passAO, passDecals);
+_STEPS.push((c, D, j) => { j.rk = readableK(c, D); });
+for (let k = 0; k < 3; k++) _STEPS.push((c, D, j) => { if (j.rk) readableApply(c, D, j.rk, Math.floor(ROWS * k / 3), Math.floor(ROWS * (k + 1) / 3)); });
+for (let k = 0; k < 3; k++) _STEPS.push((c, D) => passSeam(c, D, Math.floor(ROWS * k / 3), Math.floor(ROWS * (k + 1) / 3)));
+_STEPS.push(passStaticProps);
+const _COST = new Float32Array(_STEPS.length).fill(4);
+export function bakeFloorStep(run, budgetMs = 8) {
+  let j = run._bakeJob;
+  if (!j || j.D !== run.dungeon) { // دو بومِ چرخشی (پینگ‌پنگ) ⇒ بدون تخصیصِ ۱MB در هر طبقه (فشارِ GC وسطِ تکه‌ها)
+    const pool = run._bakePool || (run._bakePool = [new Raster(WORLD_W, WORLD_H), new Raster(WORLD_W, WORLD_H)]);
+    const cache = pool[0] === run._floorCache ? pool[1] : pool[0];
+    j = run._bakeJob = { D: run.dungeon, cache, i: 0, maxMs: 0, clear: true };
+  }
+  if (j.clear) { j.cache.d.fill(0); j.clear = false; }
+  const t0 = performance.now(), i0 = j.i;
+  do {
+    const ts = performance.now(), k = j.i++;
+    _STEPS[k](j.cache, j.D, j);
+    const c = performance.now() - ts; _COST[k] = Math.max(c, _COST[k] * 0.9); // هزینه‌ی پیش‌بینیِ محافظه‌کارانه‌ی هر گام (از طبقه‌های قبل)
+    j.maxMs = Math.max(j.maxMs, c);
+  } while (j.i < _STEPS.length && performance.now() - t0 + _COST[j.i] <= budgetMs);
+  run._buildSlice = performance.now() - t0; run._buildSteps = i0 * 100 + j.i;               // برای soak: هزینه‌ی همین فریم
+  if (j.i < _STEPS.length) return null;
+  run._bakeJob = null;
+  return j.cache;
 }

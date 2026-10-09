@@ -6,7 +6,7 @@ import { HOX, HOY } from './art/hero_pose.js';
 import { drawEliteMark, MHEAD } from './art/monster_parts.js';
 import { applyRim } from './art/rim.js';
 import { clamp } from './dungeon.js';
-import { bakeFloor } from './dungeon_bake.js'; // S3.1: خط لوله‌ی پختِ لایه‌ای (base → … → staticProps)
+import { bakeFloorStep } from './dungeon_bake.js'; // S3.1: خط لوله‌ی پختِ لایه‌ای (base → … → staticProps)
 import { drawTorches, drawChests, drawDrops, drawShrines, TORCH_LIGHT } from './art/dungeon_props.js'; // S3.7: ثابت‌های نورِ مشعل
 import { drawWater, dungeonShore } from './art/water.js'; // S2.7: آب و کرانه (یک منبع با مزرعه)
 import { drawPillarHead } from './art/ground.js'; // S3.8: سرستونِ بیرون‌زده (بعد از موجودات ⇒ y-sort)
@@ -76,7 +76,10 @@ export function renderRun(run, r) {
     const [shx, shy] = run.fx.offset(run.time);
     let cx = clamp(Math.round(run.cam.x) + shx, 0, WORLD_W - r.w);
     let cy = clamp(Math.round(run.cam.y) + shy, 0, WORLD_H - r.h);
-    if (!run._floorCache || run._floorCache.w !== WORLD_W) run._floorCache = bakeFloor(run); // S3.1
+    if (!run._floorCache || run._floorCache.w !== WORLD_W) { // S10.1: پختِ تکه‌تکه — تا آماده شود صفحه‌ی تیره (زیرِ فیدِ ورود)
+      run._floorCache = bakeFloorStep(run, globalThis.__BAKE_BUDGET ?? (typeof requestAnimationFrame === 'function' ? 8 : Infinity)); // node/ابزارها: یک‌جا
+      if (!run._floorCache) { r.d.fill(0); for (let i = 3; i < r.d.length; i += 4) r.d[i] = 255; return; }
+    }
     blitRegion(r, run._floorCache, cx, cy, r.w, r.h);
     // آب زنده‌ی دانجن (روی کش ایستا) — فقط تایل‌های آبِ نمایان
     const dwf = [0, 1, 2, 1][Math.floor(run.time * 0.9) % 4]; // ن۳۷: سیکل آرام آب دانجن

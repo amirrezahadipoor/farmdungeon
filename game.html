@@ -9276,8 +9276,8 @@ return {Run};
 const {Run} = __m_run;
 const __m_dungeon_bake = (() => {
 const isCarpet = (D, x, y) => { const c = D.cell(x, y); return !!c && c.kind === 'decor' && c.v === 5; };
-function passBase(cache, D) {
-for (let ty = 0; ty < ROWS; ty++) for (let tx = 0; tx < COLS; tx++) {
+function passBase(cache, D, y0 = 0, y1 = ROWS) {
+for (let ty = y0; ty < y1; ty++) for (let tx = 0; tx < COLS; tx++) {
 const c = D.cell(tx, ty);
 const v = (c.kind === 'decor' && c.v === 5)
 ? 40 + ((isCarpet(D, tx, ty - 1) ? 1 : 0) | (isCarpet(D, tx + 1, ty) ? 2 : 0) | (isCarpet(D, tx, ty + 1) ? 4 : 0) | (isCarpet(D, tx - 1, ty) ? 8 : 0))
@@ -9326,9 +9326,9 @@ setAutoBuilder((r, id, kind, variant, theme) => {
 if (kind !== 'wallMass') return;
 drawRim(r, IDX_MASK[id], DPAL(theme | 0));
 }, { opaque: false });
-function passWallMass(cache, D) {
-const theme = D.theme | 0, dep = wallDepth(D), P = DPAL(theme);
-for (let ty = 0; ty < ROWS; ty++) {
+function passWallMass(cache, D, y0 = 0, y1 = ROWS, dep0 = null) { // S10.1: ردیف‌ها مستقل ⇒ تکه‌پذیر
+const theme = D.theme | 0, dep = dep0 || wallDepth(D), P = DPAL(theme);
+for (let ty = y0; ty < y1; ty++) {
 let pat = null;   // الگو **per ردیفِ دیوار** (run) ⇒ رج‌های افقی در امتدادِ یک دیوارِ دراز پیوسته می‌مانند
 for (let tx = 0; tx < COLS; tx++) {
 const c = D.cell(tx, ty);
@@ -9362,14 +9362,14 @@ _seamT = theme;
 return _seamCand = [...set].map((c) => [c, lum3(c)]).sort((a, b) => a[1] - b[1]);
 }
 const _pick = (cand, L) => { let b = cand[0][0], bd = Infinity; for (const [c, cl] of cand) { const d = Math.abs(cl - L); if (d < bd) { bd = d; b = c; } } return b; };
-function passSeam(cache, D) {
+function passSeam(cache, D, y0 = 0, y1 = ROWS) {
 const theme = D.theme | 0, cand = seamCand(theme), d = cache.d, w = cache.w;
 const put = (x, y, c) => { if (x < 0 || x >= w) return; const i = (y * w + x) * 4; d[i] = c[0]; d[i + 1] = c[1]; d[i + 2] = c[2]; d[i + 3] = 255; };
 const dit = (x, y, pr, c) => { if (bayer4(x, y) < pr) put(x, y, c); };
 const shift = (x, y, tgt, ref, k) => put(x, y, _pick(cand, tgt + k * (L(x, y) - ref)));
 const L = (x, y) => { const i = (y * w + x) * 4; return lum3([d[i], d[i + 1], d[i + 2]]); };
 const op = (x, y) => x >= 0 && x < w && d[(y * w + x) * 4 + 3] > 200;
-for (let ty = 0; ty < ROWS; ty++) for (let tx = 1; tx < COLS; tx++) {
+for (let ty = y0; ty < y1; ty++) for (let tx = 1; tx < COLS; tx++) { // ردیف‌ها مستقل‌اند (خواندن/نوشتن فقط در همان yy) ⇒ تکه‌پذیر
 const A = D.cell(tx - 1, ty), B = D.cell(tx, ty);
 const xa = tx * TILE - 1, xb = tx * TILE;
 const floorA = isFloor(A), floorB = isFloor(B);
@@ -9399,19 +9399,25 @@ dit(x0 + 2 * dir, yy, 0.25, _pick(cand, (edge + 3 * Li) / 4 + (L(x0 + 2 * dir, y
 }
 }
 const READ_GAP = 50, READ_FLOOR = 78;
-function passReadable(cache, D) {
+function passReadable(cache, D) { const k = readableK(cache, D); if (k) readableApply(cache, D, k, 0, ROWS); }
+const _t3 = [0, 0, 0];
+function readableK(cache, D) { // S10.1: اندازه‌گیری جدا از اعمال ⇒ اعمال تکه‌تکه (ردیفی)
 const d = cache.d, w = cache.w, fl = [], wl = [];
 for (let ty = 0; ty < ROWS; ty++) for (let tx = 0; tx < COLS; tx++) {
 const c = D.cell(tx, ty); const arr = c.kind === 'dfloor' ? fl : (c.kind === 'wall' || c.kind === 'pillar') ? wl : null; if (!arr) continue;
-for (let y = 2; y < TILE; y += 3) for (let x = 2; x < TILE; x += 3) { const i = ((ty * TILE + y) * w + tx * TILE + x) * 4; arr.push(lum3([d[i], d[i + 1], d[i + 2]])); }
+for (let y = 2; y < TILE; y += 3) for (let x = 2; x < TILE; x += 3) { const i = ((ty * TILE + y) * w + tx * TILE + x) * 4; _t3[0] = d[i]; _t3[1] = d[i + 1]; _t3[2] = d[i + 2]; arr.push(lum3(_t3)); }
 }
-if (!fl.length || !wl.length) return;
+if (!fl.length || !wl.length) return null;
 const md = (a) => (a.sort((p, q) => p - q), a[a.length >> 1]);
 const Lf = md(fl), Lw = md(wl);
 const kf = Lf < READ_FLOOR ? READ_FLOOR / Math.max(1, Lf) : 1, Lf2 = Lf * kf;
 const kw = Lw > Lf2 - READ_GAP ? Math.max(12, Lf2 - READ_GAP) / Math.max(1, Lw) : 1;
-if (kw === 1 && kf === 1) return;
-for (let ty = 0; ty < ROWS; ty++) for (let tx = 0; tx < COLS; tx++) {
+if (kw === 1 && kf === 1) return null;
+return { kf, kw };
+}
+function readableApply(cache, D, K, y0, y1) {
+const d = cache.d, w = cache.w, kf = K.kf, kw = K.kw;
+for (let ty = y0; ty < y1; ty++) for (let tx = 0; tx < COLS; tx++) {
 const c = D.cell(tx, ty); const k = (c.kind === 'wall' || c.kind === 'pillar') ? kw : (c.kind === 'dfloor' || c.kind === 'decor' || c.kind === 'stairs') ? kf : 1;
 if (k === 1) continue;
 for (let y = 0; y < TILE; y++) for (let x = 0; x < TILE; x++) {
@@ -9434,9 +9440,39 @@ passSeam(cache, D);            // ۷ — درزگیرِ مرزِ توده↔کف
 passStaticProps(cache, D);     // ۶
 return cache;
 }
-return {READ_GAP, READ_FLOOR, FLOOR_PASSES, bakeFloor};
+const _STEPS = [];
+for (let k = 0; k < 4; k++) _STEPS.push((c, D) => passBase(c, D, Math.floor(ROWS * k / 4), Math.floor(ROWS * (k + 1) / 4)));
+_STEPS.push((c, D, j) => { j.dep = wallDepth(D); });
+for (let k = 0; k < 3; k++) _STEPS.push((c, D, j) => passWallMass(c, D, Math.floor(ROWS * k / 3), Math.floor(ROWS * (k + 1) / 3), j.dep));
+_STEPS.push(passFloorPattern, passAO, passDecals);
+_STEPS.push((c, D, j) => { j.rk = readableK(c, D); });
+for (let k = 0; k < 3; k++) _STEPS.push((c, D, j) => { if (j.rk) readableApply(c, D, j.rk, Math.floor(ROWS * k / 3), Math.floor(ROWS * (k + 1) / 3)); });
+for (let k = 0; k < 3; k++) _STEPS.push((c, D) => passSeam(c, D, Math.floor(ROWS * k / 3), Math.floor(ROWS * (k + 1) / 3)));
+_STEPS.push(passStaticProps);
+const _COST = new Float32Array(_STEPS.length).fill(4);
+function bakeFloorStep(run, budgetMs = 8) {
+let j = run._bakeJob;
+if (!j || j.D !== run.dungeon) { // دو بومِ چرخشی (پینگ‌پنگ) ⇒ بدون تخصیصِ ۱MB در هر طبقه (فشارِ GC وسطِ تکه‌ها)
+const pool = run._bakePool || (run._bakePool = [new Raster(WORLD_W, WORLD_H), new Raster(WORLD_W, WORLD_H)]);
+const cache = pool[0] === run._floorCache ? pool[1] : pool[0];
+j = run._bakeJob = { D: run.dungeon, cache, i: 0, maxMs: 0, clear: true };
+}
+if (j.clear) { j.cache.d.fill(0); j.clear = false; }
+const t0 = performance.now(), i0 = j.i;
+do {
+const ts = performance.now(), k = j.i++;
+_STEPS[k](j.cache, j.D, j);
+const c = performance.now() - ts; _COST[k] = Math.max(c, _COST[k] * 0.9); // هزینه‌ی پیش‌بینیِ محافظه‌کارانه‌ی هر گام (از طبقه‌های قبل)
+j.maxMs = Math.max(j.maxMs, c);
+} while (j.i < _STEPS.length && performance.now() - t0 + _COST[j.i] <= budgetMs);
+run._buildSlice = performance.now() - t0; run._buildSteps = i0 * 100 + j.i;               // برای soak: هزینه‌ی همین فریم
+if (j.i < _STEPS.length) return null;
+run._bakeJob = null;
+return j.cache;
+}
+return {READ_GAP, READ_FLOOR, FLOOR_PASSES, bakeFloor, bakeFloorStep};
 })();
-const {READ_GAP, READ_FLOOR, FLOOR_PASSES, bakeFloor} = __m_dungeon_bake;
+const {READ_GAP, READ_FLOOR, FLOOR_PASSES, bakeFloor, bakeFloorStep} = __m_dungeon_bake;
 const __m_run_render = (() => {
 const LIT = [], LIT_R2 = 92 * 92; // S9.2: شعاعِ «موجودِ روشن» ≈ هاله‌ی دیدِ قهرمان (۷۸) + حاشیه
 const _sprCache = new Map(); // کش اسپرایت قهرمان (LRU)
@@ -9491,7 +9527,10 @@ const D = run.dungeon, h = run.hero; _dr = D;
 const [shx, shy] = run.fx.offset(run.time);
 let cx = clamp(Math.round(run.cam.x) + shx, 0, WORLD_W - r.w);
 let cy = clamp(Math.round(run.cam.y) + shy, 0, WORLD_H - r.h);
-if (!run._floorCache || run._floorCache.w !== WORLD_W) run._floorCache = bakeFloor(run); // S3.1
+if (!run._floorCache || run._floorCache.w !== WORLD_W) { // S10.1: پختِ تکه‌تکه — تا آماده شود صفحه‌ی تیره (زیرِ فیدِ ورود)
+run._floorCache = bakeFloorStep(run, globalThis.__BAKE_BUDGET ?? (typeof requestAnimationFrame === 'function' ? 8 : Infinity)); // node/ابزارها: یک‌جا
+if (!run._floorCache) { r.d.fill(0); for (let i = 3; i < r.d.length; i += 4) r.d[i] = 255; return; }
+}
 blitRegion(r, run._floorCache, cx, cy, r.w, r.h);
 const dwf = [0, 1, 2, 1][Math.floor(run.time * 0.9) % 4]; // ن۳۷: سیکل آرام آب دانجن
 for (let ty = Math.floor(cy / TILE); ty <= Math.min(ROWS - 1, Math.ceil((cy + r.h) / TILE)); ty++)
@@ -9747,10 +9786,9 @@ for (const kind of ['worker', 'sprinkler', 'basket']) {
 if (!up[kind]) continue;
 this.timers[kind] += dt;
 const iv = helperInterval(kind, up[kind], up.wSpeed || 0) / (kind === 'worker' ? up.worker : 1); // دو کارگر = دو برابر
-while (this.timers[kind] >= iv) {
-this.timers[kind] -= iv;
-this._helperAct(kind);
-}
+if (!(iv > 0.05)) { this.timers[kind] = 0; continue; } // S10.1: iv نامعتبر/صفر ⇒ حلقه‌ی بی‌پایان ممکن بود
+for (let n = 0; this.timers[kind] >= iv && n < 64; n++) { this.timers[kind] -= iv; this._helperAct(kind); } // سقفِ تکرار
+if (this.timers[kind] >= iv) this.timers[kind] %= iv; // بقیه دور ریخته می‌شود (بازگشت از پس‌زمینه)
 }
 this.farm.update(dt);
 }
@@ -9817,7 +9855,7 @@ for (let t = 0; t < sec; t += tick) {
 for (const k of ['worker', 'sprinkler', 'basket']) {
 if (rates[k] === Infinity) continue;
 acc[k] += tick;
-while (acc[k] >= rates[k]) { acc[k] -= rates[k]; countAct(k, this._helperAct(k)); }
+for (let n = 0; acc[k] >= rates[k] && n < 64; n++) { acc[k] -= rates[k]; countAct(k, this._helperAct(k)); } // S10.1: سقف
 }
 this.farm.update(tick);
 }
@@ -10569,7 +10607,8 @@ function openShrine(run) {
 const POOL = ['dmg', 'hp', 'speed', 'crit', 'greed', 'range'];
 const a = POOL[(Math.random() * POOL.length) | 0];
 let b = POOL[(Math.random() * POOL.length) | 0];
-while (b === a) b = POOL[(Math.random() * POOL.length) | 0];
+for (let k = 0; b === a && k < 16; k++) b = POOL[(Math.random() * POOL.length) | 0]; // S10.1: سقفِ تکرار
+if (b === a) b = POOL[(POOL.indexOf(a) + 1) % POOL.length];
 const el = box();
 el.innerHTML = '<h4>' + t('shrineTitle') + '</h4><div class="boons"></div>';
 const boons = el.querySelector('.boons');
@@ -10587,6 +10626,11 @@ closeShrine();
 });
 boons.appendChild(btn);
 }
+const later = document.createElement('button'); // S10.1: «بعداً» — دنیا را آزاد می‌کند؛ تا دور شدن از محراب دوباره باز نمی‌شود
+later.className = 'btn'; later.style.cssText = 'margin-top:8px;width:100%;min-height:48px';
+later.textContent = document.documentElement.lang === 'en' ? 'Later' : 'بعداً';
+later.addEventListener('click', () => { const sh = run.dungeon && run.dungeon.shrine; if (sh) sh.later = true; closeShrine(); });
+el.appendChild(later);
 el.classList.add('show');
 playSfx('shrine');
 open = true;
@@ -10772,6 +10816,72 @@ return { refreshHud, syncEquip, syncSeedButtons, buildMenuIfOpen, openShrine: sh
 return {initAppUI};
 })();
 const {initAppUI} = __m_app_ui;
+const __m_watchdog = (() => {
+const WD_KEY = 'fd_watchdog';
+const N = 40, GAP_MS = 2000;
+const RING = Array.from({ length: N }, () => ({ t: 0, k: '', scene: '', floor: 0, input: '', dt: 0, ents: 0, shrine: 0, fade: 0, msg: '' }));
+let head = 0, count = 0, lastBeat = 0, lastSample = 0, tripped = false, getState = null, onRecover = null, lastInput = '';
+const now = () => (typeof performance !== 'undefined' ? performance.now() : Date.now());
+function push(k, msg = '') {
+const e = RING[head]; head = (head + 1) % N; if (count < N) count++;
+const s = getState ? getState() : null;
+e.t = Math.round(now()); e.k = k; e.msg = String(msg).slice(0, 300); e.input = lastInput;
+e.scene = s ? s.scene : ''; e.floor = s ? s.floor : 0; e.dt = s ? Math.round(s.dt * 1000) : 0;
+e.ents = s ? s.ents : 0; e.shrine = s && s.shrine ? 1 : 0; e.fade = s ? s.fade : 0;
+}
+function wdEvent(k, msg) { push(k, msg); }
+function wdInput(kind) { lastInput = kind; }
+function wdBeat() {
+lastBeat = now();
+if (lastBeat - lastSample > 500) { lastSample = lastBeat; push('frame'); }
+}
+function wdDump() { const out = []; for (let i = 0; i < count; i++) out.push({ ...RING[(head - count + i + N) % N] }); return out; }
+function persist(reason) {
+try { localStorage.setItem(WD_KEY, JSON.stringify({ reason, at: new Date().toISOString(), ua: navigator.userAgent, events: wdDump() })); } catch (e) { /* سهمیه/حالتِ خصوصی */ }
+}
+function bar(reason) {
+if (typeof document === 'undefined' || document.getElementById('wdBar')) return;
+const fa = (document.documentElement.lang || 'fa') === 'fa';
+const el = document.createElement('div');
+el.id = 'wdBar';
+el.style.cssText = 'position:fixed;left:8px;right:8px;top:8px;z-index:999;background:#8a2f2f;color:#fff;border:2px solid #c94f4f;border-radius:8px;padding:8px 10px;display:flex;gap:8px;align-items:center;font:13px sans-serif;direction:' + (fa ? 'rtl' : 'ltr');
+const tx = document.createElement('span'); tx.style.flex = '1';
+tx.textContent = (fa ? 'بازی گیر کرد — ریست پیشنهادی' : 'Game stalled — reset suggested') + ' (' + reason + ')';
+const go = document.createElement('button');
+go.textContent = fa ? 'ادامه از مزرعه' : 'Continue from farm';
+go.style.cssText = 'min-height:48px;min-width:48px;padding:0 12px;background:#f2efe4;color:#2f353f;border:0;border-radius:6px;font-weight:700';
+go.addEventListener('click', () => { if (onRecover) onRecover(); });
+const x = document.createElement('button');
+x.textContent = '×'; x.style.cssText = 'min-height:48px;min-width:48px;background:transparent;color:#fff;border:0;font-size:20px';
+x.addEventListener('click', () => { el.remove(); tripped = false; });
+el.append(tx, go, x);
+document.body.appendChild(el);
+}
+function trip(reason, msg) {
+push(reason, msg);
+if (tripped) return;
+tripped = true;
+persist(reason + (msg ? ': ' + String(msg).slice(0, 120) : ''));
+bar(reason);
+}
+function wdError(err) { trip('error', err && (err.stack || err.message) || err); }
+function initWatchdog(opts) {
+getState = opts.getState; onRecover = opts.onRecover;
+lastBeat = now();
+if (typeof window === 'undefined') return;
+window.addEventListener('error', (e) => trip('error', e.message + ' @' + (e.filename || '') + ':' + (e.lineno || 0)));
+window.addEventListener('unhandledrejection', (e) => trip('reject', e.reason && (e.reason.stack || e.reason.message) || e.reason));
+document.addEventListener('visibilitychange', () => { lastBeat = now(); push(document.hidden ? 'hidden' : 'visible'); });
+addEventListener('resize', () => push('resize'));
+setInterval(() => {
+if (document.hidden) { lastBeat = now(); return; } // تبِ پنهان: rAF عمداً می‌ایستد — قفل نیست
+const gap = now() - lastBeat;
+if (gap > GAP_MS) trip('stall', Math.round(gap) + 'ms');
+}, 1000);
+}
+return {WD_KEY, wdEvent, wdInput, wdBeat, wdDump, wdError, initWatchdog};
+})();
+const {WD_KEY, wdEvent, wdInput, wdBeat, wdDump, wdError, initWatchdog} = __m_watchdog;
 const __m_main_scene = (() => {
 function initScenes(env) {
 const { app, farmScene, saveNow } = env;
@@ -10922,10 +11032,16 @@ if (done.length) playSfx('quest');
 };
 let last = performance.now(), fps = 0, fpsT = 0, fpsN = 0, _szChk = 0;
 let _ambScene = '', _ambRain = false; // آمبینت جاری
+let _lastDt = 0, _errN = 0;
 function loop(now) {
+try { frame(now); } catch (e) { if (_errN++ < 5) console.error(e); wdError(e); }
+requestAnimationFrame(loop);
+}
+function frame(now) {
+wdBeat();
 const tA = performance.now(); // هزینه‌ی کار این فریم (بدون انتظار rAF)
 const dt = Math.min(0.05, Math.max(0, (now - last) / 1000));
-last = now;
+last = now; _lastDt = dt;
 const m = input.getMove();
 const scene = S.getScene(), run = S.getRun();
 let steer = null;
@@ -10964,9 +11080,11 @@ canvas._cam = CAM;
 if (scene === 'dungeon' && run && run.dungeon.shrine) { // محراب: نزدیک = باز، دور = بسته
 const sh = run.dungeon.shrine;
 const dsh = Math.hypot(run.hero.x - sh.x, run.hero.y - sh.y);
-if (!sh.used && !UI.isShrineOpen() && dsh < 16 && !run.hero.dead) UI.openShrine(run);
+if (sh.later && dsh > 30) sh.later = false; // S10.1: «بعداً» تا دور شدن از محراب
+if (!sh.used && !sh.later && !UI.isShrineOpen() && dsh < 16 && !run.hero.dead && S.getFade() > 0.99) { UI.openShrine(run); wdEvent('shrineOpen'); }
 else if (UI.isShrineOpen() && (dsh > 30 || run.hero.dead)) UI.closeShrine();
 }
+if (UI.isShrineOpen() && (scene !== 'dungeon' || !run || S.getFade() < 0.99)) UI.closeShrine(); // S10.1: فید/خروج/مرگ ⇒ هرگز باز نمی‌ماند
 if (farmScene.equipSig !== app._eqSig) UI.syncEquip(); // فقط بعد از تعویض تجهیز
 const spd = (1 + 0.06 * app.s.upgrades.boots) * (1 + app._eqStats.speed);
 if (scene === 'farm' && farmScene.speedMul !== spd) farmScene.speedMul = spd;
@@ -11000,9 +11118,14 @@ const dockEl = document.querySelector('body.inDungeon #dockDungeon') || document
 const dh = dockEl ? Math.round(dockEl.offsetHeight) : 0;
 if (Math.round(innerWidth * dpr) !== canvas.width || Math.round(innerHeight * dpr) !== canvas.height || dh !== _dockH) resize();
 }
-requestAnimationFrame(loop);
 }
 requestAnimationFrame(loop);
+initWatchdog({ // S10.1
+getState: () => { const r = S.getRun(); return { scene: S.getScene(), floor: r ? r.floor : 0, dt: _lastDt, ents: r ? r.dungeon.enemies.length : farmScene.workers.length, shrine: UI.isShrineOpen(), fade: Math.round(S.getFade() * 100) / 100 }; },
+onRecover: () => { try { saveNow(); } catch (e) { /* سیو خراب: همان ریلود */ } location.reload(); }, // مزرعه نقطه‌ی شروعِ بوت است
+});
+addEventListener('pointerdown', () => wdInput('tap'));
+addEventListener('keydown', (e) => wdInput('key:' + e.key));
 setInterval(saveNow, 3000);
 addEventListener('beforeunload', saveNow);
 document.addEventListener('visibilitychange', () => { if (document.hidden) saveNow(); });

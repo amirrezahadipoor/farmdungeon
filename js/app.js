@@ -93,10 +93,9 @@ export class App {
       if (!up[kind]) continue;
       this.timers[kind] += dt;
       const iv = helperInterval(kind, up[kind], up.wSpeed || 0) / (kind === 'worker' ? up.worker : 1); // دو کارگر = دو برابر
-      while (this.timers[kind] >= iv) {
-        this.timers[kind] -= iv;
-        this._helperAct(kind);
-      }
+      if (!(iv > 0.05)) { this.timers[kind] = 0; continue; } // S10.1: iv نامعتبر/صفر ⇒ حلقه‌ی بی‌پایان ممکن بود
+      for (let n = 0; this.timers[kind] >= iv && n < 64; n++) { this.timers[kind] -= iv; this._helperAct(kind); } // سقفِ تکرار
+      if (this.timers[kind] >= iv) this.timers[kind] %= iv; // بقیه دور ریخته می‌شود (بازگشت از پس‌زمینه)
     }
     // رشد خاک (farm.update رشد را هندل می‌کند ولی صحنه‌ی فعال نیست)
     this.farm.update(dt);
@@ -166,7 +165,7 @@ export class App {
       for (const k of ['worker', 'sprinkler', 'basket']) {
         if (rates[k] === Infinity) continue;
         acc[k] += tick;
-        while (acc[k] >= rates[k]) { acc[k] -= rates[k]; countAct(k, this._helperAct(k)); }
+        for (let n = 0; acc[k] >= rates[k] && n < 64; n++) { acc[k] -= rates[k]; countAct(k, this._helperAct(k)); } // S10.1: سقف
       }
       this.farm.update(tick);
     }
