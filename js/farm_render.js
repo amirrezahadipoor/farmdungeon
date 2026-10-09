@@ -9,7 +9,8 @@ import { HOUSE, SCARECROW } from './farm_layout.js';
 import { applyNight, nightFactor } from './night.js';
 import { drawBirds, drawButterflies } from './art/critters.js';
 import { drawMotes } from './art/motes.js'; // S4.8: گرده‌ی آرامِ روز
-import { drawRain, isRaining, lightningK, flashTint, drawLightning, drawPondRipples, drawRainGround } from './art/weather.js';
+import { isRaining, lightningK, drawPondRipples, drawRainGround } from './art/weather.js';
+import { drawRainPx, flashPal, drawBoltPx } from './art/weather_px.js';
 import { drawHeroFrame, frameKey, framePhase, halfSprite } from './art/hero.js';
 import { flushDirty, OPAQUE, wetTransition, WET, WET_FULL, wetRaster, wetTiles } from './farm_terrain.js'; // S2.1 کش زمین · S4.7 لایه‌ی خیس
 import { drawWater, SHORE_FARM } from './art/water.js'; // S2.7: آب و کرانه (یک منبع با دانجن)
@@ -184,10 +185,10 @@ export function renderFarm(game, r) {
     const nf = nightFactor(game.dayT);
     if (raining) {
       drawRainGround(r, f, x0, y0, x1, y1, cx, cy, game.time); // S4.7: گودال‌های خاک‌راه + چکه‌های ۳ فریمی
-      drawRain(r, game.time);
+      drawRainPx(r, game.time); // S9.8: قطره/شتکِ دست‌پیکسل
       drawPondRipples(r, game.time); // موج روی حوضچه
       const lk = lightningK(game.dayT, game.time); // رعد و برق — فقط باران
-      if (lk > 0) { flashTint(r, lk); drawLightning(r, game.time); }
+      if (lk > 0) { flashPal(r, lk); drawBoltPx(r, game.time); } // S9.8: فلشِ پالت‌امن + صاعقه‌ی پله‌ای
     }
     if (nf < 0.25) drawMotes(r, 'farm', 0, cx, cy, game.time, r.w, r.h); // S4.8: گرده (≤۴) — فقط روز
     if (nf < 0.25) drawButterflies(r, cx, cy, game.time, 1); // S5.6: یک پروانه در باغِ گل — فقط روز
