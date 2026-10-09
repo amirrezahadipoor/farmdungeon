@@ -169,3 +169,20 @@ body.inDungeon #hpWrap2 { display: block; }
 .shrineBox .boons button { flex: 1; min-height: 52px; cursor: pointer; }
 .qProg { color: #9aa4c0; font-size: 11px; margin-inline-start: 8px; }
 .qRw { display: inline-flex; align-items: center; gap: 4px; color: #e6c74a; font-weight: bold; }
+
+/* ---------- S7.2: پوسته‌ی رویه‌ای 9-slice (art/ui_skin.js → --skin-* در بوت) ----------
+   اگر متغیر نباشد (بدون canvas) هر خط نامعتبر و بی‌اثر می‌شود ⇒ همان نسخه‌ی تختِ بالا می‌ماند.
+   پهنا ۴px با بیرون‌زدگی ۳px ⇒ رشدِ باکس صفر (همان ۱px حاشیه‌ی قبلی)؛ داکِ موبایل آسیب نمی‌بیند. */
+.btn, .chip, .upgRow {
+  border-image: var(--skin-btn) 5 / 4px / 3px stretch;
+  image-rendering: pixelated;
+}
+.btn:active { border-image: var(--skin-btn-down) 5 / 4px / 3px stretch; }
+#dockFarm { border-image: var(--skin-panelWood) 5 fill / 4px / 3px stretch; image-rendering: pixelated; }
+#dockDungeon, .modalBox, .deadBox, .shrineBox, #toast {
+  border-image: var(--skin-panelStone) 5 fill / 4px / 3px stretch; image-rendering: pixelated;
+}
+#hpBar2 { border-image: var(--skin-bar) 4 fill / 4px / 3px stretch; image-rendering: pixelated; }
+#bossBar { border-image: var(--skin-bar) 4 fill / 4px / 3px stretch; image-rendering: pixelated; }
+#hpFill2 { border-image: var(--skin-fillHp) 4 fill / 4px stretch; image-rendering: pixelated; }
+#bossFill { border-image: var(--skin-fillBoss) 4 fill / 4px stretch; image-rendering: pixelated; }

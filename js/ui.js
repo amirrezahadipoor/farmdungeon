@@ -7,6 +7,7 @@ import { CROPS } from './farm.js';
 import { ITEMS, SLOTS } from './items.js';
 import { rasterToCanvas } from './raster.js';
 import { cropSprite, cropIcon } from './tiles.js';
+import { installSkins } from './art/ui_skin.js'; // S7.2
 
 export const $ = (id) => document.getElementById(id);
 
@@ -32,6 +33,7 @@ export function showBanner(txt, small) {
 // ---------- آیکون‌های پیکسلی HUD (به‌جای ایموجی) ----------
 export function paintSndIcon(muted) { paintIcon($('sndIcon'), muted ? 'sndOff' : 'snd'); }
 export function paintHudIcons() {
+  installSkins(document); // S7.2: پوسته‌ی 9-slice (بی‌خطا اگر canvas نباشد)
   paintIcon($('coinIcon'), 'coin');
   paintIcon($('coinIcon2'), 'coin');
   paintIcon($('gemIcon'), 'gem');
