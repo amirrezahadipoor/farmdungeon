@@ -6317,6 +6317,160 @@ return bake(body, steps);
 return {drawMonsterFrame};
 })();
 const {drawMonsterFrame} = __m_art_monsters;
+const __m_art_boss_px = (() => {
+const hex = (h) => { const c = nearestPM(parseInt(h.slice(1, 3), 16), parseInt(h.slice(3, 5), 16), parseInt(h.slice(5, 7), 16)); return [c[0], c[1], c[2], 255]; };
+const P = {};
+for (const [k, v] of Object.entries({
+1: '#aeb9c8', 2: '#727e96', 3: '#516163', 4: '#3a444c', 5: '#2f353f',
+r: '#c94f4f', R: '#8a2f2f', d: '#741723', g: '#ffe082', G: '#e6b34d', o: '#a97b2c',
+e: '#ffe082', E: '#e6b34d', k: '#141021', w: '#f2efe4', b: '#7a5532', B: '#51401f',
+})) P[k] = hex(v);
+function blit(g, rows, x, y) {
+for (let j = 0; j < rows.length; j++) for (let i = 0; i < rows[j].length; i++) {
+const c = P[rows[j][i]]; if (c) g.px(Math.round(x) + i, Math.round(y) + j, c);
+}
+}
+const cut = (rows, w) => rows.map((s) => s.slice(0, w));
+const LEG = [
+'11111111222',
+'12222222334',
+'1222222233b',
+'12223222334',
+'12222222334',
+'22222222344',
+'22232222344',
+'22222223344',
+'1222222234b',
+'22222222344',
+'22223222344',
+'22222222344',
+'12222222334',
+'22222222344',
+'22322222344',
+'22222223344',
+'23222222344',
+'22222222344',
+'GGGGGGGGGoo',
+'22222222344',
+'22222222344',
+'33333333444',
+'1222222223445',
+'2222222233445',
+'3333333334455',
+'.44444444455.',
+];
+const TORSO = [
+'......rrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrr......',
+'...rrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrr...',
+'.rrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrRR.',
+'rrrrrrrRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRrrrrrrrrRR',
+'rrrRRRRGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGRRRRRRRdd',
+'rRRR1111111111111222222222222222111111111RRRRddd',
+'RRR11222222222221gGGGGGGGGGGGGg122222222223RRddd',
+'RRd12222222222221G1111111111113G12222222223Rddd.',
+'Rdd12222232222221G1222222222233G12222322233dddd.',
+'dd.12222222222221G1222gGGg22233G1222222223344dd.',
+'...12223222222221G122GgggoG2233G1222222223344...',
+'...12222222222221G122GggGoo2233G1222232223344...',
+'...12222222322221G1222Gooo22233G1222222223344...',
+'...22222222222221G12222Go222233G1222222233444...',
+'...22232222222221G1222222222233G1222222233444...',
+'...22222222223221G1222222222233G1223222233444...',
+'...22222222222221G1333333333333G1222222233444...',
+'...22222322222221GooooooooooooooG222222233444...',
+'...22222222222222222222222222222222222223334445..',
+'...22222222222322222222222222222222232223334445..',
+'...222322222222222222223222222222222222233344455.',
+'...222222222222222222222222222222222222333444455.',
+'...GGGGGGGGGGGGGGGGGGGgggggGGGGGGGGGGGGGGGGooooo.',
+'...ooooooooooooooooooogGGGgoooooooooooooooooBBBBB',
+'...111111111112222221111111111111122222211111334.',
+'...122222222223333331222222222222233333312222344.',
+'...122222322223222231222232222222232222312223344.',
+'...122222222223222231222222222222232222312222344.',
+'...222222222223222232222222222222232222322223444.',
+'...222232222223222232222222322222232222322223444.',
+'...333333333334444443333333333333344444433333445.',
+'....44444444445555554444444444444455555544444455.',
+];
+const HEAD = [
+'..11111111111111..',
+'.1122222222222211.',
+'112222222222222234',
+'122222222222222234',
+'122444422224444234',
+'12kkkkk2222kkkkk34',
+'12keEkk2222kkeEk34',
+'122kkk222222kkk234',
+'122222223322222234',
+'122222233332222234',
+'222222222222222344',
+'223555555555555344',
+'22355kwkwkkwkw5344',
+'.2333333333333334.',
+'..44444444444444..',
+];
+const CROWN = [
+'.g.....g.....g....',
+'gGg...gGg...gGg...',
+'gGg.g.gGg.g.gGg.g.',
+'GGGGGGGrGGGGGGGGG.',
+'GoooooooRoooooooo.',
+];
+const CROWN_BROKEN = ['......g.....g', '.....gGg...gG', '.g.g.gGg.g.gG', 'GGGGGGrGGGGGG', 'oooooRooooooo'];
+const HAMMER = [
+'.111111111111.',
+'11222222222234',
+'12222322222234',
+'12222222232234',
+'1GGGGGGGGGGGo4',
+'12222222222234',
+'12322222222234',
+'12222222322334',
+'22222222222344',
+'23333333333444',
+'.444444444444.',
+];
+const CRACK2 = ['r...', '.rE.', '..r.', '..rE', '...r'];
+const CORE = ['.rEr.', 'rEeEr', 'EeweE', 'rEeEr', '.rEr.'];
+function drawBossPx(g, s) {
+const { sx, gy, phase, warn, jaw, hAng } = s, ty = s.ty + 8, hy = s.hy + 8; // تنه ۳۲ ردیف ⇒ ۸px پایین‌تر تا روی پاها بنشیند
+const cos = Math.cos, sin = Math.sin;
+for (const dx of [-14, 5]) {
+blit(g, LEG, sx + dx, gy - 26);
+if (phase === 2) blit(g, CRACK2, sx + dx + 3, gy - 22);
+if (phase === 3) blit(g, ['rE', '.r'], sx + dx + 3, gy - 18);
+}
+for (let k = 0; k < 20; k++) { const x = sx - 22 - k * 0.25, y = ty + 8 + k; g.px(x - 3, y, P[3]); g.px(x - 2, y, P[2]); g.px(x - 1, y, P[2]); g.px(x, y, P[3]); g.px(x + 1, y, P[4]); }
+blit(g, ['.1111.', '122223', '222334', '.3344.'], sx - 30, ty + 27);
+blit(g, phase === 3 ? cut(TORSO, 36) : TORSO, sx - 24, ty);
+if (phase === 2) { blit(g, CRACK2, sx - 14, ty + 10); blit(g, CRACK2, sx + 8, ty + 24); blit(g, ['rE', '.r', '.rE'], sx + 15, ty + 4); }
+if (phase === 3) {
+for (let j = 0; j < 32; j++) { const x = sx + 11 - (j * 7 % 3); g.px(x, ty + j, P[3]); g.px(x + 1, ty + j, j % 5 ? P[4] : P.E); }  // لبه‌ی شکسته
+blit(g, CORE, sx - 3, ty + 9);
+}
+const ht = phase === 3 ? 3 : 0;
+blit(g, HEAD, sx - 9 + ht, hy);
+if (warn > 0.2 || jaw > 0.2 || phase === 3) { for (const ex of [-6, 4]) { g.px(sx + ex + ht, hy + 6, P.r); g.px(sx + ex + 1 + ht, hy + 6, P.e); } }
+blit(g, phase === 3 ? CROWN_BROKEN : CROWN, sx - 8 + ht + (phase === 3 ? 3 : 0), hy - 5 + (phase === 3 ? 1 : 0));
+if (phase === 2) blit(g, ['r..', '.rE', '..r'], sx - 7, hy + 1);
+if (jaw > 0.3) { const h = 2 + Math.round(jaw * 3); for (let j = 0; j < h; j++) for (let i = 0; i < 9; i++) g.px(sx - 4 + i + ht, hy + 11 + j, j === 0 && i % 2 ? P.w : P.k); }
+if (phase >= 2) { blit(g, ['g', 'G', 'G', 'o'], sx + 22, gy - 5); if (phase === 3) blit(g, ['.g', 'gG', 'Go'], sx + 27, gy - 3); }
+const shx = sx + 20, shy = ty + 8, hx = shx + cos(hAng) * 20, hy2 = shy + sin(hAng) * 20;
+const nx = -sin(hAng), ny = cos(hAng);
+for (let k = 0; k <= 20; k++) {
+const x = shx + (hx - shx) * k / 20, y = shy + (hy2 - shy) * k / 20;
+for (let w = -3; w <= 3; w++) g.px(x + nx * w, y + ny * w, w <= -2 ? P[1] : w >= 2 ? P[4] : P[2]);
+}
+const ex = hx + cos(hAng) * 14, ey = hy2 + sin(hAng) * 14;
+for (let k = 0; k <= 14; k++) { const x = hx + (ex - hx) * k / 14, y = hy2 + (ey - hy2) * k / 14; g.px(x, y, P.b); g.px(x + nx, y + ny, P.B); g.px(x - nx, y - ny, P.b); }
+const vert = Math.abs(cos(hAng)) > Math.abs(sin(hAng));
+const hm = vert ? HAMMER[0].split('').map((_, i) => HAMMER.map((r) => r[i] || '.').reverse().join('')) : HAMMER;
+blit(g, hm, ex - hm[0].length / 2, ey - hm.length / 2);
+}
+return {drawBossPx};
+})();
+const {drawBossPx} = __m_art_boss_px;
 const __m_art_boss = (() => {
 const BSPR = 128;
 const OX = 64, OY = 112; // باس بزرگ است: مبدأ پایین‌تر تا داخل بوم جا شود
@@ -6370,81 +6524,10 @@ shake = dead < 0.3 ? 1 : 0;
 const gy = OY + bob + (dead > 0.5 ? (dead - 0.5) * 20 : 0);
 const phaseFlash = o.phaseFlash ? 1 : 0; // S6.6: دو فریمِ نخستِ فازِ تازه (لرزش + جرقه + فلش)
 const sx = shake ? (Math.floor(f.time * 40) % 2 ? 1.5 : -1.5) : (phaseFlash ? (Math.floor(f.time * 60) % 2 ? 2.5 : -2.5) : 0);
-for (const dx of [-14, 5]) {
-g.rect(sx + dx, gy - 26, 11, 26, B.sh);
-g.rect(sx + dx, gy - 26, 11, 3, B.body);
-g.rect(sx + dx + 8, gy - 24, 3, 22, B.out);
-if (phase === 2) { g.lineW(sx + dx + 2, gy - 22, sx + dx + 6, gy - 8, 2, B.red); g.px(sx + dx + 4, gy - 14, MC.ember); } // فاز ۲: ترکِ پا
-if (phase === 3) { g.rect(sx + dx + 2, gy - 20, 3, 1, B.red); g.rect(sx + dx + 4, gy - 12, 2, 1, B.ember); } // گداختگی
-}
 const ty = gy - 66;
-const tw = phase === 3 ? 34 : 48;                            // فاز ۳: نیمی از تنه فروریخته
-g.rect(sx - 24, ty, tw, 40, B.body);
-g.rect(sx - 24, ty, tw, 4, B.hi); g.rect(sx - 24, ty + 36, tw, 4, B.sh);
-g.rect(sx - 8, ty + 6, 16, 22, B.sh);                       // صفحه‌ی سینه
-g.rect(sx - 7, ty + 7, 14, 3, B.hi);
-for (let i = 0; i < (phase === 3 ? 3 : 4); i++) g.px(sx - 20 + i * 13, ty + 16, B.out); // پرچ‌های زره
-g.rect(sx - 24, ty + 14, tw, 2, MC.bossMid); g.rect(sx - 22, ty + 30, 8, 2, MC.bossDeep);
-if (phase !== 3) g.rect(sx + 8, ty + 22, 10, 2, MC.bossDeep); // S1.5b: صفحه‌های سنگی
-g.rect(sx - 16, ty + 22, 6, 1, MC.bossCrack); if (phase !== 3) g.rect(sx + 6, ty + 12, 5, 1, MC.bossCrack);
-g.rect(sx - 18, ty + 6, 3, 2, MC.ember); if (phase !== 3) g.rect(sx + 15, ty + 6, 3, 2, MC.ember);
-g.rect(sx - 2, ty + 26, 6, 1, MC.bossRed);                    // S1.5b: دریچه‌ی گدازه‌ی همیشه‌روشن
-if (phase === 2) { // فاز ۲: لب‌پریدگی + شبکه‌ی ترکِ گداخته‌ی پهن (هسته‌ی اخگری روی لبه‌ی تیره)
-g.rect(sx + 14, ty, 10, 6, B.out); g.rect(sx + 12, ty + 5, 3, 3, B.out);      // شانه‌ی لب‌پریده
-g.rect(sx - 26, ty + 26, 4, 6, B.out); g.rect(sx - 24, ty + 17, 3, 4, B.out); // لب‌پریدگیِ پهلو
-const crack = (x1, y1, x2, y2) => {                                           // ترکِ سه‌لایه
-g.lineW(x1, y1, x2, y2, 3, B.out); g.lineW(x1, y1, x2, y2, 2, B.red); g.line(x1, y1, x2, y2, MC.ember);
-};
-crack(sx - 18, ty + 8, sx - 12, ty + 26); crack(sx + 12, ty + 6, sx + 8, ty + 28);
-crack(sx - 12, ty + 26, sx - 2, ty + 36); crack(sx + 8, ty + 28, sx + 2, ty + 38);
-crack(sx - 22, ty + 22, sx - 18, ty + 38); crack(sx + 2, ty + 4, sx - 6, ty + 18);
-crack(sx - 6, ty + 6, sx + 4, ty + 20); crack(sx - 20, ty + 12, sx - 14, ty + 30); // ترک‌های میانی
-g.rect(sx - 24, ty, 4, 9, B.out); g.rect(sx - 23, ty + 9, 3, 3, B.out);            // گوشه‌ی لب‌پریده
-g.rect(sx - 8, ty + 11, 14, 7, B.out); g.rect(sx - 6, ty + 12, 10, 5, B.red); g.rect(sx - 4, ty + 13, 6, 3, MC.ember); // حفره‌ی سینه
-for (let i = 0; i < 3; i++) g.rect(sx - 20 + i * 16, ty + 40 + (i % 2) * 2, 3, 7 + (i % 2) * 3, MC.ember);             // چکه‌ی گدازه
-g.rect(sx - 19, ty + 48, 2, 3, B.red); g.rect(sx + 13, ty + 49, 2, 3, B.red);                                            // چاله‌ی گدازه
-g.px(sx - 19, ty + 47, B.red); g.px(sx - 3, ty + 46, B.red); g.px(sx + 13, ty + 48, B.red);
-}
-if (phase === 3) { // فاز ۳: لبه‌ی شکسته + هسته‌ی گداخته‌ی نمایان + خرده‌سنگ
-for (let i = 0; i < 10; i++) g.px(sx + 10 - (i % 3), ty + 3 + i * 4, B.out);   // لبه‌ی دندانه‌دارِ شکستگی
-g.rect(sx + 2, ty + 12, 8, 12, B.red); g.rect(sx + 3, ty + 14, 6, 8, MC.ember); // هسته
-g.px(sx + 1, ty + 28, B.ember); g.px(sx + 9, ty + 30, B.red); g.px(sx + 6, ty + 6, MC.ember);
-g.rect(sx - 4, ty + 4, 6, 2, B.out);                                            // ترکِ بالای تنه
-g.rect(sx - 26, gy - 5, 7, 4, B.sh); g.px(sx - 25, gy - 6, B.body); g.px(sx - 21, gy - 2, B.out);
-g.rect(sx + 16, gy - 4, 8, 3, B.sh); g.px(sx + 18, gy - 5, B.body); g.px(sx + 23, gy - 2, B.out); // خرده‌سنگِ ریخته
-g.rect(sx + 26, gy - 3, 4, 2, B.sh);
-}
-g.lineW(sx - 20, ty + 8, sx - 26, ty + 30, 8, B.sh);
-const hTilt = phase === 3 ? 3 : 0, hy = ty - 16 - inhale * 2 + (phase === 3 ? 2 : 0);
-g.rect(sx - 9 + hTilt, hy, 18, 16, B.body);
-g.rect(sx - 9 + hTilt, hy, 18, 3, B.hi);
-g.rect(sx - 5 + hTilt, hy + 6, 11, 3, warn > 0.2 || jaw > 0.2 || phase === 3 ? B.red : B.sh); // چشم
-if (phase === 3) { g.rect(sx - 3 + hTilt, hy + 6, 5, 3, MC.ember); g.px(sx + 2 + hTilt, hy + 7, B.white); }
-const crownN = phase === 3 ? 2 : 3;                                   // تاج: سالم → شکسته
-for (let i = 0; i < crownN; i++) {
-const cx2 = sx - 7 + i * 6 + (phase === 3 ? 4 : 0), cy2 = hy - 5 + (phase === 3 ? 2 : 0);
-g.rect(cx2, cy2, 3, phase === 3 ? 4 : 5, B.gold);
-if (phase === 3) g.px(cx2, cy2 - 1, B.gold);                         // میخِ کج
-}
-if (phase >= 2) { g.rect(sx + 22, gy - 7, 3, 5, B.gold); if (phase === 3) g.rect(sx + 27, gy - 5, 3, 4, B.gold); } // میخ‌های افتاده
-if (phase === 2) { // فاز ۲: ترکِ سر هم‌زبانِ تنه
-g.lineW(sx - 9 + hTilt, hy + 1, sx - 2 + hTilt, hy + 9, 2, B.red); g.px(sx - 6 + hTilt, hy + 4, MC.ember);
-}
-if (phase === 3) { // هاله‌ی خشم: اخگرهای شناور دورِ سر/شانه
-for (const [ex2, ey2] of [[-15, -8], [13, -12], [-19, 4], [17, 6], [-9, -15], [8, -16]]) g.px(sx + ex2, hy + ey2, MC.ember);
-}
-if (jaw > 0.3) { g.rect(sx - 4, hy + 12, 9, 3 + Math.round(jaw * 3), B.dark); g.px(sx - 2, hy + 13, B.ember); } // غرش
-const shx = sx + 20, shy = ty + 8;
+const hy = ty - 16 - inhale * 2 + (phase === 3 ? 2 : 0);
 const hAng = f.state === 'attack' ? armA : 0.45 + sin(f.time * 0.8) * 0.05;
-const hx = shx + cos(hAng) * 20, hy2 = shy + sin(hAng) * 20;
-g.lineW(shx, shy, hx, hy2, 9, B.body);
-g.lineW(shx, shy - 3, hx, hy2 - 3, 2, B.hi);
-const ex = hx + cos(hAng) * 14, ey = hy2 + sin(hAng) * 14;
-g.lineW(hx, hy2, ex, ey, 4, MC.wood ?? B.sh);
-const perp = hAng + PI / 2;
-const h1 = [ex + cos(perp) * 8, ey + sin(perp) * 8], h2 = [ex - cos(perp) * 8, ey - sin(perp) * 8];
-g.lineW(h1[0], h1[1], h2[0], h2[1], 12, B.body);
-g.lineW(h1[0], h1[1] - 5, h2[0], h2[1] - 5, 2, B.hi);
+drawBossPx(g, { sx: Math.round(sx), gy: Math.round(gy), ty: Math.round(ty), hy: Math.round(hy), phase, warn, jaw, hAng, lean });
 if (f.state === 'attack' && f.t < (atk === 'slam' ? 0.5 : atk === 'sweep' ? 0.45 : 0.4)) {
 const blink = Math.floor(f.time * 12) % 2 === 0;
 const c = blink ? B.red : [MC.bossRed[0], MC.bossRed[1], MC.bossRed[2], 120];
