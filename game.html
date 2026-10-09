@@ -4769,133 +4769,186 @@ far:  { ...P.arms.far,  shoulder: m(P.arms.far.shoulder),  elbow: m(P.arms.far.e
 return {SPR, OX, OY, HOX, HOY, DIRS, GEO, ACT, ACT_DUR, actionPose, gaitPose, poseLerp, mapPts};
 })();
 const {SPR, OX, OY, HOX, HOY, DIRS, GEO, ACT, ACT_DUR, actionPose, gaitPose, poseLerp, mapPts} = __m_art_hero_pose;
-const __m_art_hero = (() => {
-const TRIP = {
-pantsN: [C.pants, C.pantsHi, C.pantsSh], pantsF: [C.pantsSh, C.pants, C.pantsSh],
-bootN: [C.boot, C.bootHi, C.bootSh], bootF: [C.bootSh, C.boot, C.bootSh],
-jacketN: [C.jacket, C.jacketHi, C.jacketSh], jacketF: [C.jacketSh, C.jacket, C.jacketSh],
+const __m_art_hero_px = (() => {
+const K = {
+H: C.hair, h: C.hairSh, K: C.skinHi, S: C.skin, s: C.skinSh, e: C.out, w: C.shirt,
+Y: C.hatHi, y: C.hat, t: C.hatSh, r: C.scarf, R: C.scarfSh,
+J: C.jacketHi, j: C.jacket, d: C.jacketSh, D: C.jacketDeep, c: C.shirt, x: C.shirtSh,
+b: C.boot, B: C.bootHi, n: C.bootSh, P: C.pantsHi, p: C.pants, q: C.pantsSh,
 };
-function bootSide(r, an, pitch, trip) {
-const [cb, ch, cs] = trip;
-const rp = (x, y) => { const q = rot(x, y, pitch); return [an[0] + q[0], an[1] + q[1]]; };
-r.lineW(an[0], an[1], ...rp(0, -3.5), 4, cb);
-r.lineW(...rp(-2.5, 2.6), ...rp(3.5, 2.6), 3, cb);
-r.line(...rp(-2.5, 3.6), ...rp(3.5, 3.6), cs);
-r.line(...rp(1, 0.6), ...rp(3.5, 0.9), ch);
+const M = (ax, ay, rows) => ({ ax, ay, rows });
+const HEAD = {
+down: M(3, 4, [
+'.HHHHH.',
+'HHhHhHH',
+'HSKKKSH',
+'SeKKKeS',
+'SeSKSeS',
+'sSSsSSs',
+'.ssSss.',
+]),
+blinkDown: M(3, 4, [
+'.HHHHH.',
+'HHhHhHH',
+'HSKKKSH',
+'SSKKKSS',
+'SeSKSeS',
+'sSSsSSs',
+'.ssSss.',
+]),
+up: M(3, 4, [
+'.HHHHH.',
+'HHHHHHH',
+'HHHhHHH',
+'SHHHHHS',
+'sHhHhHs',
+'.hhhhh.',
+'..sSs..',
+]),
+side: M(3, 4, [
+'.HHHHH..',
+'HHHHHHH.',
+'HHHHSKS.',
+'HHsSKeK.',
+'HhHSKeSK',
+'.hSSSsS.',
+'..sSSs..',
+]),
+blinkSide: M(3, 4, [
+'.HHHHH..',
+'HHHHHHH.',
+'HHHHSKS.',
+'HHsSKKK.',
+'HhHSKeSK',
+'.hSSSsS.',
+'..sSSs..',
+]),
+};
+const HAT = {
+down: M(4, 8, [
+'..YYYYY..',
+'..yYyyt..',
+'..RrrrR..',
+'YYYyyyyyt',
+'.ttttttt.',
+]),
+up: M(4, 8, [
+'..YYYYY..',
+'..yyyyt..',
+'..RRRRR..',
+'YYyyyyytt',
+'.ttttttt.',
+]),
+side: M(4, 8, [
+'..YYYYY...',
+'..yYyyyt..',
+'..RrrrrR..',
+'.YYyyyyyYY',
+'..tttttttt',
+]),
+};
+const TORSO = {
+down: M(3, 0, [
+'.rRrRr.',
+'JrrRrrd',
+'JjwxjjD',
+'JjwxjjD',
+'Jjjejjd',
+'jjjjjjD',
+'bbBYbbn',
+]),
+up: M(3, 0, [
+'.rrrrr.',
+'JjjjjjD',
+'JjjdjjD',
+'JjjdjjD',
+'Jjjjjjd',
+'jjjjjjD',
+'bbbbbbn',
+]),
+side: M(2, 0, [
+'Rrrr.',
+'RJjjd',
+'rJjjD',
+'.JjjD',
+'.Jjjd',
+'.jjjD',
+'.bBbn',
+]),
+};
+const BOOT = {
+front: M(1, 1, ['BbB', 'nnn']),
+side: M(1, 1, ['Bbb.', 'nnnn']),
+};
+function blit(r, m, x, y, flip) {
+const H = m.rows.length;
+for (let j = 0; j < H; j++) {
+const row = m.rows[j], W = row.length;
+for (let i = 0; i < W; i++) {
+const ch = row[i]; if (ch === '.') continue;
+const c = K[ch]; if (!c) continue;
+const px = flip ? x + (W - 1 - m.ax) - i + 0 : x - m.ax + i;
+r.px(px, y - m.ay + j, c);
 }
-function bootFront(r, an, trip) {
-const [cb, ch, cs] = trip;
-const x = Math.round(an[0]) - 2, y = Math.round(an[1]) - 1;
-r.rect(x, y, 5, 5, cb);
-r.rect(x, y, 5, 1, ch); r.rect(x, y + 4, 5, 1, cs);
 }
-function drawLeg(r, dir, leg) {
-const [cp, ch, cs] = leg.trip;
-r.seg(leg.hip[0], leg.hip[1], leg.knee[0], leg.knee[1], 4, cp, ch, cs);          // S6.2: ضخامت ۲px نهایی
-r.seg(leg.knee[0], leg.knee[1], leg.ankle[0], leg.ankle[1] - 1, 4, cp, ch, cs);
-if (dir === 'left' || dir === 'right') bootSide(r, leg.ankle, leg.pitch * (dir === 'right' ? 1 : -1), leg.trip === TRIP.pantsN ? TRIP.bootN : TRIP.bootF);
-else bootFront(r, leg.ankle, leg.trip === TRIP.pantsN ? TRIP.bootN : TRIP.bootF);
 }
-function drawArm(r, dir, arm, near) {
-const [cj, ch, cs] = near ? TRIP.jacketN : TRIP.jacketF;
-r.seg(arm.shoulder[0], arm.shoulder[1], arm.elbow[0], arm.elbow[1], 4, cj, ch, cs); // S6.2: ضخامت ۲px نهایی
-r.seg(arm.elbow[0], arm.elbow[1], arm.hand[0], arm.hand[1], 4, cj, ch, cs);
-const hx = Math.round(arm.hand[0]) - 1, hy = Math.round(arm.hand[1]) - 1;
-r.rect(hx, hy, 3, 3, near ? C.skin : C.skinSh);
-r.px(hx, hy + 3, near ? C.skinSh : C.skinSh);
+function limb(r, a, b, cL, cD, cEnd) {
+const x0 = a[0], y0 = a[1], x1 = b[0], y1 = b[1];
+const n = Math.max(1, Math.ceil(Math.max(Math.abs(x1 - x0), Math.abs(y1 - y0))));
+for (let k = 0; k <= n; k++) {
+const t = k / n, x = Math.round(x0 + (x1 - x0) * t - 0.5), y = Math.round(y0 + (y1 - y0) * t);
+r.px(x, y, cL); r.px(x + 1, y, k === n && cEnd ? cEnd : cD);
 }
-function drawScarf(r, dir, P, opts) {
-const nx = P.neck[0], ny = P.neck[1] + 3;
-const wave = Math.sin((opts.phase ?? 0) * Math.PI * 4 + (opts.breath ?? 0) * 2.2);
-const run = opts.anim === 'run' ? 1 : opts.anim === 'walk' ? 0.5 : 0.2;
-if (dir === 'left' || dir === 'right') {
-const fx = dir === 'right' ? -1 : 1; // پشت سر
-let px2 = nx + fx * 3, py2 = ny;
-for (let i = 0; i < 3; i++) {
-const qx = px2 + fx * (2 + run * 1.2), qy = py2 - 1 + wave * (1 + i) * 0.8 + run * i * 0.6;
-r.lineW(px2, py2, qx, qy, 3 - (i > 1 ? 1 : 0), i === 0 ? C.scarf : C.scarfSh);
-r.px(qx, qy - 1, C.scarf);
-px2 = qx; py2 = qy;
 }
+const half = (p) => [p[0] / 2, p[1] / 2];
+function drawHeroPx(r, dir, P, layer, o = {}) {
+const side = dir === 'left' || dir === 'right', flip = dir === 'left';
+const kd = side ? 'side' : dir;
+const leg = (L, near) => {
+const hip = half(L.hip), knee = half(L.knee), an = half(L.ankle);
+if (!side) { // جلو/پشت: پای صاف (زانوی بیرون‌زده حلقه‌ی «O» می‌ساخت)
+limb(r, hip, [an[0], an[1] - 1], near ? C.pantsHi : C.pants, near ? C.pants : C.pantsSh, C.pantsSh);
+blit(r, BOOT.front, Math.round(an[0] - 0.5), Math.round(an[1]), flip); return;
+}
+limb(r, hip, knee, near ? C.pantsHi : C.pants, near ? C.pants : C.pantsSh);
+limb(r, knee, [an[0], an[1] - 1], near ? C.pantsHi : C.pants, near ? C.pants : C.pantsSh, C.pantsSh);
+blit(r, side ? BOOT.side : BOOT.front, Math.round(an[0] - 0.5), Math.round(an[1]), flip);
+};
+const arm = (A, near) => {
+const sh = half(A.shoulder), el = half(A.elbow), hd = half(A.hand);
+limb(r, sh, el, near ? C.jacketHi : C.jacket, near ? C.jacket : C.jacketSh);
+limb(r, el, hd, near ? C.jacketHi : C.jacket, near ? C.jacket : C.jacketSh);
+const hx = Math.round(hd[0] - 0.5), hy = Math.round(hd[1]);
+r.px(hx, hy, near ? C.skin : C.skinSh); r.px(hx + 1, hy, C.skinSh);
+};
+const nk = half(P.neck), hc = half(P.headC);
+const nx = Math.round(nk[0]), ny = Math.round(nk[1]);
+if (layer === 'back') {
+arm(P.arms.far, false);
+leg(P.legs.far, false);
+const hp = half(P.pelvis), py = Math.round(hp[1]);
+for (let x = -2; x <= 2 - (side ? 1 : 0); x++) { r.px(nx + x, py, C.pants); r.px(nx + x, py + 1, x ? C.pantsSh : C.out); }
+blit(r, TORSO[kd], nx, ny, flip);
 } else {
-r.lineW(nx - 2, ny, nx - 4 - wave * 0.7, ny + 4 + run * 2, 2, C.scarf);
-r.lineW(nx + 2, ny, nx + 4 + wave * 0.7, ny + 3 + run * 2, 2, C.scarfSh);
-r.rect(nx - 3, ny - 1, 7, 2, C.scarf); // گره
+leg(P.legs.near, true);
+const hx = Math.round(hc[0]), hy = Math.round(hc[1]);
+const hm = o.blink && kd !== 'up' ? HEAD[kd === 'side' ? 'blinkSide' : 'blinkDown'] : HEAD[kd];
+blit(r, hm, hx, hy, flip);
+if (!o.noHat) blit(r, HAT[kd], hx, hy, flip);
+arm(P.arms.near, true);
 }
 }
-function drawTorso(r, dir, p, bobQ = 0, dPhase = 0) {
-const [fx] = DIRS[dir];
-const side = fx !== 0;
-r.seg(p.pelvis[0], p.pelvis[1] + 1, p.neck[0], p.neck[1] + 1, side ? 9 : 10, C.jacket, C.jacketHi, C.jacketSh);
-const drag = side ? -fx * p.lean * 9 : 0;
-const hy = Math.round(p.pelvis[1] / 2) * 2 - 2, cx = Math.round(p.pelvis[0]) + Math.round(drag); // S6.2: لنگرِ زوج — بقای باندها و dither در نصف‌سازی
-r.rect(cx - 5, hy, 11, 4, C.jacket);
-r.rect(cx - 5, hy + 1, 11, 1, bobQ > 0 ? C.jacket : C.jacketSh);
-r.rect(cx - 5, hy + 2, 11, 2, bobQ < 0 ? C.jacketSh : C.jacketDeep);
-if (bobQ > 0) r.rect(cx - 5, hy, 11, 1, C.jacketHi); // بدن بالا ← لبه‌ی بالایی روشن‌تر (اختلاف رنگ، نه مقیاس)
-const d2 = (x, y, c) => r.rect(x, y, 2, 2, c);
-const dx0 = (cx + 1) & ~1;
-const a = dPhase ? C.jacketDeep : C.jacketSh, b = dPhase ? C.jacketSh : C.jacketDeep;
-d2(dx0, hy, a); d2(dx0 + 2, hy, b);
-d2(dx0, hy + 2, b); d2(dx0 + 2, hy + 2, a);
-const nx = Math.round(p.neck[0]), ny = Math.round(p.neck[1]);
-if (side) {
-r.line(nx + fx * 3, ny + 3, cx + fx * 3, hy + 1, C.jacketSh);
-r.rect(cx + fx * 3 - 1, hy - 4, 3, 2, C.jacketSh);
-} else if (dir === 'down') {
-r.rect(nx - 2, ny + 2, 5, 1, C.shirt);
-r.px(nx, ny + 5, C.out); r.px(nx, ny + 8, C.out);
-r.rect(nx - 1, ny + 12, 2, 1, C.shirtSh);
-} else {
-r.line(nx - 4, ny + 4, nx + 4, ny + 4, C.jacketSh);
-r.line(nx, ny + 4, nx, hy + 1, C.jacketSh);
+function up2(src, dst) {
+const s = src.d, d = dst.d, w = src.w, W = dst.w;
+for (let y = 0; y < src.h; y++) for (let x = 0; x < w; x++) {
+const i = (y * w + x) * 4; if (!s[i + 3]) continue;
+for (let k = 0; k < 4; k++) { const j = ((2 * y + (k >> 1)) * W + 2 * x + (k & 1)) * 4; d[j] = s[i]; d[j + 1] = s[i + 1]; d[j + 2] = s[i + 2]; d[j + 3] = s[i + 3]; }
 }
 }
-function drawHead(r, dir, hc, blink) {
-const hx = Math.round(hc[0]) & ~1, hy = Math.round(hc[1]) & ~1;
-if (dir === 'left' || dir === 'right') {
-const fx = dir === 'right' ? 1 : -1;
-r.rect(hx - 6, hy - 5, 12, 12, C.skin);                 // S6.2: عرض زوج — نصف‌سازی قطعی
-r.px(hx + 5 * fx, hy + 6, C.skin); r.px(hx + 5 * fx + 1 * fx, hy + 6, C.skin); // چانه
-r.rect(hx - 6, hy - 7, 12, 3, C.hair);
-r.rect(fx > 0 ? hx - 8 : hx + 4, hy - 6, 4, 10, C.hair); // پشت سر
-r.rect(fx > 0 ? hx - 8 : hx + 6, hy - 8, 2, 2, C.hair);  // تار موی نافرمانی
-r.rect(hx - fx, hy - 1, 2, 4, C.skinSh);                // گوش
-const ex = hx + 1 * fx;
-if (blink) r.rect(ex, hy + 1, 3, 1, C.out);
-else r.rect(ex, hy, 2, 3, C.out);
-r.rect(ex - fx, hy - 2, 3, 1, C.hair);                  // ابرو
-r.px(hx + 5 * fx, hy + 2, C.skin); r.px(hx + 5 * fx + fx, hy + 2, C.skin); // بینی
-r.px(hx + 3 * fx, hy + 4, C.skinSh); r.px(hx + 3 * fx + fx, hy + 4, C.skinSh);
-} else if (dir === 'down') {
-r.rect(hx - 6, hy - 5, 12, 12, C.skin);
-r.rect(hx - 6, hy - 7, 12, 3, C.hair);
-r.rect(hx - 6, hy - 5, 2, 2, C.hair); r.rect(hx + 4, hy - 5, 2, 2, C.hair); // چتری کنار
-for (const ex of [hx - 5, hx + 2]) {
-if (blink) r.rect(ex, hy + 1, 3, 1, C.out);
-else r.rect(ex, hy, 3, 3, C.out);                     // چشم ۳×۳ (۲×۲ نهایی خوانا)
-r.rect(ex, hy - 2, 3, 1, C.hair);                     // ابرو
-}
-r.rect(hx - 1, hy + 3, 3, 1, C.skinSh);                 // بینی/دهان
-r.px(hx - 4, hy + 2, C.skinSh); r.px(hx + 3, hy + 2, C.skinSh); // گونه
-} else {
-r.rect(hx - 6, hy - 5, 12, 12, C.hair);
-r.rect(hx - 6, hy + 5, 12, 2, C.hairSh);                // پس گردن
-r.rect(hx - 4, hy - 6, 8, 2, C.hair);
-r.rect(hx - 8, hy + 2, 2, 2, C.skin); r.rect(hx + 6, hy + 2, 2, 2, C.skin); // گوش‌ها
-r.rect(hx - 8, hy + 4, 2, 2, C.skinSh); r.rect(hx + 6, hy + 4, 2, 2, C.skinSh);
-}
-}
-function drawHat(r, dir, hc) {
-const hx = Math.round(hc[0]) & ~1, hy = Math.round(hc[1]) & ~1;
-const fx = dir === 'right' ? 1 : dir === 'left' ? -1 : 0;
-r.rect(hx - 5, hy - 14, 10, 2, C.hatHi);  // تاج — بالای روشن (عرض زوج)
-r.rect(hx - 5, hy - 12, 10, 2, C.hat);
-r.rect(hx - 5, hy - 10, 10, 2, C.hatSh);  // نوار
-r.rect(hx - 7, hy - 8, 14, 2, C.hatHi);   // لبه‌ی روشن
-if (fx !== 0) { r.px(hx + 7 * fx, hy - 8, C.hat); r.px(hx + 8 * fx, hy - 7, C.hatSh); }
-else { r.px(hx - 7, hy - 6, C.hat); r.px(hx + 7, hy - 6, C.hat); }
-}
+return {drawHeroPx, up2};
+})();
+const {drawHeroPx, up2} = __m_art_hero_px;
+const __m_art_hero = (() => {
 function drawTool(r, kind, gx, gy, ang, swordId, ghost = 0) {
 const T = (x, y) => { const q = rot(x, y, ang); return [gx + q[0], gy + q[1]]; };
 const tl = (x1, y1, x2, y2, w, c) => { const a = T(x1, y1), b = T(x2, y2); r.lineW(a[0], a[1], b[0], b[1], w, c); };
@@ -4960,18 +5013,14 @@ toolAng = ang;
 }
 const body = new Raster(SPR, SPR);
 const P = mapPts(pose);
-drawArm(body, dir, P.arms.far, false);
-drawLeg(body, dir, { ...P.legs.far, trip: TRIP.pantsF });
-body.lineW(P.neck[0], P.neck[1] + 2, P.headC[0], P.headC[1] + 6, 3, C.skin);
-drawTorso(body, dir, P, bobQ, dPhase);
-drawScarf(body, dir, P, { phase, breath, anim });
-if (equip && equip.body) drawEquipBody(body, dir, P, equip.body); // زره روی تنه
-drawLeg(body, dir, { ...P.legs.near, trip: TRIP.pantsN });
-drawHead(body, dir, P.headC, blink);
-if (equip && equip.hat) drawEquipHat(body, dir, P.headC, equip.hat); // کلاه/خود جایگزین
-else drawHat(body, dir, P.headC);
-if (equip && equip.boots) drawEquipBoots(body, dir, P, equip.boots); // روی مچ پاها
-drawArm(body, dir, P.arms.near, true);
+const lo = new Raster(SPR / 2, SPR / 2);
+drawHeroPx(lo, dir, P, 'back');
+up2(lo, body); lo.d.fill(0);
+if (equip && equip.body) drawEquipBody(body, dir, P, equip.body);
+drawHeroPx(lo, dir, P, 'front', { blink, noHat: !!(equip && equip.hat) });
+up2(lo, body);
+if (equip && equip.hat) drawEquipHat(body, dir, P.headC, equip.hat);
+if (equip && equip.boots) drawEquipBoots(body, dir, P, equip.boots);
 if (tool !== 'none' && toolAng !== null) {
 const gx0 = Math.round(P.arms.near.hand[0]), gy0 = Math.round(P.arms.near.hand[1]) + 1;
 if (actP >= 0) {
@@ -4989,7 +5038,7 @@ drawTool(body, tool, gx0, gy0, toolAng, equip && equip.sword);
 return bake(body, [{ op: 'shadow', spec: 'hero', x: OX, y: OY + 2, color: [8, 6, 14] }]);
 }
 function halfSprite(s) {
-return bake(s, [{ op: 'half' }, { op: 'rim', lift: 0.62 }, { op: 'outline', mode: 'ink' }, { op: 'lock' }]);
+return bake(s, [{ op: 'half' }, { op: 'outline', mode: 'ink' }, { op: 'lock' }]);
 }
 const GAIT_FRAMES = 6, IDLE_FRAMES = 4;
 function frameKey(o) {
