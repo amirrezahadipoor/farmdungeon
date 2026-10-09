@@ -3,8 +3,8 @@
 import { C } from './palette_hero.js';
 import { Raster, rot } from '../raster.js';
 import { ik, GAITS, bodyBob, ease } from '../skeleton.js';
-import { SPR, OX, OY, DIRS, GEO, ACT, actionPose, gaitPose, poseLerp, mapPts } from './hero_pose.js';
-import { drawEquipHat, drawEquipBody, drawEquipBoots, swordPal } from './equipment.js';
+import { SPR, OX, OY, PAD, DIRS, GEO, ACT, actionPose, gaitPose, poseLerp, mapPts } from './hero_pose.js';
+import { swordPal } from './equipment.js';
 import { up2 } from './hero_px.js';
 import { drawHeroMap } from './hero_map.js';   // S10.4: بدنه‌ی تمام‌نقشه‌ای (دست‌پیکسل)
 import { bake } from './bake.js';                       // S6.1: خط لولهٔ واحدِ پخت (half/rim/outline/lock)
@@ -12,9 +12,10 @@ import { bake } from './bake.js';                       // S6.1: خط لولهٔ
 // ---------- قطعات ----------
 // ---------- ابزارها (گریپ در مبدأ، سرِ کار در +x) ----------
 // S6.2: ghost=1/2 — اسمیرِ ضربه با رمپ فلز (۱=نزدیک metal، ۲=دور metalSh)
-export function drawTool(r, kind, gx, gy, ang, swordId, ghost = 0) {
-  const T = (x, y) => { const q = rot(x, y, ang); return [gx + q[0], gy + q[1]]; };
-  const tl = (x1, y1, x2, y2, w, c) => { const a = T(x1, y1), b = T(x2, y2); r.lineW(a[0], a[1], b[0], b[1], w, c); };
+// S10.7: S = مقیاسِ ابزار (۲ برای قهرمانِ مرجع ۵۵px)
+export function drawTool(r, kind, gx, gy, ang, swordId, ghost = 0, S = 2) {
+  const T = (x, y) => { const q = rot(x * S, y * S, ang); return [gx + q[0], gy + q[1]]; };
+  const tl = (x1, y1, x2, y2, w, c) => { const a = T(x1, y1), b = T(x2, y2); r.lineW(a[0], a[1], b[0], b[1], w * S, c); };
   const sp = kind === 'sword' ? swordPal(swordId) : null;
   const gc = ghost === 2 ? C.metalSh : C.metal;
   const wood = ghost ? gc : C.wood, met = ghost ? gc : (sp ? sp.met : C.metal), metHi = ghost ? gc : (sp ? sp.metHi : C.metalHi);
@@ -82,27 +83,23 @@ export function drawHeroFrame(opts) {
     }
   }
 
-  const body = new Raster(SPR, SPR);
+  const body = new Raster(SPR, SPR + PAD * 2);
   const P = mapPts(pose);
   // ترتیب لایه: بازوی دور → پای دور → تنه → پای نزدیک → سر/کلاه → بازوی نزدیک → ابزار
   // S9.3: بدنه‌ی دست‌پیکسل در مقیاس نهایی (۶۴) → ۲× روی بومِ ۱۲۸؛ تجهیزات/ابزار همچنان در ۱۲۸
-  const lo = new Raster(SPR / 2, SPR / 2);
+  const lo = new Raster(SPR / 2, SPR / 2 + PAD);
   // S10.4: فریمِ نقشه از همان کلیدِ کش (۶ گام / ۴ idle)؛ لنگرهای نقشه جای مفاصلِ اسکلت را برای تجهیزات/ابزار می‌گیرند
   const N = anim === 'idle' ? 4 : 6, fr = Math.floor((((phase % 1) + 1) % 1) * N) % N;
-  const act = toolAng !== null && actP >= 0 ? { hand: [P.arms.near.hand[0] / 2, P.arms.near.hand[1] / 2] } : null;
-  const A = drawHeroMap(lo, { dir, frame: fr, anim: anim !== 'idle' && moveW < 0.5 ? 'idle' : anim, blink, act });
+  const act = toolAng !== null && actP >= 0 ? { tool, p: actP } : null;
+  const A = drawHeroMap(lo, { dir, frame: fr, anim: anim !== 'idle' && moveW < 0.5 ? 'idle' : anim, blink, act, equip });
   const d2 = (p) => [p[0] * 2, p[1] * 2];
   P.headC = d2(A.headC); P.neck = d2(A.neck); P.pelvis = d2(A.pelvis);
   P.arms.near.shoulder = d2(A.shoulderN); P.arms.far.shoulder = d2(A.shoulderF);
   P.arms.near.hand = d2(A.handN); P.arms.far.hand = d2(A.handF);
   P.legs.near.ankle = d2(A.ankleN); P.legs.far.ankle = d2(A.ankleF);
-  if (equip && equip.hat) { // کلاهِ تجهیز جای کلاهِ نقشه: ۵ ردیفِ بالای نقشه پاک
-    for (let y = A.top; y < A.top + 5; y++) for (let x = 0; x < lo.w; x++) lo.d[(y * lo.w + x) * 4 + 3] = 0;
-  }
-  up2(lo, body);
-  if (equip && equip.body) drawEquipBody(body, dir, P, equip.body);
-  if (equip && equip.hat) drawEquipHat(body, dir, P.headC, equip.hat);
-  if (equip && equip.boots) drawEquipBoots(body, dir, P, equip.boots);
+  // S10.7: ابزار پشتِ بدن وقتی قهرمان پشت به دوربین است یا دست بالای گردن (روبه‌رو) — تیغه روی صورت نمی‌افتد
+  const behind = dir === 'up' || (dir === 'down' && A.handN[1] < A.neck[1] + 2);
+  if (!behind) up2(lo, body);
   if (tool !== 'none' && toolAng !== null) {
     const gx0 = Math.round(P.arms.near.hand[0]), gy0 = Math.round(P.arms.near.hand[1]) + 1;
     // S6.2: اسمیر ۲–۳ فریمیِ ضربه — دو ردِ عقب‌ترِ ابزار با رمپ فلز (دور=metalSh، نزدیک=metal)
@@ -119,8 +116,9 @@ export function drawHeroFrame(opts) {
     }
     drawTool(body, tool, gx0, gy0, toolAng, equip && equip.sword);
   }
+  if (behind) up2(lo, body);
   // S6.1: سایهٔ تماس از خط لولهٔ واحد (bake) — همان ۵ باندِ قبلی (۱۳×۴ روی OY+2)
-  return bake(body, [{ op: 'shadow', spec: 'hero', x: OX, y: OY + 2, color: [8, 6, 14] }]);
+  return bake(body, [{ op: 'shadow', spec: 'hero', x: OX, y: OY + 2 + PAD * 2, color: [8, 6, 14] }]);
 }
 
 // نصف‌مقیاس ۲:۱ سپس rim → outline جوهر → قفلِ پالت (S6.1: بدنهٔ مراحل در art/bake.js)

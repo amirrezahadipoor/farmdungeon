@@ -75,15 +75,17 @@ export function renderRun(run, r) {
     const D = run.dungeon, h = run.hero; _dr = D;
     const [shx, shy] = run.fx.offset(run.time);
     let cx = clamp(Math.round(run.cam.x) + shx, 0, WORLD_W - r.w);
-    let cy = clamp(Math.round(run.cam.y) + shy, 0, WORLD_H - r.h);
+    // S10.8: قهرمانِ بلند زیرِ نوارِ بالای HUD نرود — دوربین تا ۵۲px بالای لبه‌ی نقشه (ناحیه‌ی پشتِ HUD) آزاد است
+    let cy = clamp(Math.round(run.cam.y) + shy, -52, WORLD_H - r.h);
     if (!run._floorCache || run._floorCache.w !== WORLD_W) { // S10.1: پختِ تکه‌تکه — تا آماده شود صفحه‌ی تیره (زیرِ فیدِ ورود)
       run._floorCache = bakeFloorStep(run, globalThis.__BAKE_BUDGET ?? (typeof requestAnimationFrame === 'function' ? 8 : Infinity)); // node/ابزارها: یک‌جا
       if (!run._floorCache) { r.d.fill(0); for (let i = 3; i < r.d.length; i += 4) r.d[i] = 255; return; }
     }
     blitRegion(r, run._floorCache, cx, cy, r.w, r.h);
+    if (cy < 0) for (let i = 0; i < -cy * r.w; i++) { r.d[i * 4] = 8; r.d[i * 4 + 1] = 7; r.d[i * 4 + 2] = 14; r.d[i * 4 + 3] = 255; } // S10.8: نوارِ پشتِ HUD
     // آب زنده‌ی دانجن (روی کش ایستا) — فقط تایل‌های آبِ نمایان
     const dwf = [0, 1, 2, 1][Math.floor(run.time * 0.9) % 4]; // ن۳۷: سیکل آرام آب دانجن
-    for (let ty = Math.floor(cy / TILE); ty <= Math.min(ROWS - 1, Math.ceil((cy + r.h) / TILE)); ty++)
+    for (let ty = Math.max(0, Math.floor(cy / TILE)); ty <= Math.min(ROWS - 1, Math.ceil((cy + r.h) / TILE)); ty++)
       for (let tx = Math.floor(cx / TILE); tx <= Math.min(COLS - 1, Math.ceil((cx + r.w) / TILE)); tx++)
         // S2.7: همان ماژولِ آبِ مزرعه — عمق + کاستیک + ساحلِ سنگیِ هم‌تُن با کفِ تم
         if (D.cell(tx, ty).kind === 'water') drawWater(r, tx * TILE - cx, ty * TILE - cy, _dcell, tx, ty, dwf, dungeonShore(D.theme));

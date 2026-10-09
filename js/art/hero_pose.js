@@ -8,7 +8,9 @@ export const OY = 92; // مبدأ قهرمان (زمینِ بین پاها) دا
 // ن۳۵: بدنه‌ی ۶۲px در دنیای تایلِ ۱۶px غول‌پیکر بود (۳٫۹ تایل — از خانه بلندتر!)
 // اسپرایت نهایی ۲:۱ نصف می‌شود → بدنه ≈۳۱px ≈ ۲ تایل؛ لنگرهای نصف‌شده:
 export const HOX = OX >> 1;  // 32
-export const HOY = OY >> 1;  // 46
+// S10.7: بومِ نهایی ۱۶px بلندتر (قهرمانِ ۵۵px)؛ زمین همان‌جا روی صفحه می‌ماند
+export const PAD = 16;
+export const HOY = (OY >> 1) + PAD;  // 62
 const mixN = (a, b, t) => a + (b - a) * t;
 const mixP = (a, b, t) => [mixN(a[0], b[0], t), mixN(a[1], b[1], t)];
 export const DIRS = { down: [0, 1], up: [0, -1], left: [-1, 0], right: [1, 0] };

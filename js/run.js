@@ -213,7 +213,7 @@ export class Run {
     if (this.stairsOpen() && onStairs && this.standT > 0.4) { this.loadFloor(this.floor + 1); this.standT = 0; return; }
     this.standT = onStairs ? (this.standT || 0) + dt : 0;
 
-    const tx = clamp(h.x - this.view.w / 2, 0, WORLD_W - this.view.w), ty = clamp(h.y - this.view.h / 2, 0, WORLD_H - this.view.h);
+    const tx = clamp(h.x - this.view.w / 2, 0, WORLD_W - this.view.w), ty = clamp(h.y - this.view.h / 2, -52, WORLD_H - this.view.h); // S10.8: ۵۲px پشتِ HUD
     const k = 1 - Math.exp(-9 * dt);
     this.cam.x += (tx - this.cam.x) * k; this.cam.y += (ty - this.cam.y) * k;
   }

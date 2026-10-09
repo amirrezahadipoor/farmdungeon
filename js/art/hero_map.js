@@ -1,129 +1,165 @@
-// art/hero_map.js — S10.4: قهرمانِ «دست‌پیکسل» کامل از نقشه‌های نویسه‌ای (مثلِ boss_px S9.6)، نه اسکلتِ میانگین‌گیری‌شده.
-// مقیاسِ نهایی (۱ نویسه = ۱px روی صفحه، بومِ ۶۴ با زمینِ ۳۲،۴۶)؛ قد ۲۹–۳۰px؛ ۳ نما (روبه‌رو/پشت/کنار؛ چپ = آینه‌ی راست).
-// بالاتنه (کلاه+سر+تنه) نقشه‌ی ثابت است؛ پاها از جدولِ گامِ ۶ فریمی (dx/بلندی) با ستونِ ۲px و پله‌ی ≤۱px ساخته می‌شوند.
-// squash/stretch: BOB = جابه‌جاییِ بالاتنه (+۱ = فشرده در تماس، −۱ = کشیده در گذر) — پاها روی زمین می‌مانند و طولشان عوض می‌شود.
-// فقط رنگ‌های palette_hero ⇒ recolorِ کارگرها و قفلِ پالت مثلِ قبل. خروجی: لنگرها (۶۴) برای تجهیزات/ابزار.
+// art/hero_map.js — S10.7/S10.8: قهرمانِ مرجع با «ریگِ قطعه‌ای»:
+// بالاتنه (کلاه تا دامن) از نقشه‌ی ۲۲×۳۲ hero_art.js؛ پاها رویه‌ای (ران/ساق با IK + چکمه) ⇒ گامِ واقعی با زانو.
+// هیچ فریمی جداگانه کشیده/تولید نمی‌شود — همه‌ی جهت‌ها/انیمیشن‌ها/ابزارها/تجهیزات از همین یک منبع.
+// بوم ۶۴×(۶۴+PAD)، زمین روی ردیفِ GROUND؛ فقط رنگ‌های palette_hero ⇒ قفلِ پالت و recolorِ کارگرها مثلِ قبل.
 import { C } from './palette_hero.js';
+import { HERO_ART } from './hero_art.js';
+import { actionPose, DIRS, PAD } from './hero_pose.js';
+import { ik } from '../skeleton.js';
 
 const K = {
   H: C.hair, h: C.hairSh, K: C.skinHi, S: C.skin, s: C.skinSh, e: C.out,
   Y: C.hatHi, y: C.hat, t: C.hatSh, r: C.scarf, R: C.scarfSh,
   J: C.jacketHi, j: C.jacket, d: C.jacketSh, D: C.jacketDeep, c: C.shirt, x: C.shirtSh,
   b: C.boot, B: C.bootHi, n: C.bootSh, P: C.pantsHi, p: C.pants, q: C.pantsSh,
+  M: C.metalHi, m: C.metal, w: C.metalSh,
 };
-const HAT_FB = ['....YYYYY....', '...YyyyyyY...', '..trrrrrrrt..', 'tYyyyyyyyyyYt', '.ttttttttttt.'];
-// ---- بالاتنه: هر ردیف هم‌عرض؛ ستونِ مرکز = لنگرِ x ----
-const UP = {
-  down: [...HAT_FB,
-    '.HHhHHHHHhHH.', '.HSKKKKKKKSH.', '.SKKKKKKKKKS.', '.SKeKKKKKeKS.', '.SKeKKsKKeKS.', '..sSSSSSSSs..', '....ssSss....',
-    '...rrrrrrr...', 'jJJjrRRRrjJJj', 'jJJjjcccjjJJj', 'jJdjjcccjjdJj', 'jJdjjjcjjjdJj', 'jjdjjjjjjjdjj', '..nnnnYnnnn..', '..ddjjjjjdd..'],
-  up: [...HAT_FB,
-    '.HHHHHHHHHHH.', '.HHHHHHHHHHH.', '.HHHhHHHhHHH.', '.HHhHHHHHhHH.', '.SHHHHHHHHHS.', '..hhhhhhhhh..', '....ssSss....',
-    '...rrrrrrr...', 'jJJjjjjjjjJJj', 'jJJjjjjjjjJJj', 'jJdjjdjdjjdJj', 'jJdjjjjjjjdJj', 'jjdjjjjjjjdjj', '..nnnnnnnnn..', '..ddjjjjjdd..'],
-  side: ['...YYYY....', '..YyyyyY...', '..trrrrrt..', 'tYyyyyyyyYt', '.tttttttttt',
-    '.HHHHHSKK..', '.HHHHSKKKK.', '.HHHsSKKeK.', '.HhHSKKKeKK', '..hSSKKKsK.', '...sSSSSs..', '....sSs....',
-    '...rrrrR...', '..djjjjJc..', '..djjjjJc..', '..djjjjJc..', '..djjjjJj..', '..nnnnnYn..', '..ddjjjjd..'],
+const MW = 22, UH = 32, LEG = 12;                         // عرض · ردیف‌های بالاتنه · قدِ پا (۸ شلوار + ۴ چکمه)
+export const MAP_H = UH + LEG;                            // ۴۴
+const GROUND = 46 + PAD, OXL = 32, X0 = OXL - MW / 2, TOP = GROUND - (MAP_H - 1);
+const SH = 17, FORE = 23, HAND = 30, TORSO_END = 28;      // شانه · ساعد · دست · انتهای جلیقه (ردیفِ نقشه)
+const ARMF = { L: [0, 3], R: [18, 21] }, ARMS = [7, 12];  // بازوهای روبه‌رو/پشت · بازوی کنار
+const EYES = { front: [[10, 7], [10, 8], [10, 13], [10, 14]], side: [[10, 13], [10, 14]] };
+// ---- گامِ ۶ فریمی: تماس · پایین · عبور · تماسِ مقابل · پایین · عبور (پای دور = نیم‌دور بعد) ----
+const FX = [5, 2, -1, -5, -2, 2];                         // کنار: جای پنجه‌ی پای نزدیک نسبت به لگن
+const FL = [0, 0, 0, 0, 2, 3];                            // کنار: بلندیِ پا (پای در گذر)
+const FOOT_F = [1, 0, -1, -2, -3, -1];                    // روبه‌رو/پشت: ارتفاعِ پای چپ (+۱ جلو/نزدیکِ دوربین، منفی = بالا)؛ راست = نیم‌دور بعد
+const BOB = [0, 1, -1, 0, 1, -1], BOB_RUN = [0, 2, -1, 0, 2, -1];
+const IDLE_BOB = [0, 0, 1, 1];
+// S10.9: پوزهای پای کنار (offs = جابه‌جاییِ هر ردیفِ شلوار از لگن، boot = جای چکمه، lift = بالا) —
+// CF تماسِ جلو · DP پایین/کاشته · PP عبورِ کاشته · CB تماسِ عقب · DL پایین/جداشده · PL عبورِ در هوا (زانو جلو)
+const SIDE_POSE = {
+  CF: { offs: [0, 0, 1, 1, 2, 3, 3, 4], boot: 4, lift: 0 }, DP: { offs: [0, 0, 0, 1, 1, 1, 2, 2], boot: 2, lift: 0 },
+  PP: { offs: [0, 0, 0, 0, 0, -1, -1, -1], boot: -1, lift: 0 }, CB: { offs: [0, 0, -1, -1, -2, -3, -3, -4], boot: -4, lift: 0 },
+  DL: { offs: [0, 0, -1, -1, -2, -2, -3], boot: -3, lift: 1 }, PL: { offs: [0, 1, 1, 2, 1], boot: 1, lift: 3 },
 };
-const CX = { down: 6, up: 6, side: 5 };                  // ستونِ مرکزی در هر نما
-const HIP = { down: 20, up: 20, side: 19 };              // ردیفِ شروعِ پا (زیرِ دامنِ کت)
-const GROUND = 46, OXL = 32, LEG_ROWS = 9;               // پا: ۷ ردیف شلوار + ۲ ردیف چکمه ⇒ قدِ کل ۲۹ (+کشش ۱)
-export const MAP_H = HIP.down + LEG_ROWS;                // ۲۹
-// ---- گامِ ۶ فریمی: dx پای نزدیک (کنار)، بلندیِ پا، bob بالاتنه ----
-const GAIT_DX = [3, 2, -1, -3, -2, 1];
-const LIFT = [0, 0, 0, 0, 1, 2];                         // پای نزدیک در فریم‌های ۴–۵ در هواست؛ پای دور با نیم‌دور جابه‌جایی
-const BOB = [1, -1, 0, 1, -1, 0];                        // ۰ و ۳ = تماس (فشرده) · ۱ و ۴ = کشش
-const IDLE_BOB = [0, 1, 1, 0];
-export const HERO_MAP_GAIT = { GAIT_DX, LIFT, BOB, IDLE_BOB };
+const SIDE_BOOT = ['BBBBb', 'eeeee', 'Bbbbb', 'Bbbbbb'];   // ساقه · بند · رویه · پنجه (از چکمه‌ی AI)                            // تنفس (پاها ثابت، لگن همراهِ بالاتنه)
+export const HERO_MAP_GAIT = { GAIT_DX: FX, LIFT: FL, BOB, IDLE_BOB };
 
-function rowsAt(r, rows, x0, y0, flip, blink) {
-  const w = rows[0].length;
-  for (let j = 0; j < rows.length; j++) {
-    const row = rows[j];
-    for (let i = 0; i < w; i++) {
-      let ch = row[i];
-      if (ch === '.') continue;
-      if (blink && ch === 'e') ch = 's';
-      const c = K[ch]; if (c) r.px(flip ? x0 + (w - 1 - i) : x0 + i, y0 + j, c);
-    }
-  }
-}
-// ستونِ ۲px از (x0,y0) تا (x1,y1) با جابه‌جاییِ حداکثر ۱px در هر ردیف (بی‌دندانه، بی‌شطرنج)
-function col2(r, x0, y0, x1, y1, cL, cD) {
-  let x = x0; const n = Math.max(1, y1 - y0);
-  for (let y = y0; y <= y1; y++) {
-    const tx = Math.round(x0 + (x1 - x0) * (y - y0) / n);
-    x += Math.sign(tx - x);
-    r.px(x, y, cL); r.px(x + 1, y, cD);
-  }
-  return x;
-}
-function boot(r, x, y, side, flip) {          // ۲ ردیف: رویه + کف (کنار: پنجه‌ی جلو)
-  if (side) {
-    const a = flip ? x - 2 : x;
-    for (let i = 0; i < 4; i++) { r.px(a + i, y, i === (flip ? 0 : 3) ? C.bootHi : C.boot); r.px(a + i, y + 1, C.bootSh); }
-  } else {
-    r.px(x, y, C.boot); r.px(x + 1, y, C.bootHi); r.px(x + 2, y, C.boot);
-    for (let i = -1; i < 3; i++) r.px(x + i, y + 1, C.bootSh);
-  }
-}
+// ---- تجهیزات: بازرنگِ نواحی به رمپ‌های همان پالت ----
+const RC = {
+  helmLeather: { Y: 'B', y: 'b', t: 'n', r: 'n', R: 'n' }, helmIron: { Y: 'M', y: 'm', t: 'w', r: 'w', R: 'e' },
+  crownWar: { Y: 'Y', y: 'Y', t: 'y', r: 'r', R: 'R' },
+  vestLeather: { J: 'B', j: 'b', d: 'n', D: 'n' }, plateIron: { J: 'M', j: 'm', d: 'w', D: 'w' },
+  robeMage: { J: 'd', j: 'D', d: 'D', D: 'e', c: 'd', x: 'D' },
+  bootsSwift: { B: 'M', b: 'M', n: 'm' }, bootsWar: { B: 'm', b: 'w', n: 'w' },
+};
+const zoneOf = (j) => (j <= 8 ? 'hat' : j >= 14 && j < UH ? 'body' : j >= UH ? 'boots' : '');
 
-// o: {dir, frame(0..5), anim:'idle'|'walk'|'run', blink, act:{hand:[x,y]}|null, noHat}
-// برمی‌گرداند لنگرها در مختصاتِ ۶۴: headC, neck, pelvis, shoulderN/F, handN/F, ankleN/F
+// o: {dir, frame(0..5), anim:'idle'|'walk'|'run', blink, act:{tool,p}|null, equip}
+// برمی‌گرداند لنگرها (بومِ ۶۴+PAD): headC, neck, pelvis, shoulderN/F, handN/F, ankleN/F, top
 export function drawHeroMap(r, o) {
-  const dir = o.dir, side = dir === 'left' || dir === 'right', flip = dir === 'left', kd = side ? 'side' : dir;
-  const idle = o.anim === 'idle', f = ((o.frame | 0) % 6 + 6) % 6;
-  const run = o.anim === 'run';
-  const bob = idle ? IDLE_BOB[f & 3] : BOB[f];
-  const up = UP[kd], cx = CX[kd], w = up[0].length;
-  const top = GROUND + 1 - (HIP[kd] + LEG_ROWS) + bob;  // ردیفِ کلاه در بوم
-  const x0 = OXL - (flip ? w - 1 - cx : cx);
-  const hipY = top + HIP[kd];
-  // پاها: نزدیک = فریم f، دور = f+3 (نیم‌دور)
-  const fN = idle ? 0 : f, fF = idle ? 0 : (f + 3) % 6;
-  const sgn = flip ? -1 : 1;
-  const legs = [];
-  const drawLeg = (ff, near, ox) => {
-    const dx = side && !idle ? GAIT_DX[ff] * sgn : 0, lift = idle ? 0 : LIFT[ff] + (run && LIFT[ff] ? 1 : 0);
-    const ay = GROUND - 1 - lift;                          // ردیفِ رویه‌ی چکمه
-    const hx = OXL + ox, ax = hx + dx;
-    const fx = col2(r, hx, hipY, ax, ay - 1, near ? C.pantsHi : C.pants, near ? C.pants : C.pantsSh);
-    boot(r, fx, ay, side, flip);
-    legs.push([fx + 1, ay + 1]);
+  const dir = o.dir, side = dir === 'left' || dir === 'right', flip = dir === 'left', kd = side ? 'side' : dir === 'up' ? 'back' : 'front';
+  const map = HERO_ART[kd], idle = o.anim === 'idle', run = o.anim === 'run';
+  const f = ((o.frame | 0) % 6 + 6) % 6;
+  const bob = idle ? IDLE_BOB[f & 3] : (run ? BOB_RUN : BOB)[f];
+  const eq = o.equip || {};
+  const tab = { hat: RC[eq.hat], body: RC[eq.body], boots: RC[eq.boots] };
+  const col = (ch, z) => { const t = tab[z]; return K[(t && t[ch]) || ch]; };
+  const blink = o.blink && EYES[kd] ? new Set(EYES[kd].map(([j, i]) => j * MW + i)) : null;
+  const sg = flip ? -1 : 1;
+  const X = (i, off) => (flip ? X0 + (MW - 1 - i) - off : X0 + i + off);
+  const blit = (j0, j1, i0, i1, dy, offX, keep) => {
+    for (let j = j0; j <= j1; j++) {
+      const row = map[j], ox = offX ? offX(j) : 0;
+      for (let i = i0; i <= i1; i++) {
+        let ch = row[i];
+        if (ch === '.' || (keep && !keep(i, j))) continue;
+        if (blink && blink.has(j * MW + i)) ch = 'S';
+        const c = col(ch, zoneOf(j)); if (c) r.px(X(i, ox), TOP + j + dy, c);
+      }
+    }
   };
-  if (side) { drawLeg(fF, false, -1); }
-  else { drawLeg(fF, false, dir === 'up' ? 1 : -3); }
-  // بازوی دور (کنار): پشتِ تنه
-  const shY = top + 13, shXN = OXL + sgn * 1, shXF = OXL - sgn * 1;
-  const swing = idle ? 0 : -GAIT_DX[f] * sgn;            // دست مخالفِ پای نزدیک
-  let handF = [shXF, shY + 5], handN = [shXN + Math.round(swing * 0.7), shY + 5];
+  const hipY = TOP + UH + bob;                             // پاها از زیرِ دامن (همراهِ bob ⇒ هیچ شکافی نمی‌ماند)
+  const anchors = { top: TOP + bob, headC: [OXL, TOP + 11 + bob], neck: [OXL, TOP + 14 + bob], pelvis: [OXL, hipY] };
+  const act = o.act && o.act.tool ? o.act : null;
   if (side) {
-    const hfx = shXF - Math.round(swing * 0.5);
-    col2(r, shXF, shY, hfx, shY + 4, C.jacket, C.jacketSh); r.px(hfx, shY + 5, C.skinSh); r.px(hfx + 1, shY + 5, C.skinSh);
-    handF = [hfx + 1, shY + 5];
+    const amp = run ? 1.5 : 1, hx = OXL - 2;                 // ستونِ چپِ پا (۴px) در نمای راست
+    const occ = new Set();
+    const put = (x, y, c, mark) => { const X1 = flip ? 2 * OXL - 1 - x : x; r.px(X1, y, c); if (mark) occ.add(X1 * 1000 + y); };
+    // پای دست‌چیده: هر ردیفِ شلوار یک دهانه‌ی صاف ۴px با پله‌ی ≤۱px (بی‌زانوی کج)؛ چکمه = مُهرِ نقشه‌ی AI
+    const leg = (ps, far) => {
+      const P = SIDE_POSE[ps], lift = idle ? 0 : P.lift + (run && P.lift ? 1 : 0);
+      const sc = (v) => (idle ? 0 : Math.round(v * amp));
+      const ay = GROUND - 3 - lift, n = ay - hipY, L = P.offs.length;
+      const [cL, cD] = far ? ['p', 'q'] : ['P', 'p'];
+      for (let k = 0; k < n; k++) {
+        const x = hx + sc(P.offs[Math.min(L - 1, Math.round(k * (L - 1) / Math.max(1, n - 1)))]), y = hipY + k;
+        if (!far && occ.has((flip ? 2 * OXL - 1 - (x - 1) : x - 1) * 1000 + y)) put(x - 1, y, K.e);
+        for (let q = 0; q < 4; q++) put(x + q, y, col(q === 3 ? cD : cL), far);
+      }
+      const bx = hx + sc(P.boot), tone = far ? { B: 'b', b: 'n' } : null;
+      SIDE_BOOT.forEach((row, j) => { for (let q = 0; q < row.length; q++) if (row[q] !== '.') {
+        if (!far && j > 1 && q === 0 && occ.has((flip ? 2 * OXL - 1 - (bx - 1) : bx - 1) * 1000 + ay + j)) put(bx - 1, ay + j, K.e);
+        put(bx + q, ay + j, row[q] === 'e' ? K.e : col(tone ? tone[row[q]] || row[q] : row[q], 'boots'), far);
+      } });
+      return [flip ? 2 * OXL - 1 - (bx + 2) : bx + 2, ay + 3];
+    };
+    const NEAR = ['CF', 'DP', 'PP', 'CB', 'DL', 'PL'];
+    const ankF = leg(NEAR[(f + 3) % 6], true), ankN = leg(NEAR[f], false);
+    const inArm = (i, j) => j >= SH && i >= ARMS[0] && i <= ARMS[1];
+    blit(0, UH - 1, 0, MW - 1, bob, null, (i, j) => !inArm(i, j));
+    for (let j = SH; j <= TORSO_END; j++) for (let i = ARMS[0]; i <= ARMS[1]; i++) {   // پشتِ بازو: جلیقه
+      if (map[j][i] === '.') continue;
+      r.px(X(i, 0), TOP + j + bob, i === ARMS[0] ? K.e : col('d', 'body'));
+    }
+    if (!idle) {                                             // دنباله‌ی شال: پشتِ گردن، یک فریم عقب‌تر از بدن تکان می‌خورد
+      const fl = (f + 5) % 3, ty = TOP + 15 + (run ? 0 : (BOB[(f + 5) % 6] > 0 ? 1 : 0));
+      r.px(X(6, 0), ty, col('r')); r.px(X(5, 0), ty + (fl === 1 ? -1 : 0), col('R'));
+      if (fl !== 2 || run) r.px(X(4, 0), ty + (fl === 0 ? 1 : 0), col('R'));
+    }
+    const shoulder = [X(10, 0), TOP + SH + bob];
+    let hand;
+    if (act) hand = actArm(r, shoulder, act, dir);
+    else {
+      const dxA = idle ? 0 : -Math.round(FX[f] * 0.6 * amp);
+      blit(SH, UH - 1, ARMS[0], ARMS[1], bob, (j) => Math.round(dxA * (j - SH) / (UH - SH)), inArm);
+      hand = [X(10, dxA), TOP + HAND + bob];
+    }
+    return { ...anchors, shoulderN: shoulder, shoulderF: [X(13, 0), TOP + SH + bob], handN: hand, handF: [X(13, 0), TOP + TORSO_END + bob], ankleN: ankN, ankleF: ankF };
   }
-  rowsAt(r, up, x0, top, flip, o.blink && kd !== 'up');
-  if (side) drawLeg(fN, true, -1);
-  else drawLeg(fN, true, dir === 'up' ? -3 : 1);
-  if (!side) { // دست‌ها کنارِ تنه: تابِ عمودیِ ±۱ مخالفِ گام
-    const s1 = idle ? 0 : Math.sign(GAIT_DX[f]), yL = top + 18 + (s1 > 0 ? 1 : 0), yR = top + 18 + (s1 < 0 ? 1 : 0);
-    r.px(x0, yL, C.skin); r.px(x0 + 1, yL, C.skinSh); r.px(x0 + w - 2, yR, C.skinSh); r.px(x0 + w - 1, yR, C.skin);
-    handN = [x0 + w - 1, yR]; handF = [x0, yL];
-  }
-  if (side) { // بازوی نزدیک روی تنه (یا دستِ ابزار در حالِ ضربه)
-    const tgt = o.act ? o.act.hand : [shXN + Math.round(swing * 0.7), shY + 5];
-    const hx = col2(r, shXN, shY, Math.round(tgt[0]), Math.round(tgt[1]) - 1, C.jacketHi, C.jacket);
-    r.px(hx, Math.round(tgt[1]), C.skin); r.px(hx + 1, Math.round(tgt[1]), C.skinSh);
-    handN = [hx + 1, Math.round(tgt[1])];
-  } else if (o.act) {
-    const tgt = o.act.hand, sx = x0 + w - 2;
-    const hx = col2(r, sx, shY, Math.round(tgt[0]), Math.round(tgt[1]) - 1, C.jacketHi, C.jacket);
-    r.px(hx, Math.round(tgt[1]), C.skin); r.px(hx + 1, Math.round(tgt[1]), C.skinSh);
-    handN = [hx + 1, Math.round(tgt[1])];
-  }
-  // headC هم‌تراز با قراردادِ equipment (کلاه از hy−۹ تا hy−۱۲ در ۱۲۸ ⇒ لبه‌ی کلاه ≈ hy/2−۴٫۵)
-  return {
-    headC: [OXL + (side ? sgn : 0), top + 3 + 4.5], neck: [OXL, top + 12], pelvis: [OXL, hipY],
-    shoulderN: [shXN, shY], shoulderF: [shXF, shY], handN, handF,
-    ankleN: legs[1] || legs[0], ankleF: legs[0], top,
+  // ---- روبه‌رو/پشت: دو ستونِ ۶px؛ پای در گذر کوتاه می‌شود (زانو رو به دوربین)، بازوی مخالف جلو می‌آید ----
+  const fy = (k) => { const v = FOOT_F[k]; return run && v < 0 ? v - 1 : v; };
+  const lA = idle ? 0 : -fy(f), lB = idle ? 0 : -fy((f + 3) % 6);   // lift: مثبت = بالا
+  const fleg = (x0, lift, outer) => {                      // outer: −۱ چپ / +۱ راست (پنجه کمی به بیرون)
+    const ay = GROUND - 3 - lift;
+    for (let y = hipY; y < ay; y++) for (let k = 0; k < 6; k++) {
+      const knee = lift > 0 && y === ay - 1 ? 'q' : null;      // سایه‌ی زیرِ زانوی خم
+      r.px(x0 + k, y, col(knee || (k === 5 ? 'p' : y === ay - 1 ? 'q' : 'P')));
+    }
+    // چکمه‌ی روبه‌رو (مُهرِ AI): ساقه · بند · رویه · پنجه‌ی پهن‌تر به بیرون
+    for (let k = 0; k < 6; k++) r.px(x0 + k, ay, col(k === 5 ? 'b' : 'B', 'boots'));
+    for (let k = 0; k < 6; k++) r.px(x0 + k, ay + 1, K.e);
+    for (let k = 0; k < 6; k++) r.px(x0 + k, ay + 2, col(k === (outer < 0 ? 5 : 0) ? 'B' : 'b', 'boots'));
+    for (let k = outer < 0 ? -1 : 0; k < (outer < 0 ? 6 : 7); k++) r.px(x0 + k, ay + 3, col(k === (outer < 0 ? 5 : 0) ? 'B' : 'b', 'boots'));
+    return [x0 + 3, ay + 3];
   };
+  const ankL = fleg(X0 + 4, lA, -1), ankR = fleg(X0 + 12, lB, 1);
+  const inArms = (i) => i <= ARMF.L[1] || i >= ARMF.R[0];
+  blit(0, UH - 1, 0, MW - 1, bob, null, (i, j) => j < SH || !inArms(i));
+  const arm = (rng, sw) => { blit(SH, FORE - 1, rng[0], rng[1], bob, null, null); blit(FORE, UH - 1, rng[0], rng[1], bob - sw, null, null); };
+  const swOf = (l) => (l < 0 ? 2 : l >= 2 ? 0 : 1);       // پای جلو ⇒ دستِ همان سمت عقب (ساعد پنهان‌تر)
+  const swL = idle ? 0 : swOf(lA), swR = idle ? 0 : swOf(lB);
+  arm(ARMF.L, swL);
+  const shoulderN = [X0 + 19, TOP + SH + bob], shoulderF = [X0 + 2, TOP + SH + bob];
+  let handN;
+  if (act) handN = actArm(r, shoulderN, act, dir);
+  else { arm(ARMF.R, swR); handN = [X0 + 20, TOP + HAND + bob - swR]; }
+  return { ...anchors, shoulderN, shoulderF, handN, handF: [X0 + 1, TOP + HAND + bob - swL], ankleN: ankR, ankleF: ankL };
+}
+
+// بازوی ابزار در حالِ اکشن: از شانه تا دست (کی‌فریمِ actionPose) — آستین + دستِ ۳×۳ با خطِ دور
+const ACT_K = 0.95;
+function actArm(r, sh, act, dir) {
+  const a = actionPose(act.tool, dir, act.p), [fx, fy] = DIRS[dir];
+  let hx, hy;
+  if (fx !== 0) { hx = sh[0] + a.hand[0] * fx * ACT_K; hy = sh[1] - a.hand[1] * ACT_K; }
+  else { hx = sh[0] + a.hand[0] * 0.4 * ACT_K; hy = sh[1] - a.hand[1] * ACT_K + fy * a.hand[0] * 0.6 * ACT_K; }
+  hx = Math.round(hx); hy = Math.round(hy);
+  r.lineW(sh[0], sh[1], hx, hy, 5, K.e);
+  r.lineW(sh[0], sh[1], hx, hy, 3, K.c);
+  r.rect(hx - 2, hy - 2, 5, 5, K.e);
+  r.rect(hx - 1, hy - 1, 3, 3, K.S);
+  r.px(hx + 1, hy + 1, K.s);
+  return [hx, hy];
 }
