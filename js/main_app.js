@@ -126,6 +126,7 @@ let _ambScene = '', _ambRain = false; // آمبینت جاری
 let _lastDt = 0, _errN = 0;
 function loop(now) {
   try { frame(now); } catch (e) { if (_errN++ < 5) console.error(e); wdError(e); }
+  if (window.__bootReady) { window.__bootReady(); window.__bootReady = null; } // ن۱۴۷: اولین فریم ⇒ لودر می‌تواند محو شود
   requestAnimationFrame(loop);
 }
 function frame(now) {

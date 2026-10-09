@@ -8,6 +8,78 @@
   <link rel="stylesheet" href="css/style.css">
 </head>
 <body>
+<!-- ن۱۴۷: صفحه‌ی بارگذاری (پیکسل‌آرتِ زنده، کد خالص بدون فایل خارجی) -->
+<div id="boot"><canvas id="bootCv" width="320" height="180"></canvas>
+<div class="bTitle"><b>مزرعه و دانجن</b><i>FARM &amp; DUNGEON</i></div>
+<div class="bBox"><div class="bBar"><div id="bFill"></div></div><div id="bTip"></div></div></div>
+<style>
+#boot{position:fixed;inset:0;z-index:9999;background:#0d0a1a;overflow:hidden;transition:opacity .7s ease;font-family:"FDGame",system-ui,Tahoma,sans-serif;direction:rtl}
+#boot.out{opacity:0;pointer-events:none}
+#bootCv{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;image-rendering:pixelated}
+#boot .bTitle{position:absolute;left:0;right:0;top:12%;text-align:center;animation:bBob 3.2s ease-in-out infinite}
+#boot .bTitle b{display:block;font-size:clamp(34px,8vw,76px);font-weight:900;color:#ffe08a;letter-spacing:1px;
+ text-shadow:0 3px 0 #b5651d,0 6px 0 #5a2a12,0 0 24px #ffb34766,0 10px 18px #000a}
+#boot .bTitle i{display:block;font-style:normal;margin-top:6px;font-size:clamp(11px,2.2vw,16px);letter-spacing:6px;color:#cdb9ff;text-shadow:0 2px 0 #2a1850;opacity:.9}
+#boot .bBox{position:absolute;left:50%;bottom:2.5%;transform:translateX(-50%);width:min(78vw,420px);text-align:center}
+#boot .bBar{height:14px;background:#1a1230;border:3px solid #f0d080;box-shadow:0 0 0 3px #3a2410,0 6px 0 3px #0008;image-rendering:pixelated;position:relative;overflow:hidden}
+#bFill{height:100%;width:0;background:repeating-linear-gradient(90deg,#ffd45e 0 8px,#f2a93b 8px 16px);box-shadow:inset 0 3px 0 #fff3,inset 0 -3px 0 #0003;transition:width .25s linear}
+#bFill:after{content:"";position:absolute;top:0;bottom:0;width:40px;background:linear-gradient(90deg,transparent,#fff8,transparent);animation:bShine 1.4s linear infinite}
+#bTip{margin-top:12px;color:#e8dcff;font-size:clamp(12px,2.6vw,15px);font-weight:700;text-shadow:0 2px 0 #000;min-height:1.4em;transition:opacity .4s}
+@keyframes bBob{0%,100%{transform:translateY(0)}50%{transform:translateY(-6px)}}
+@keyframes bShine{from{left:-40px}to{left:110%}}
+</style>
+<script>
+(function(){
+var cv=document.getElementById('bootCv'),x=cv.getContext('2d'),W=320,H=180,t0=performance.now(),ready=false,done=false,MIN=2600;
+window.__bootReady=function(){ready=true};
+var tips=['محصول رسیده را بفروش و ابزار بهتر بخر','هر پنج طبقه یک باسِ غول‌پیکر منتظر است','غذای خوب قبل از دانجن قدرتت را بالا می‌برد','از طبقه‌ای که رسیده‌ای ادامه می‌دهی، پس آماده برو','اتاق‌های تاریک را با احتیاط کشف کن','بذرهای کمیاب در طبقه‌های عمیق‌ترند'],ti=Math.floor(Math.random()*tips.length),tipEl=document.getElementById('bTip');tipEl.textContent=tips[ti];
+var R=function(s){return function(){s=(s*16807)%2147483647;return s/2147483647}}(7);
+var stars=[];for(var i=0;i<70;i++)stars.push([R()*W,R()*95,R()*6.28,R()<.15]);
+var flies=[];for(i=0;i<16;i++)flies.push([R()*W,110+R()*60,R()*6.28,.3+R()*.6]);
+function px(c,a,b,w,h){x.fillStyle=c;x.fillRect(a|0,b|0,w,h)}
+function ridge(y0,amp,f,ph,col,off){x.fillStyle=col;for(var i=0;i<W;i++){var xx=i+off,h=y0-amp*(Math.sin(xx*f+ph)*.6+Math.sin(xx*f*2.7+ph*2)*.3+Math.sin(xx*f*6.1)*.1);x.fillRect(i,h|0,1,H)}}
+var sky=['#140c2a','#1d1238','#2a1747','#3d1d55','#5a2660','#7d3264','#a64463','#cf6a5e','#ef9a5c'];
+function frame(now){
+ var t=(now-t0)/1000;
+ for(var i=0;i<sky.length;i++){var y=i*12;px(sky[i],0,y,W,12);if(i<sky.length-1)for(var k=0;k<W;k+=2)px(sky[i+1],k+(i%2),y+11,1,1)} px(sky[8],0,108,W,72);
+ for(i=0;i<stars.length;i++){var s=stars[i],a=.5+.5*Math.sin(t*2+s[2]);x.globalAlpha=a;px(s[3]?'#fff6c8':'#cfc4ff',s[0],s[1],1,1);if(s[3]&&a>.8){px('#fff6c8',s[0]-1,s[1],3,1);px('#fff6c8',s[0],s[1]-1,1,3)}}x.globalAlpha=1;
+ // ماه
+ x.globalAlpha=.18;x.fillStyle='#ffe9b0';x.beginPath();x.arc(250,38,22,0,7);x.fill();x.globalAlpha=1;
+ x.fillStyle='#fff1c4';x.beginPath();x.arc(250,38,14,0,7);x.fill();px('#e6d29a',244,33,4,3);px('#e6d29a',253,41,3,3);px('#e6d29a',249,45,2,2);
+ // ابرها
+ for(i=0;i<3;i++){var cx=((t*(4+i*2)+i*130)%(W+80))-40,cy=22+i*16;x.fillStyle=i==1?'#6a3a6e':'#4a2a5e';x.fillRect(cx|0,cy,36,4);x.fillRect(cx+6|0,cy-3,20,3);x.fillRect(cx+14|0,cy+4,26,2)}
+ ridge(118,16,.02,1,'#3b1f4a',t*3);ridge(132,12,.035,3,'#2a163a',t*6);
+ // تپه‌ی جلو
+ ridge(150,6,.02,0,'#1a2a1c',0);
+ // مزرعه (چپ): خانه، نرده، ردیفِ محصول
+ px('#2a1a12',40,122,30,20);px('#3a2416',40,122,30,2);for(i=0;i<16;i++)px('#5a2418',38+i,121-i*0.6,34-i*2,1);
+ var lw=Math.sin(t*3)>.95?'#ffd27a':'#ffbb55';px(lw,50,128,6,6);px('#3a2416',52,128,1,6);px('#3a2416',50,130,6,1);x.globalAlpha=.25;px('#ffbb55',46,124,14,14);x.globalAlpha=1;
+ px('#2a1a12',62,108,4,10);px('#888',63,104+Math.sin(t)*1,2,2);x.globalAlpha=.4;px('#aaa',64+Math.sin(t*.7)*2,98-((t*6)%10),3,2);x.globalAlpha=1;
+ for(i=0;i<9;i++){px('#5a3a20',10+i*10,140,2,9)}px('#5a3a20',10,142,90,2);
+ for(var r=0;r<3;r++)for(i=0;i<8;i++){var sw=Math.sin(t*2+i+r)*1;px('#2f6a2a',14+i*10+sw,153+r*7,3,4);px(r==1?'#e07a2a':'#e8c040',15+i*10+sw,152+r*7,1,1)}
+ // دروازه‌ی دانجن (راست)
+ px('#241a2e',220,100,100,80);for(i=0;i<20;i++)px('#2e2238',220+i*5,100-((i*7)%9),5,10);
+ px('#140c18',248,124,36,56);x.fillStyle='#140c18';x.beginPath();x.arc(266,124,18,Math.PI,0);x.fill();
+ var g=.55+.25*Math.sin(t*3);x.globalAlpha=g;x.fillStyle='#ff5a2a';x.beginPath();x.arc(266,150,14,0,7);x.fill();x.globalAlpha=g*.5;x.beginPath();x.arc(266,145,24,0,7);x.fill();x.globalAlpha=1;
+ for(i=0;i<5;i++)px(i%2?'#3a2e44':'#4a3c56',244+i*9,104+(i==2?-4:0),8,6);
+ for(var s2=0;s2<2;s2++){var tx=s2?292:236,fl=Math.sin(t*14+s2*2);px('#5a3a20',tx,128,3,10);px('#ff9a2a',tx,123+fl,3,5);px('#ffe07a',tx+1,125+fl,1,2);x.globalAlpha=.2;x.fillStyle='#ffb040';x.beginPath();x.arc(tx+1,126,10,0,7);x.fill();x.globalAlpha=1}
+ // جاده
+ for(i=0;i<130;i++)px('#3a2a1e',100+i,166-Math.sin(i*.03)*3,2,3);
+ // قهرمانِ در حالِ رفتن به سمتِ دروازه
+ var hx=((t*14)%170)+80,hy=158-Math.sin((hx-100)*.03)*3,st=Math.floor(t*8)%2;
+ px('#0d0a14',hx-3,hy-1,8,2);px('#3a5aa0',hx-2,hy-10,5,6);px('#f0c8a0',hx-2,hy-14,5,4);px('#5a3a20',hx-2,hy-15,5,2);px('#2a2030',hx-2+st,hy-4,2,4);px('#2a2030',hx+1-st,hy-4,2,4);px('#c8ccd8',hx+3,hy-13,1,8);px('#e8c040',hx+2,hy-7,3,1);
+ // کرم‌شب‌تاب
+ for(i=0;i<flies.length;i++){var f=flies[i];f[0]+=Math.sin(t+f[2])*.2;f[1]+=Math.cos(t*.8+f[2])*.1;var a2=.5+.5*Math.sin(t*3*f[3]+f[2]);x.globalAlpha=a2;px('#d8ff7a',f[0],f[1],1,1);x.globalAlpha=a2*.3;px('#d8ff7a',f[0]-1,f[1]-1,3,3)}x.globalAlpha=1;
+ // پیشرفت و نکته
+ var p=Math.min(1,(now-t0)/MIN);if(!ready)p=Math.min(p,.9);document.getElementById('bFill').style.width=(p*100).toFixed(1)+'%';
+ var ni=Math.floor(t/3.2);if(ni!==ti&&(t%3.2)<.05){}
+ if(p>=1&&ready&&!done){done=true;var b=document.getElementById('boot');b.className='out';setTimeout(function(){b.remove()},800);return}
+ requestAnimationFrame(frame)}
+setInterval(function(){if(done)return;tipEl.style.opacity=0;setTimeout(function(){ti=(ti+1)%tips.length;tipEl.textContent=tips[ti];tipEl.style.opacity=1},400)},3200);
+document.getElementById('boot').addEventListener('click',function(){if(ready)MIN=0});
+requestAnimationFrame(frame);
+})();
+</script>
 <canvas id="game"></canvas>
 
 <header id="topbar">
