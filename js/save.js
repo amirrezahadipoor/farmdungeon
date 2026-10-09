@@ -8,12 +8,12 @@ export function defaultSave() {
     v: SCHEMA_VERSION,
     coins: 60,
     essence: 0,
-    inventory: { carrot: 0, wheat: 0, pumpkin: 0, strawberry: 0, eggplant: 0, corn: 0, apple: 0 },
+    inventory: { carrot: 0, wheat: 0, pumpkin: 0, strawberry: 0, eggplant: 0, corn: 0, apple: 0, egg: 0, wool: 0, milk: 0 },
     seeds: { carrot: 6, wheat: 0, pumpkin: 0, strawberry: 0, eggplant: 0, corn: 0 }, // بذر فقط از دانجن!
     items: {},      // آیتم‌های پوشیدنی: id → تعداد
     equipped: null, // { hat, body, boots, sword } — idهای پوشیده‌شده
     selectedCrop: 'carrot',
-    upgrades: { land: 1, farm2: 0, worker: 0, wTill: 0, wPlant: 0, wWater: 0, wHarvest: 0, wSpeed: 0, sprinkler: 0, basket: 0, hoe: 0, can: 0, sickle: 0, sword: 0, armor: 0, boots: 0, fert: 0 },
+    upgrades: { pen: 0, chicken: 0, sheep: 0, cow: 0, land: 1, farm2: 0, worker: 0, wTill: 0, wPlant: 0, wWater: 0, wHarvest: 0, wSpeed: 0, sprinkler: 0, basket: 0, hoe: 0, can: 0, sickle: 0, sword: 0, armor: 0, boots: 0, fert: 0 },
     stats: { bestFloor: 1, kills: 0, deaths: 0, runs: 0, playT: 0 }, // playT = ثانیه‌ی انباشته‌ی مزرعه — روزِ سیب‌دار بین سشن‌ها پیوسته
     farm: null, // [{i, kind, wet, crop}] — فقط تایل‌های تغییرکرده
     lastSeen: Date.now(),

@@ -157,6 +157,7 @@ export function renderFarm(game, r) {
     }
     { let wt = FENTS[fn] || (FENTS[fn] = { y: 0, t: 0, sx: 0, sy: 0, v: 0 }); wt.y = h.y; wt.t = 1; fn++; }
     { let wt = FENTS[fn] || (FENTS[fn] = { y: 0, t: 0, sx: 0, sy: 0, v: 0 }); wt.y = (HOUSE.y + 2) * TILE; wt.t = 3; fn++; } // خانه
+    for (const an of game.livestock.list) { let wt = FENTS[fn] || (FENTS[fn] = { y: 0, t: 0, sx: 0, sy: 0, v: 0, w: null }); wt.y = an.y; wt.t = 2; wt.w = an; fn++; } // دام‌ها (y-sort)
     for (const wk of game.workers) { let wt = FENTS[fn] || (FENTS[fn] = { y: 0, t: 0, sx: 0, sy: 0, v: 0, w: null }); wt.y = wk.y; wt.t = 2; wt.w = wk; fn++; }
     for (let i = 0; i < fn; i++) for (let j = i + 1; j < fn; j++) if (FENTS[j].y < FENTS[i].y) { const tmp = FENTS[i]; FENTS[i] = FENTS[j]; FENTS[j] = tmp; }
     for (let i = 0; i < fn; i++) {

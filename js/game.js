@@ -1,5 +1,6 @@
 // game.js — هسته‌ی بازی (بدون DOM): قهرمان + به‌روزرسانی + صف کار + ذرات/متن‌ها + رندر صحنه
 // (اعمال ابزار/اقتصاد برداشت در game_apply.js — ن۳۴)
+import { Livestock, GOODS } from './livestock.js';
 import { statVal } from './rpg.js';
 import { Farm, CROPS, WATER_TIME, FARM2_COST, SEED_TYPES } from './farm.js';
 import { farmCommand } from './farm_command.js';
@@ -18,6 +19,11 @@ const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
 const hash = (x, y) => { let h = (x * 374761393 + y * 668265263) | 0; h = (h ^ (h >> 13)) * 1274126177; return ((h ^ (h >> 16)) >>> 0) / 4294967295; };
 
 
+// جای‌پای قهرمان (۱۰×۵px دورِ نقطه‌ی پا) باید کاملاً روی تایل‌های قابل‌رفت باشد
+export function feetFree(walk, x, y) {
+  for (const dx of [-5, 5]) for (const dy of [-4, 1]) if (!walk(Math.floor((x + dx) / TILE), Math.floor((y + dy) / TILE))) return false;
+  return true;
+}
 export class Game {
   constructor(wallet = null, landLevel = 5, toolLvls = null, bootsLvl = 0) {
     this.wallet = wallet || { coins: 60, inventory: { carrot: 0, wheat: 0, pumpkin: 0 }, selectedCrop: 'carrot' };
@@ -40,6 +46,7 @@ export class Game {
     this.fish = new Fish(1); // ن۳۶: یک ماهی — رخداد نادرِ زنده‌بودن حوضچه
     this.workers = [new FarmWorker(15.5 * TILE, 12.5 * TILE, 0)]; // کارگران مزرعه (تا ۲ تا — با ارتقا فعال)
     this.worker = this.workers[0]; // سازگاری
+    this.livestock = new Livestock();
     this.onEvent = null; // هوک مأموریت‌ها: (kind, n) — main_app وصل می‌کند
     this.onHouse = null; // تپ روی خانه → میز کار/منو (تخته‌ی مأموریت)
     this.sprCache = new Map();
@@ -76,8 +83,16 @@ export class Game {
     const speed = (vx || vy) ? (wantRun ? GAITS.run.speed : GAITS.walk.speed) * this.speedMul : 0;
     this.dayT = (this.dayT + dt) % DAY_LEN;
     if (speed) {
-      h.x = clamp(h.x + vx * speed * dt, TILE + 6, WORLD_W - TILE - 6);
-      h.y = clamp(h.y + vy * speed * dt, TILE + 10, WORLD_H - TILE - 2);
+      const nx = clamp(h.x + vx * speed * dt, TILE + 6, WORLD_W - TILE - 6);
+      const ny = clamp(h.y + vy * speed * dt, TILE + 10, WORLD_H - TILE - 2);
+      if (steer && (steer.x || steer.y)) { // حرکتِ مستقیم: برخورد با مانع (حصار/درخت/خانه/آب/پرچین) — محورجدا تا روی لبه سُر بخورد
+        const f = this.farm, free = (x, y) => feetFree((tx, ty) => f.walkable(tx, ty), x, y);
+        const stuck = !free(h.x, h.y); // اگر از قبل گیر بود (سیو قدیمی) آزاد بگذار
+        if (stuck || free(nx, h.y)) h.x = nx;
+        if (stuck || free(h.x, ny)) h.y = ny;
+        const gx = Math.floor((h.x + vx * 8) / TILE), gy = Math.floor((h.y + vy * 8) / TILE);
+        if (f.isGate(gx, gy) && this.onGate) { this.onGate(); return; } // هل‌دادن به دروازه = ورود
+      } else { h.x = nx; h.y = ny; }
       h.dir = Math.abs(vx) > Math.abs(vy) ? (vx > 0 ? 'right' : 'left') : (vy > 0 ? 'down' : 'up');
     }
     h.loco.update(dt, speed, vx, vy, wantRun);
@@ -168,6 +183,7 @@ export class Game {
     if (this.workers.length > wn) this.workers.length = wn;
     this.worker = this.workers[0] || null;
     for (const wk of this.workers) wk.update(dt, this);
+    this.livestock.update(dt, this); // دامداری
     if (this.marker) this.marker.t += dt;
 
     // دوربین نرم
@@ -183,9 +199,9 @@ export class Game {
   sellAll() {
     const inv = this.wallet.inventory;
     let total = 0, items = 0;
-    for (const k in inv) { const n = inv[k]; if (n && CROPS[k]) { total += n * CROPS[k].sell; items += n; } } // سیب = غذای وعده، فروختنی نیست (ن۳۴: قبلاً CROPS.apple undefined → کرش!)
+    for (const k in inv) { const n = inv[k]; if (n && (CROPS[k] || GOODS[k])) { total += n * (CROPS[k] ? CROPS[k].sell : GOODS[k]); items += n; } } // سیب = غذای وعده، فروختنی نیست (ن۳۴: قبلاً CROPS.apple undefined → کرش!)
     if (!items) { this.log.push({ k: 'nothing' }); return 0; }
-    for (const k in inv) if (CROPS[k]) inv[k] = 0; // فقط محصولات — سیب غذای وعده است (ن۳۴)
+    for (const k in inv) if (CROPS[k] || GOODS[k]) inv[k] = 0; // فقط محصولات — سیب غذای وعده است (ن۳۴)
     total = Math.round(total * (1 + statVal(this.wallet, 'trade'))); // RPG: بازاری
     this.wallet.coins += total;
     if (this.onSfx) this.onSfx('coin');

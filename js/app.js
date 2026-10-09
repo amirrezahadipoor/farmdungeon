@@ -22,6 +22,10 @@ export const UPG = {
   sword:    { base: 25, max: 5, cur: 'essence', name: { fa: 'شمشیر', en: 'Sword' } },
   armor:    { base: 30, max: 5, cur: 'essence', name: { fa: 'زره', en: 'Armor' } },
   boots:    { base: 20, max: 5, cur: 'essence', name: { fa: 'چکمه', en: 'Boots' } },
+  pen:      { base: 400, max: 1, cur: 'coins', name: { fa: 'آغل دام', en: 'Animal pen' } },
+  chicken:  { base: 150, max: 4, costs: [150, 220, 320, 460], req: 'pen', cur: 'coins', name: { fa: 'مرغ', en: 'Chicken' } },
+  sheep:    { base: 600, max: 3, costs: [600, 860, 1250], req: 'pen', cur: 'coins', name: { fa: 'گوسفند', en: 'Sheep' } },
+  cow:      { base: 1500, max: 2, costs: [1500, 2300], req: 'pen', cur: 'coins', name: { fa: 'گاو', en: 'Cow' } },
   fert:     { base: 12, max: 5, cur: 'essence', name: { fa: 'کود گوهری', en: 'Gem fertilizer' } },
 };
 export const upgradeCost = (kind, level) => UPG[kind].costs ? UPG[kind].costs[level] : Math.round(UPG[kind].base * Math.pow(1.15, level));
@@ -49,6 +53,7 @@ export class App {
   cost(kind) { return upgradeCost(kind, this.s.upgrades[kind]); }
   canBuy(kind) {
     const u = UPG[kind];
+    if (u.req && !this.s.upgrades[u.req]) return false; // دام: اول آغل
     return this.s.upgrades[kind] < u.max && this.s[u.cur] >= this.cost(kind);
   }
   buy(kind) {

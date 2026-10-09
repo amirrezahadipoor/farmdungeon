@@ -5,6 +5,7 @@ import { t, setLang, toggleLang, onLangChange, applyTranslations, faNum, getLang
 import { $, toast, buildMenu, paintHudIcons, paintSndIcon } from './ui.js';
 import { equipStats, equipSig } from './items.js';
 import { CROPS } from './farm.js';
+import { UPG } from './app.js';
 import { resetSave } from './save.js';
 import { playSfx, setMute, unlockAudio } from './sfx/sounds.js';
 import { makeShrine } from './ui_shrine.js';
@@ -45,7 +46,7 @@ export function initAppUI(env) {
     },
     onBuy(kind) {
       if (app.buy(kind)) { playSfx('upgrade'); buildMenu(app, menuHooks); refreshHud(true); saveNow(); }
-      else toast(t('noCoins'));
+      else toast(UPG[kind].req && !app.s.upgrades[UPG[kind].req] ? t('needPen') : t('noCoins'));
     },
   };
   function buildMenuIfOpen() { if ($('menu').classList.contains('show')) buildMenu(app, menuHooks); }

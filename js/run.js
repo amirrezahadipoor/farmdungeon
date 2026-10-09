@@ -1,6 +1,7 @@
 // run.js — دورِ دانجن: جنگ قوسی خودکار + کریتیک + ناک‌بک + hit-stop، دوج/مهارت،
 // تاریکی/منابع نور، مینی‌مپ، باس هر ۱۰ طبقه با بنر، زره/چکمه، مقیاس سختی
 // (غنیمت‌ها در run_loot.js — ن۳۰ · جنگ در run_combat.js — ن۳۴)
+import { feetFree } from './game.js';
 import { Dungeon, floor10, clamp } from './dungeon.js';
 import { findPath } from './astar.js';
 import { Locomotion, GAITS } from './skeleton.js';
@@ -174,8 +175,9 @@ export class Run {
     const spd = (vx || vy) ? (h.dashT > 0 ? GAITS.run.speed * 3.1 : (run ? GAITS.run.speed : GAITS.walk.speed)) * this.speedMul * (h.chill > 0 ? 0.55 : 1) : 0; // ن۴۴: کندی یخ
     if (spd) {
       const nx = h.x + vx * spd * dt, ny = h.y + vy * spd * dt;
-      if (D.walkable(Math.floor(nx / TILE), Math.floor(h.y / TILE))) h.x = nx;
-      if (D.walkable(Math.floor(h.x / TILE), Math.floor(ny / TILE))) h.y = ny;
+      const wk = (tx, ty) => D.walkable(tx, ty), stuck = !feetFree(wk, h.x, h.y); // جای‌پا، نه فقط یک نقطه (قبلاً نصفِ بدن در دیوار می‌رفت)
+      if (stuck ? D.walkable(Math.floor(nx / TILE), Math.floor(h.y / TILE)) : feetFree(wk, nx, h.y)) h.x = nx;
+      if (stuck ? D.walkable(Math.floor(h.x / TILE), Math.floor(ny / TILE)) : feetFree(wk, h.x, ny)) h.y = ny;
       if (!(h.skillT > 0)) h.dir = Math.abs(vx) > Math.abs(vy) ? (vx > 0 ? 'right' : 'left') : (vy > 0 ? 'down' : 'up');
       // گرد و خبار دویدن
       const ph = h.loco.mix < 0.5 ? h.loco.phW : h.loco.phR;

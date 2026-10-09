@@ -55,7 +55,7 @@ export function paintHudIcons() {
 }
 
 // ---------- منوی ارتقاها ----------
-const MENU_KINDS = ['land', 'farm2', 'worker', 'wTill', 'wPlant', 'wWater', 'wHarvest', 'wSpeed', 'sprinkler', 'basket', 'hoe', 'can', 'sickle', 'sword', 'armor', 'boots', 'fert'];
+const MENU_KINDS = ['land', 'farm2', 'worker', 'wTill', 'wPlant', 'wWater', 'wHarvest', 'wSpeed', 'sprinkler', 'basket', 'pen', 'chicken', 'sheep', 'cow', 'hoe', 'can', 'sickle', 'sword', 'armor', 'boots', 'fert'];
 
 export function buildMenu(app, hooks) {
   const list = $('menuList');

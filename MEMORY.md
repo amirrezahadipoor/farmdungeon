@@ -19,7 +19,7 @@
 - قلم داخل بوم = بیت‌مپ Vazirmatn (`font_fa`)؛ DOM = Vazirmatn ExtraBold زیرمجموعه (base64 در CSS).
 - باگ‌های پنهان: watchdog خطای فریم را می‌بلعد ⇒ `localStorage.fd_watchdog` را بخوان.
 
-## نقشه‌ی فایل‌ها (⟨خط⟩ — ۱۴۵ ماژول JS)
+## نقشه‌ی فایل‌ها (⟨خط⟩ — ۱۴۷ ماژول JS)
 ```
 farmdungeon/
 ├── game.html      خروجیِ بیلد (کامیت می‌شود؛ دستی ویرایش نکن)
@@ -31,23 +31,25 @@ farmdungeon/
 │           sheet⟨181⟩ · hero_sheet⟨38⟩ · elite47⟨149⟩ · bench⟨71⟩ + baseline.json · soak⟨144⟩ · png⟨18⟩
 │           author_font41.py⟨568⟩ / author_font_vaz.py⟨90⟩ مولدِ فونت · build_bp42.py⟨398⟩ مولد/ولیداتور نقشه‌های دانجن
 └── js/
-    ├── هسته: main_app⟨227⟩ entry: بوت/حلقه/ورودی/سیو/XP-برداشت · main_scene⟨102⟩ fade، ورود/خروج دانجن، bankRun(+XP، applyRunStats)
+    ├── هسته: main_app⟨229⟩ entry: بوت/حلقه/ورودی/سیو/XP-برداشت · main_scene⟨102⟩ fade، ورود/خروج دانجن، bankRun(+XP، applyRunStats)
     │   raster⟨214⟩ بوم پیکسل · skeleton⟨120⟩ Locomotion/GAITS · tiles⟨7⟩ فاساد · astar⟨44⟩ · input⟨86⟩ · fx⟨141⟩ ذرات/لرزش/hit-stop
-    │   night⟨159⟩ شب/روز LUT · save⟨73⟩ v6+migrate · watchdog⟨72⟩ · i18n⟨128⟩ fa/en، t()، faNum
-    ├── اقتصاد/UI: app⟨200⟩ UPG/MEALS/آفلاین/bankLoot · quests⟨51⟩ ۳ مأموریتِ چرخان · items⟨79⟩ ۱۲ پوشیدنی
+    │   night⟨159⟩ شب/روز LUT · save⟨73⟩ v6+migrate · watchdog⟨72⟩ · i18n⟨133⟩ fa/en، t()، faNum
+    ├── اقتصاد/UI: app⟨205⟩ UPG(+pen/chicken/sheep/cow با req)/MEALS/آفلاین/bankLoot · quests⟨51⟩ ۳ مأموریتِ چرخان · items⟨79⟩ ۱۲ پوشیدنی
     │   **rpg⟨124⟩ سطح/XP/امتیاز، ۸ استات (str/vit/agi/crit + bounty/seeker/green/trade)، rpgSection، refreshLvChip**
-    │   ui⟨164⟩ توست/بنر/منو (rpgSection بالای منو) · app_ui⟨132⟩ چسب DOM + menuHooks(onBuy/onRpg) · ui_hud⟨69⟩ · ui_shrine⟨54⟩ محراب
-    ├── مزرعه: game⟨201⟩ صحنه/صف/sellAll(×trade) · game_apply⟨73⟩ نتیجه‌ی ابزار، برداشت(×bounty) · farm⟨137⟩ گرید+CROPS
-    │   farm_command⟨90⟩ تپ→مسیر · farm_worker⟨184⟩ کارگر · farm_layout⟨76⟩ · farm_terrain⟨280⟩ کش زمین · farm_render⟨196⟩
-    ├── دانجن: run⟨257⟩ حرکت/طبقه/مهارت/دوج/برکت/restart(از run._base) · run_combat⟨90⟩ حمله/کریت · run_loot⟨85⟩ دراپ(+seedP، _bossKills)
+    │   ui⟨164⟩ توست/بنر/منو (rpgSection بالای منو) · app_ui⟨133⟩ چسب DOM + menuHooks(onBuy/onRpg) · ui_hud⟨71⟩ · ui_shrine⟨54⟩ محراب
+    ├── مزرعه: game⟨217⟩ صحنه/صف/sellAll(×trade، +محصول دامی) + feetFree (برخوردِ جای‌پا با مانع؛ حرکت مستقیم) + livestock · game_apply⟨73⟩ نتیجه‌ی ابزار، برداشت(×bounty) · farm⟨137⟩ گرید+CROPS
+    │   farm_command⟨90⟩ تپ→مسیر · farm_worker⟨184⟩ کارگر · farm_layout⟨76⟩ · farm_terrain⟨280⟩ کش زمین · farm_render⟨197⟩ (دام‌ها در y-sort)
+    │   **livestock⟨124⟩ آغل PEN(x1..10,y15..18، در (10,17))، stampPen، ANIMALS/GOODS، Livestock(sync/update/collect با نزدیک‌شدن)، syncGoodsChips**
+    ├── دانجن: run⟨259⟩ حرکت(feetFree)/طبقه/مهارت/دوج/برکت/restart(از run._base) · run_combat⟨90⟩ حمله/کریت · run_loot⟨85⟩ دراپ(+seedP، _bossKills)
     │   run_render⟨279⟩ · dungeon⟨144⟩ · dungeon_bake⟨257⟩ پختِ طبقه · dungeon_blueprints⟨66⟩ · dungeon/bp01…bp21,bp_boss⟨27⟩ نقشه‌های ۳۰×۲۰
     │   monster⟨136⟩ STATS+نخبه · mobs_new⟨174⟩ AI ویژه · projectiles⟨45⟩
-    ├── art/ (۵۸):
+    ├── art/ (۵۹):
     │   پالت: ramps⟨69⟩ منبعِ رنگ (تغییرش outline کل بازی را عوض می‌کند!) · palette_master⟨77⟩ · palette_env⟨63⟩ · palette_hero⟨37⟩ · palette_snap⟨27⟩ · pm_snap⟨109⟩ · recolor⟨38⟩ · outline⟨75⟩ · rim⟨23⟩ · bake⟨121⟩ · quality⟨3⟩
     │   نویز/کاشی: noise⟨44⟩ · dither⟨36⟩ · autotile⟨95⟩ · ground⟨257⟩ · brick⟨127⟩ · flagstone⟨110⟩ · decal⟨71⟩ · dungeon_decal⟨119⟩ · dungeon_depth⟨65⟩ AO · water⟨146⟩ · fence⟨68⟩
     │   محیط: farm_decor⟨143⟩ · farm_buildings⟨83⟩ · farm_px⟨149⟩ خانه · tree⟨178⟩ · crops⟨218⟩ · critters⟨121⟩ · weather⟨148⟩ · weather_px⟨72⟩ · light⟨257⟩ نور دانجن · glow⟨81⟩ · shadow⟨150⟩ · motes⟨54⟩ · gate⟨49⟩ · dungeon_props⟨149⟩
     │   قهرمان: hero⟨142⟩ فریم+ابزار+halfSprite · hero_map⟨165⟩ ریگِ قطعه‌ای + SIDE_POSE پا · hero_art⟨107⟩ بالاتنه از تصویرِ AI · hero_pose⟨134⟩ پوز/HOX/HOY · hero_px⟨210⟩ · equipment⟨100⟩
     │   هیولا: monster_parts⟨104⟩ · monster_bodies⟨236⟩/2⟨204⟩/3⟨155⟩/4⟨156⟩ · mob_px⟨279⟩ · mob_px2⟨194⟩ · mob_motion⟨74⟩ · monster_registry⟨8⟩ · monsters⟨28⟩ · boss⟨107⟩ · boss_px⟨160⟩ · battle_fx⟨106⟩
+    │   دام: **animals⟨156⟩ اسپرایت مرغ/گوسفند/گاو (۲ فریم راه + چریدن، آینه) + آیکون تخم/پشم/شیر**
     │   UI/فونت: font_fa⟨69⟩ بیت‌مپ Vazirmatn · font2⟨105⟩ رابط متنِ بوم · icon_lib⟨248⟩ · icons⟨101⟩ paintIcon/iconEl · ui_skin⟨73⟩ (9-slice؛ CSS فعلی از آن استفاده نمی‌کند)
     └── sfx/ (۲۶): engine⟨91⟩ · sounds⟨67⟩ ثبت/ambient · ambience_farm/dungeon⟨13⟩ · ۲۲ صدای ۳–۷ خطی (till, water, plant, harvest, coin, …)
 ```
@@ -58,6 +60,7 @@ farmdungeon/
 - دانجن: hp×(1+0.13(f−1)) · dmg×(1+0.075(f−1)) · باس هر ۱۰ طبقه · کریت پایه ۱۲٪ ×۱٫۸ · دوربین y تا −52 (پشت HUD).
 - RPG: xpNeed=20·lvl^1.5 · XP: برداشت ۲، شکار ۴، نخبه ۱۰، طبقه ۸، باس ۶۰ · امتیاز/سطح ۱ · خرید 250·1.4^n سکه · سقف استات ۲۵
   اثر/امتیاز: str +۶٪ آسیب · vit +۸ جان · agi +۳٪ سرعت · crit +۲٪ · bounty +۴٪ برداشت×۲ · seeker +۳٪ بذر اضافه · green +۴٪ رشد · trade +۳٪ فروش.
+- دام: آغل ۴۰۰ · مرغ ۱۵۰→۴۶۰ (×۴، تخم ۴۰ث/۱۴) · گوسفند ۶۰۰→۱۲۵۰ (×۳، پشم ۹۰ث/۴۸) · گاو ۱۵۰۰/۲۳۰۰ (×۲، شیر ۱۴۰ث/۹۵) · ۳ XP هر محصول.
 - قهرمان: ۴۴px، اسپرایت ۶۴×۸۰ → halfSprite.
 
 ## درس‌های مهم
@@ -74,3 +77,4 @@ farmdungeon/
 - ن۱۳۴: R6 پوسته‌ی UI بازی‌گونه + باگ‌فیکس (ارقام فارسی، «·»→«،»، favicon 404، FPS مخفی، نوار جان کوچک).
 - ن۱۳۵: سیستم RPG (`js/rpg.js`) + فیکسِ restart (کریتِ تجهیز/برکتِ آسیب).
 - ن۱۳۶: پاکسازی ریپو — MEMORY فشرده، رودمپ و `roadmap/` و `shots/` حذف، `hero_ref.js` و `hero_ref_shot.mjs` مرده حذف.
+- ن۱۳۷: فیکس برخورد (حرکت مستقیم در مزرعه از حصار/درخت/خانه/آب رد می‌شد؛ دانجن نصف بدن در دیوار) با feetFree + دامداری (آغل/مرغ/گوسفند/گاو، خریدنی).

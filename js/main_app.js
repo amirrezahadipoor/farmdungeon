@@ -1,5 +1,6 @@
 // main_app.js — بوت و حلقه‌ی بازی نهایی: مزرعه ⇄ دانجن در یک صفحه
 // (تعویض صحنه/پایان دور در main_scene.js — ن۳۴؛ چسب DOM رابط در app_ui.js؛ مسیریابی فرمان در farm_command.js)
+import { syncGoodsChips } from './livestock.js';
 import { ensureRpg, statVal, refreshLvChip, XP, addXp } from './rpg.js';
 import { t, faNum, getLang } from './i18n.js';
 import { Input } from './input.js';
@@ -112,6 +113,7 @@ window.__gainXp = gainXp;
 farmScene.onHouse = () => { $('menuBtn').click(); }; // خانه = میز کار: منوی مأموریت‌ها/ارتقاها
 farmScene.onEvent = (k, n) => { // مأموریت‌ها: برداشت/فروش/طلایی
   if (k === 'harvest') gainXp(n * XP.harvest);
+  if (k === 'animal') gainXp(n * 3); // دام: ۳ XP هر محصول
   const done = app.track(k, n);
   for (const q of done) { toast(t('questDone') + ' — ' + questLabel(q)); UI.buildMenuIfOpen(); UI.refreshHud(true); }
   if (done.length) playSfx('quest');
@@ -178,7 +180,7 @@ function frame(now) {
   const spd = (1 + 0.06 * app.s.upgrades.boots) * (1 + app._eqStats.speed);
   if (scene === 'farm' && farmScene.speedMul !== spd) farmScene.speedMul = spd;
   if (scene === 'farm') { const fm = (1 + 0.08 * app.s.upgrades.fert) * (1 + statVal(app.s, 'green')); if (farmScene.fertMul !== fm) farmScene.fertMul = fm; } // RPG: دستِ سبز
-  refreshLvChip(app.s);
+  refreshLvChip(app.s); syncGoodsChips(app.s);
   // آمبینت پیوسته: پد مزرعه/دانجن + لایه‌ی باران — فقط وقتی عوض شود
   {
     const wantScene = scene === 'farm' ? 'farm' : 'dungeon';

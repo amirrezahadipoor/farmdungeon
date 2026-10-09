@@ -4846,6 +4846,7 @@ tv.x = tx2; tv.y = ty2; tn++; // برای پرندگان
 }
 { let wt = FENTS[fn] || (FENTS[fn] = { y: 0, t: 0, sx: 0, sy: 0, v: 0 }); wt.y = h.y; wt.t = 1; fn++; }
 { let wt = FENTS[fn] || (FENTS[fn] = { y: 0, t: 0, sx: 0, sy: 0, v: 0 }); wt.y = (HOUSE.y + 2) * TILE; wt.t = 3; fn++; } // خانه
+for (const an of game.livestock.list) { let wt = FENTS[fn] || (FENTS[fn] = { y: 0, t: 0, sx: 0, sy: 0, v: 0, w: null }); wt.y = an.y; wt.t = 2; wt.w = an; fn++; } // دام‌ها (y-sort)
 for (const wk of game.workers) { let wt = FENTS[fn] || (FENTS[fn] = { y: 0, t: 0, sx: 0, sy: 0, v: 0, w: null }); wt.y = wk.y; wt.t = 2; wt.w = wk; fn++; }
 for (let i = 0; i < fn; i++) for (let j = i + 1; j < fn; j++) if (FENTS[j].y < FENTS[i].y) { const tmp = FENTS[i]; FENTS[i] = FENTS[j]; FENTS[j] = tmp; }
 for (let i = 0; i < fn; i++) {
@@ -8323,6 +8324,264 @@ d[i + 2] = gg + (((_LB[d[i + 2]] - gg) * sf) >> 8);
 return {DAY_LEN, nightFactor, applyNight};
 })();
 const {DAY_LEN, nightFactor, applyNight} = __m_night;
+const __m_art_animals = (() => {
+const PAL = {
+o: [52, 30, 48, 255],    // دورخط
+w: [246, 240, 226, 255], // سفید/کرم
+s: [200, 190, 182, 255], // سایه‌ی سفید (بنفش‌مایل)
+S: [160, 146, 150, 255], // سایه‌ی عمیق
+r: [214, 58, 52, 255],   // تاج
+y: [240, 170, 50, 255],  // نوک/پا
+Y: [190, 110, 40, 255],  // سایه‌ی پا
+e: [40, 24, 40, 255],    // چشم
+f: [92, 78, 84, 255],    // صورت گوسفند
+F: [66, 52, 62, 255],    // سایه‌ی صورت
+k: [74, 48, 46, 255],    // لکه‌ی گاو
+K: [54, 34, 38, 255],    // سایه‌ی لکه
+p: [236, 156, 160, 255], // پوزه‌ی صورتی
+P: [196, 112, 124, 255],
+h: [232, 216, 170, 255], // شاخ
+b: [120, 88, 70, 255],   // سُم
+m: [250, 250, 255, 255], // شیر
+c: [130, 170, 210, 255], // بطری
+g: [255, 255, 255, 255], // برق
+};
+const CHICK_BODY = [
+'......rr...',
+'.....orro..',
+'.....owwoyy',
+'.....oewwy.',
+'.o...owwo..',
+'owo..owwo..',
+'owwoowwwwo.',
+'owswwwwwwo.',
+'.osswwwwso.',
+'..ossssso..',
+'...ooooo...',
+];
+const CHICK_LEGS = [['....y.y....', '...yy.yy...'], ['...y...y...', '..yy...yy..']];
+const CHICK_PECK = [
+'...........',
+'...........',
+'.o.........',
+'owo........',
+'owwoooooo..',
+'owswwwwwwor',
+'.osswwwwwwo',
+'..osssswewy',
+'...ooooooyy',
+'...........',
+'...........',
+];
+const SHEEP_BODY = [
+'...oo.oo.oo......',
+'..owwowwowwo..oo.',
+'.owwwwwwwwwwoofFo',
+'owwwwwwwwwwwwofefo',
+'owwwwwwwwwwwwoffffo',
+'owswwwwwwwwwsoFfFo.',
+'.osswwwwwwwssoooo..',
+'.ossssssssssso.....',
+'..oooooooooooo.....',
+];
+const SHEEP_LEGS = [['...ff....ff......', '...bb....bb......'], ['..ff......ff.....', '..bb......bb.....']];
+const SHEEP_GRAZE = [
+'...oo.oo.oo......',
+'..owwowwowwo.....',
+'.owwwwwwwwwwo....',
+'owwwwwwwwwwwwo...',
+'owwwwwwwwwwwwoo..',
+'owswwwwwwwwwsofFo',
+'.osswwwwwwwssofefo',
+'.ossssssssssoFfffo',
+'..oooooooooooFFoo.',
+];
+const COW_BODY = [
+'..................hh.',
+'.................ohho',
+'..oooooooooooooookkko',
+'.owwwkkwwwwwwwwwokekwo',
+'owwwkKkwwwwkkwwwwkkkwo',
+'owwwwkwwwwkKkwwwwopppo',
+'owwwwwwwwwwkwwwwwoPpPo',
+'owswwwwwwwwwwwwwso.oo.',
+'.ossswwwwwwwwwsso.....',
+'.osssssssppsssso......',
+'..oooooooooooooo......',
+];
+const COW_LEGS = [['..wk.......wk.........', '..bb.......bb.........'], ['.wk.........wk........', '.bb.........bb........']];
+const COW_GRAZE = [
+'.....................',
+'.....................',
+'..oooooooooooooo.....',
+'.owwwkkwwwwwwwwwo....',
+'owwwkKkwwwwkkwwwwo...',
+'owwwwkwwwwkKkwwwwohh.',
+'owwwwwwwwwwkwwwwwkkko',
+'owswwwwwwwwwwwwwskekwo',
+'.ossswwwwwwwwwssokkkwo',
+'.osssssssppsssssopppo.',
+'..ooooooooooooooPpPo..',
+];
+const ICONS = {
+egg: ['..ooo...', '.owwgo..', 'owwwwwo.', 'owwwwso.', 'owwwsso.', '.osssso.', '..oooo..'],
+wool: ['.oo.oo..', 'owwowwo.', 'owwwwwwo', 'owswwswo', 'osswssso', '.oooooo.'],
+milk: ['..oo....', '..oco...', '.ommmo..', 'omgmmmo.', 'ommmmmo.', 'occcccо.', 'ommmmmo.', '.ooooo..'],
+};
+function paint(rows, legs) {
+const all = legs ? rows.concat(legs) : rows;
+const w = Math.max(...all.map((s) => s.length)), h = all.length;
+const r = new Raster(w, h);
+all.forEach((row, y) => { for (let x = 0; x < row.length; x++) { const c = PAL[row[x]]; if (c) r.px(x, y, c); } });
+return r;
+}
+function mirror(src) {
+const r = new Raster(src.w, src.h);
+for (let y = 0; y < src.h; y++) for (let x = 0; x < src.w; x++) {
+const i = (y * src.w + x) * 4, j = (y * src.w + (src.w - 1 - x)) * 4;
+r.d[j] = src.d[i]; r.d[j + 1] = src.d[i + 1]; r.d[j + 2] = src.d[i + 2]; r.d[j + 3] = src.d[i + 3];
+}
+return r;
+}
+const DEF = {
+chicken: { body: CHICK_BODY, legs: CHICK_LEGS, alt: CHICK_PECK },
+sheep: { body: SHEEP_BODY, legs: SHEEP_LEGS, alt: SHEEP_GRAZE },
+cow: { body: COW_BODY, legs: COW_LEGS, alt: COW_GRAZE },
+};
+const _cache = new Map();
+function animalSprite(kind, frame, face) {
+const key = kind + frame + face;
+let s = _cache.get(key);
+if (!s) {
+const d = DEF[kind];
+s = frame === 2 ? paint(d.alt, d.legs[0]) : paint(d.body, d.legs[frame]);
+if (face < 0) s = mirror(s);
+_cache.set(key, s);
+}
+return s;
+}
+function goodIcon(kind) {
+const key = 'i' + kind;
+let s = _cache.get(key);
+if (!s) { s = paint(ICONS[kind].map((r) => r.replace(/[^a-zA-Z.]/g, 'o'))); _cache.set(key, s); }
+return s;
+}
+const _sh = [20, 30, 16, 90];
+function drawAnimalShadow(r, cx, by, w) { r.ellipse(cx, by, Math.max(3, w >> 1), 2, _sh); }
+return {animalSprite, goodIcon, drawAnimalShadow};
+})();
+const {animalSprite, goodIcon, drawAnimalShadow} = __m_art_animals;
+const __m_livestock = (() => {
+const PEN = { x0: 1, x1: 10, y0: 15, y1: 18, door: 17 }; // در: ضلع شرقی (10,17)
+const inPen = (tx, ty) => tx > PEN.x0 && tx < PEN.x1 && ty > PEN.y0 && ty <= PEN.y1;
+const ANIMALS = {
+chicken: { good: 'egg',  time: 40,  sell: 14, speed: 14, w: 11 },
+sheep:   { good: 'wool', time: 90,  sell: 48, speed: 9,  w: 17 },
+cow:     { good: 'milk', time: 140, sell: 95, speed: 7,  w: 21 },
+};
+const GOODS = { egg: 14, wool: 48, milk: 95 };
+const goodsValue = (inv) => { let v = 0; for (const k in GOODS) v += (inv[k] | 0) * GOODS[k]; return v; };
+function stampPen(farm) {
+if (farm.penOn) return;
+farm.penOn = true;
+for (let y = PEN.y0; y <= PEN.y1; y++) for (let x = PEN.x0; x <= PEN.x1; x++) {
+const c = farm.cell(x, y); if (!c) continue;
+const edge = y === PEN.y0 || x === PEN.x0 || x === PEN.x1;
+if (edge && !(x === PEN.x1 && y === PEN.door)) { c.kind = 'fence'; c.farmable = false; }
+else if (c.kind === 'tree' || c.kind === 'fence') { c.kind = 'grass'; c.variant &= 1; }
+}
+for (let y = PEN.y0; y <= PEN.y1; y++) for (let x = PEN.x0; x <= PEN.x1; x++) {
+const c = farm.cell(x, y); if (!c || c.kind !== 'fence') continue;
+const l = farm.cell(x - 1, y), r = farm.cell(x + 1, y);
+c.fenceH = (l && l.kind === 'fence') || (r && r.kind === 'fence');
+}
+for (const [dx, dy] of [[1, 0], [1, -1], [1, 1], [2, 0]]) { const d = farm.cell(PEN.x1 + dx, PEN.door + dy); if (d && d.kind === 'tree') d.kind = 'grass'; } // جلوی در باز بماند
+farm.onAll?.();
+}
+class Animal {
+constructor(kind, i) {
+this.kind = kind; this.def = ANIMALS[kind];
+this.x = (PEN.x0 + 1.5 + ((i * 3.7) % (PEN.x1 - PEN.x0 - 2))) * TILE;
+this.y = (PEN.y0 + 1.6 + ((i * 1.3) % 2)) * TILE;
+this.face = i % 2 ? -1 : 1; this.tx = this.x; this.ty = this.y;
+this.idleT = Math.random() * 2; this.graze = 0;
+this.prod = this.def.time * (0.3 + Math.random() * 0.5); this.ready = false;
+}
+update(dt) {
+if (!this.ready) { this.prod -= dt; if (this.prod <= 0) this.ready = true; }
+if (this.idleT > 0) { this.idleT -= dt; this.graze = Math.max(0, this.graze - dt); return; }
+const dx = this.tx - this.x, dy = this.ty - this.y, d = Math.hypot(dx, dy);
+if (d < 1.5) { // مقصد بعدی یا ایستادن/چریدن
+this.idleT = 1 + Math.random() * 3; if (Math.random() < 0.6) this.graze = this.idleT;
+this.tx = (PEN.x0 + 1.2 + Math.random() * (PEN.x1 - PEN.x0 - 1.4)) * TILE;
+this.ty = (PEN.y0 + 1.5 + Math.random() * (PEN.y1 - PEN.y0 - 0.6)) * TILE;
+return;
+}
+const s = Math.min(d, this.def.speed * dt);
+this.x += (dx / d) * s; this.y += (dy / d) * s;
+if (Math.abs(dx) > 0.5) this.face = dx > 0 ? 1 : -1;
+this.walkT = (this.walkT || 0) + dt;
+}
+render(r, cx, cy, time) {
+const moving = this.idleT <= 0;
+const fr = moving ? (Math.floor(this.walkT * 6) % 2) : (this.graze > 0 && Math.floor(time * 1.5 + this.x) % 3 ? 2 : 0);
+const sp = animalSprite(this.kind, fr, this.face);
+const sx = Math.round(this.x) - (sp.w >> 1) - cx, sy = Math.round(this.y) - sp.h - cy;
+drawAnimalShadow(r, sx + (sp.w >> 1), sy + sp.h, sp.w - 2);
+sp.over(r, sx, sy);
+if (this.ready) { // حباب محصول با بالا-پایینِ آرام (۲ پله)
+const ic = goodIcon(this.def.good), bob = Math.floor(time * 2 + this.x) % 2;
+ic.over(r, sx + (sp.w >> 1) - (ic.w >> 1), sy - ic.h - 2 - bob);
+}
+}
+}
+class Livestock {
+constructor() { this.list = []; this._t = 0; }
+sync(up, farm) {
+if (up.pen && farm && !farm.penOn) stampPen(farm);
+for (const k of Object.keys(ANIMALS)) {
+const want = up.pen ? (up[k] | 0) : 0;
+let have = this.list.filter((a) => a.kind === k).length;
+while (have < want) this.list.push(new Animal(k, this.list.length)), have++;
+}
+}
+update(dt, game) {
+this.sync(game.toolLvls, game.farm);
+for (const a of this.list) a.update(dt);
+const h = game.hero; // قهرمان داخل یا کنار آغل ⇒ جمع‌آوری
+if (this.list.length && h.x > (PEN.x0) * TILE && h.x < (PEN.x1 + 1) * TILE && h.y > (PEN.y0 - 0.5) * TILE && h.y < (PEN.y1 + 1) * TILE) this.collect(game);
+}
+collect(game) {
+let n = 0;
+for (const a of this.list) if (a.ready) {
+a.ready = false; a.prod = a.def.time;
+game.wallet.inventory[a.def.good] = (game.wallet.inventory[a.def.good] | 0) + 1; n++;
+game.float(a.x, a.y - 22, '+1', 'gold');
+}
+if (n) { if (game.onSfx) game.onSfx('harvest'); if (game.onEvent) game.onEvent('animal', n); }
+return n;
+}
+}
+let _gk = '';
+function syncGoodsChips(s) {
+const row = document.querySelector('#dockFarm .row.chips'); if (!row) return;
+const key = (s.upgrades.pen | 0) + ':' + Object.keys(GOODS).map((k) => s.inventory[k] | 0).join(',');
+if (key === _gk) return; _gk = key;
+for (const k of Object.keys(GOODS)) {
+let el = document.getElementById('gc-' + k);
+if (!el) {
+el = document.createElement('div'); el.className = 'chip'; el.id = 'gc-' + k;
+const cv = rasterToCanvas(goodIcon(k)); cv.className = 'pico'; cv.style.width = '16px'; cv.style.height = 'auto';
+el.appendChild(cv); el.appendChild(document.createElement('b'));
+const anchor = row.querySelector('.f2:last-of-type'); row.insertBefore(el, anchor ? anchor.nextSibling : null);
+}
+el.style.display = s.upgrades.pen ? '' : 'none';
+el.querySelector('b').textContent = faNum(s.inventory[k] | 0);
+}
+}
+return {PEN, inPen, ANIMALS, GOODS, goodsValue, stampPen, Livestock, syncGoodsChips};
+})();
+const {PEN, inPen, ANIMALS, GOODS, goodsValue, stampPen, Livestock, syncGoodsChips} = __m_livestock;
 const __m_farm_command = (() => {
 const DX4 = [1, -1, 0, 0], DY4 = [0, 0, 1, -1]; // ثابت ماژول — بدون تخصیص آرایه در هر فرمان
 function nearFree(f, tx, ty, hx, hy) {
@@ -8472,6 +8731,10 @@ const {gameApply} = __m_game_apply;
 const __m_game = (() => {
 const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
 const hash = (x, y) => { let h = (x * 374761393 + y * 668265263) | 0; h = (h ^ (h >> 13)) * 1274126177; return ((h ^ (h >> 16)) >>> 0) / 4294967295; };
+function feetFree(walk, x, y) {
+for (const dx of [-5, 5]) for (const dy of [-4, 1]) if (!walk(Math.floor((x + dx) / TILE), Math.floor((y + dy) / TILE))) return false;
+return true;
+}
 class Game {
 constructor(wallet = null, landLevel = 5, toolLvls = null, bootsLvl = 0) {
 this.wallet = wallet || { coins: 60, inventory: { carrot: 0, wheat: 0, pumpkin: 0 }, selectedCrop: 'carrot' };
@@ -8494,6 +8757,7 @@ this.dayT = 0;            // چرخه‌ی روز/شب (DAY_LEN = ۱ ساعت)
 this.fish = new Fish(1); // ن۳۶: یک ماهی — رخداد نادرِ زنده‌بودن حوضچه
 this.workers = [new FarmWorker(15.5 * TILE, 12.5 * TILE, 0)]; // کارگران مزرعه (تا ۲ تا — با ارتقا فعال)
 this.worker = this.workers[0]; // سازگاری
+this.livestock = new Livestock();
 this.onEvent = null; // هوک مأموریت‌ها: (kind, n) — main_app وصل می‌کند
 this.onHouse = null; // تپ روی خانه → میز کار/منو (تخته‌ی مأموریت)
 this.sprCache = new Map();
@@ -8523,8 +8787,16 @@ else { vx = dx / d; vy = dy / d; wantRun = h.run; }
 const speed = (vx || vy) ? (wantRun ? GAITS.run.speed : GAITS.walk.speed) * this.speedMul : 0;
 this.dayT = (this.dayT + dt) % DAY_LEN;
 if (speed) {
-h.x = clamp(h.x + vx * speed * dt, TILE + 6, WORLD_W - TILE - 6);
-h.y = clamp(h.y + vy * speed * dt, TILE + 10, WORLD_H - TILE - 2);
+const nx = clamp(h.x + vx * speed * dt, TILE + 6, WORLD_W - TILE - 6);
+const ny = clamp(h.y + vy * speed * dt, TILE + 10, WORLD_H - TILE - 2);
+if (steer && (steer.x || steer.y)) { // حرکتِ مستقیم: برخورد با مانع (حصار/درخت/خانه/آب/پرچین) — محورجدا تا روی لبه سُر بخورد
+const f = this.farm, free = (x, y) => feetFree((tx, ty) => f.walkable(tx, ty), x, y);
+const stuck = !free(h.x, h.y); // اگر از قبل گیر بود (سیو قدیمی) آزاد بگذار
+if (stuck || free(nx, h.y)) h.x = nx;
+if (stuck || free(h.x, ny)) h.y = ny;
+const gx = Math.floor((h.x + vx * 8) / TILE), gy = Math.floor((h.y + vy * 8) / TILE);
+if (f.isGate(gx, gy) && this.onGate) { this.onGate(); return; } // هل‌دادن به دروازه = ورود
+} else { h.x = nx; h.y = ny; }
 h.dir = Math.abs(vx) > Math.abs(vy) ? (vx > 0 ? 'right' : 'left') : (vy > 0 ? 'down' : 'up');
 }
 h.loco.update(dt, speed, vx, vy, wantRun);
@@ -8610,6 +8882,7 @@ while (this.workers.length < wn) this.workers.push(new FarmWorker(17.5 * TILE, 1
 if (this.workers.length > wn) this.workers.length = wn;
 this.worker = this.workers[0] || null;
 for (const wk of this.workers) wk.update(dt, this);
+this.livestock.update(dt, this); // دامداری
 if (this.marker) this.marker.t += dt;
 const txx = WORLD_W <= this.view.w ? (WORLD_W - this.view.w) / 2 : clamp(h.x - this.view.w / 2, 0, WORLD_W - this.view.w);
 const tyy = WORLD_H <= this.view.h ? (WORLD_H - this.view.h) / 2 : clamp(h.y - this.view.h / 2, 0, WORLD_H - this.view.h);
@@ -8621,9 +8894,9 @@ float(x, y, txt, col) { this.fx.float(x, y, txt, col); }
 sellAll() {
 const inv = this.wallet.inventory;
 let total = 0, items = 0;
-for (const k in inv) { const n = inv[k]; if (n && CROPS[k]) { total += n * CROPS[k].sell; items += n; } } // سیب = غذای وعده، فروختنی نیست (ن۳۴: قبلاً CROPS.apple undefined → کرش!)
+for (const k in inv) { const n = inv[k]; if (n && (CROPS[k] || GOODS[k])) { total += n * (CROPS[k] ? CROPS[k].sell : GOODS[k]); items += n; } } // سیب = غذای وعده، فروختنی نیست (ن۳۴: قبلاً CROPS.apple undefined → کرش!)
 if (!items) { this.log.push({ k: 'nothing' }); return 0; }
-for (const k in inv) if (CROPS[k]) inv[k] = 0; // فقط محصولات — سیب غذای وعده است (ن۳۴)
+for (const k in inv) if (CROPS[k] || GOODS[k]) inv[k] = 0; // فقط محصولات — سیب غذای وعده است (ن۳۴)
 total = Math.round(total * (1 + statVal(this.wallet, 'trade'))); // RPG: بازاری
 this.wallet.coins += total;
 if (this.onSfx) this.onSfx('coin');
@@ -8635,9 +8908,9 @@ return total;
 _heroSprite() { return farmHeroSprite(this); }
 render(r) { renderFarm(this, r); }
 }
-return {Game};
+return {feetFree, Game};
 })();
-const {Game} = __m_game;
+const {feetFree, Game} = __m_game;
 const __m_dungeon_bp01 = (() => {
 const BP01 = {
 name: 'دهلیز دوقلو',
@@ -9754,8 +10027,9 @@ else { vx = dx / d; vy = dy / d; run = d > 95; }
 const spd = (vx || vy) ? (h.dashT > 0 ? GAITS.run.speed * 3.1 : (run ? GAITS.run.speed : GAITS.walk.speed)) * this.speedMul * (h.chill > 0 ? 0.55 : 1) : 0; // ن۴۴: کندی یخ
 if (spd) {
 const nx = h.x + vx * spd * dt, ny = h.y + vy * spd * dt;
-if (D.walkable(Math.floor(nx / TILE), Math.floor(h.y / TILE))) h.x = nx;
-if (D.walkable(Math.floor(h.x / TILE), Math.floor(ny / TILE))) h.y = ny;
+const wk = (tx, ty) => D.walkable(tx, ty), stuck = !feetFree(wk, h.x, h.y); // جای‌پا، نه فقط یک نقطه (قبلاً نصفِ بدن در دیوار می‌رفت)
+if (stuck ? D.walkable(Math.floor(nx / TILE), Math.floor(h.y / TILE)) : feetFree(wk, nx, h.y)) h.x = nx;
+if (stuck ? D.walkable(Math.floor(h.x / TILE), Math.floor(ny / TILE)) : feetFree(wk, h.x, ny)) h.y = ny;
 if (!(h.skillT > 0)) h.dir = Math.abs(vx) > Math.abs(vy) ? (vx > 0 ? 'right' : 'left') : (vy > 0 ? 'down' : 'up');
 const ph = h.loco.mix < 0.5 ? h.loco.phW : h.loco.phR;
 const st = Math.floor(ph * 2) !== Math.floor(((ph - spd * dt / (h.loco.mix < 0.5 ? 16 : 23)) % 1 + 1) % 1 * 2);
@@ -10272,6 +10546,10 @@ sickle:   { base: 20, max: 5, cur: 'essence', name: { fa: 'داس', en: 'Sickle'
 sword:    { base: 25, max: 5, cur: 'essence', name: { fa: 'شمشیر', en: 'Sword' } },
 armor:    { base: 30, max: 5, cur: 'essence', name: { fa: 'زره', en: 'Armor' } },
 boots:    { base: 20, max: 5, cur: 'essence', name: { fa: 'چکمه', en: 'Boots' } },
+pen:      { base: 400, max: 1, cur: 'coins', name: { fa: 'آغل دام', en: 'Animal pen' } },
+chicken:  { base: 150, max: 4, costs: [150, 220, 320, 460], req: 'pen', cur: 'coins', name: { fa: 'مرغ', en: 'Chicken' } },
+sheep:    { base: 600, max: 3, costs: [600, 860, 1250], req: 'pen', cur: 'coins', name: { fa: 'گوسفند', en: 'Sheep' } },
+cow:      { base: 1500, max: 2, costs: [1500, 2300], req: 'pen', cur: 'coins', name: { fa: 'گاو', en: 'Cow' } },
 fert:     { base: 12, max: 5, cur: 'essence', name: { fa: 'کود گوهری', en: 'Gem fertilizer' } },
 };
 const upgradeCost = (kind, level) => UPG[kind].costs ? UPG[kind].costs[level] : Math.round(UPG[kind].base * Math.pow(1.15, level));
@@ -10294,6 +10572,7 @@ get wallet() { return this.s; }
 cost(kind) { return upgradeCost(kind, this.s.upgrades[kind]); }
 canBuy(kind) {
 const u = UPG[kind];
+if (u.req && !this.s.upgrades[u.req]) return false; // دام: اول آغل
 return this.s.upgrades[kind] < u.max && this.s[u.cur] >= this.cost(kind);
 }
 buy(kind) {
@@ -10447,12 +10726,12 @@ return {
 v: SCHEMA_VERSION,
 coins: 60,
 essence: 0,
-inventory: { carrot: 0, wheat: 0, pumpkin: 0, strawberry: 0, eggplant: 0, corn: 0, apple: 0 },
+inventory: { carrot: 0, wheat: 0, pumpkin: 0, strawberry: 0, eggplant: 0, corn: 0, apple: 0, egg: 0, wool: 0, milk: 0 },
 seeds: { carrot: 6, wheat: 0, pumpkin: 0, strawberry: 0, eggplant: 0, corn: 0 }, // بذر فقط از دانجن!
 items: {},      // آیتم‌های پوشیدنی: id → تعداد
 equipped: null, // { hat, body, boots, sword } — idهای پوشیده‌شده
 selectedCrop: 'carrot',
-upgrades: { land: 1, farm2: 0, worker: 0, wTill: 0, wPlant: 0, wWater: 0, wHarvest: 0, wSpeed: 0, sprinkler: 0, basket: 0, hoe: 0, can: 0, sickle: 0, sword: 0, armor: 0, boots: 0, fert: 0 },
+upgrades: { pen: 0, chicken: 0, sheep: 0, cow: 0, land: 1, farm2: 0, worker: 0, wTill: 0, wPlant: 0, wWater: 0, wHarvest: 0, wSpeed: 0, sprinkler: 0, basket: 0, hoe: 0, can: 0, sickle: 0, sword: 0, armor: 0, boots: 0, fert: 0 },
 stats: { bestFloor: 1, kills: 0, deaths: 0, runs: 0, playT: 0 }, // playT = ثانیه‌ی انباشته‌ی مزرعه — روزِ سیب‌دار بین سشن‌ها پیوسته
 farm: null, // [{i, kind, wet, crop}] — فقط تایل‌های تغییرکرده
 lastSeen: Date.now(),
@@ -10615,6 +10894,11 @@ fx_wPlant:{ fa: 'کارگر یاد می‌گیرد بذر بکارد', en: 'Work
 fx_wWater:{ fa: 'کارگر یاد می‌گیرد آبیاری کند', en: 'Worker learns to water crops' },
 fx_wHarvest:{ fa: 'کارگر یاد می‌گیرد برداشت کند', en: 'Worker learns to harvest' },
 fx_wSpeed:{ fa: '۱۵٪ سریع‌تر کار/سطح + آفلاین', en: '15% faster work per level + offline' },
+fx_pen:  { fa: 'آغل در جنوب‌غربی — مرغ، گوسفند و گاو', en: 'Pen in the south-west — chickens, sheep, cows' },
+fx_chicken:{ fa: 'هر ۴۰ ثانیه یک تخم‌مرغ (۱۴ سکه)', en: 'An egg every 40s (14 coins)' },
+fx_sheep:{ fa: 'هر ۹۰ ثانیه پشم (۴۸ سکه)', en: 'Wool every 90s (48 coins)' },
+fx_cow:  { fa: 'هر ۱۴۰ ثانیه شیر (۹۵ سکه)', en: 'Milk every 140s (95 coins)' },
+needPen: { fa: 'اول آغل دام را بخر', en: 'Buy the animal pen first' },
 lvUp:    { fa: 'سطح بالا! سطح', en: 'Level up! Lv' },
 lvPts:   { fa: 'یک امتیاز استات گرفتی — منو ← شخصیت', en: '+1 stat point — Menu → Character' },
 fx_boots:{ fa: '+۶٪ سرعت حرکت/سطح', en: '+6% move speed per level' },
@@ -10676,7 +10960,7 @@ c.clearRect(0, 0, cv.width, cv.height);
 c.drawImage(rasterToCanvas(cropIcon(type)), 0, 0, 16, 16, 0, 0, cv.width, cv.height);
 }
 }
-const MENU_KINDS = ['land', 'farm2', 'worker', 'wTill', 'wPlant', 'wWater', 'wHarvest', 'wSpeed', 'sprinkler', 'basket', 'hoe', 'can', 'sickle', 'sword', 'armor', 'boots', 'fert'];
+const MENU_KINDS = ['land', 'farm2', 'worker', 'wTill', 'wPlant', 'wWater', 'wHarvest', 'wSpeed', 'sprinkler', 'basket', 'pen', 'chicken', 'sheep', 'cow', 'hoe', 'can', 'sickle', 'sword', 'armor', 'boots', 'fert'];
 function buildMenu(app, hooks) {
 const list = $('menuList');
 list.innerHTML = '';
@@ -11206,6 +11490,7 @@ function refreshHud(force) {
 if (env.getScene() === 'farm') {
 let sellTotal = 0, seedSum = 0;
 for (const k of Object.keys(CROPS)) { sellTotal += app.s.inventory[k] * CROPS[k].sell; seedSum += app.s.seeds ? (app.s.seeds[k] || 0) : 0; }
+sellTotal += goodsValue(app.s.inventory); // محصولات دامی
 _fn = 0;
 let dirty = force;
 const chk = (v) => { if (_fs[_fn] !== v) { _fs[_fn] = v; dirty = true; } _fn++; };
@@ -11294,7 +11579,7 @@ playSfx('upgrade'); buildMenu(app, menuHooks); refreshHud(true); saveNow();
 },
 onBuy(kind) {
 if (app.buy(kind)) { playSfx('upgrade'); buildMenu(app, menuHooks); refreshHud(true); saveNow(); }
-else toast(t('noCoins'));
+else toast(UPG[kind].req && !app.s.upgrades[UPG[kind].req] ? t('needPen') : t('noCoins'));
 },
 };
 function buildMenuIfOpen() { if ($('menu').classList.contains('show')) buildMenu(app, menuHooks); }
@@ -11600,6 +11885,7 @@ window.__gainXp = gainXp;
 farmScene.onHouse = () => { $('menuBtn').click(); }; // خانه = میز کار: منوی مأموریت‌ها/ارتقاها
 farmScene.onEvent = (k, n) => { // مأموریت‌ها: برداشت/فروش/طلایی
 if (k === 'harvest') gainXp(n * XP.harvest);
+if (k === 'animal') gainXp(n * 3); // دام: ۳ XP هر محصول
 const done = app.track(k, n);
 for (const q of done) { toast(t('questDone') + ' — ' + questLabel(q)); UI.buildMenuIfOpen(); UI.refreshHud(true); }
 if (done.length) playSfx('quest');
@@ -11663,7 +11949,7 @@ if (farmScene.equipSig !== app._eqSig) UI.syncEquip(); // فقط بعد از ت�
 const spd = (1 + 0.06 * app.s.upgrades.boots) * (1 + app._eqStats.speed);
 if (scene === 'farm' && farmScene.speedMul !== spd) farmScene.speedMul = spd;
 if (scene === 'farm') { const fm = (1 + 0.08 * app.s.upgrades.fert) * (1 + statVal(app.s, 'green')); if (farmScene.fertMul !== fm) farmScene.fertMul = fm; } // RPG: دستِ سبز
-refreshLvChip(app.s);
+refreshLvChip(app.s); syncGoodsChips(app.s);
 {
 const wantScene = scene === 'farm' ? 'farm' : 'dungeon';
 if (wantScene !== _ambScene) { _ambScene = wantScene; setAmbient(wantScene); }
