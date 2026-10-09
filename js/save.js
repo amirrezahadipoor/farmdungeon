@@ -13,7 +13,8 @@ export function defaultSave() {
     items: {},      // آیتم‌های پوشیدنی: id → تعداد
     equipped: null, // { hat, body, boots, sword } — idهای پوشیده‌شده
     selectedCrop: 'carrot',
-    upgrades: { pen: 0, chicken: 0, sheep: 0, cow: 0, land: 1, farm2: 0, worker: 0, wTill: 0, wPlant: 0, wWater: 0, wHarvest: 0, wSpeed: 0, sprinkler: 0, basket: 0, hoe: 0, can: 0, sickle: 0, sword: 0, armor: 0, boots: 0, fert: 0 },
+    cart: { sold: 0, away: -1 },
+    upgrades: { coop: 0, fold: 0, barn: 0, land: 1, farm2: 0, worker: 0, wTill: 0, wPlant: 0, wWater: 0, wHarvest: 0, wSpeed: 0, sprinkler: 0, basket: 0, hoe: 0, can: 0, sickle: 0, sword: 0, armor: 0, boots: 0, fert: 0 },
     stats: { bestFloor: 1, kills: 0, deaths: 0, runs: 0, playT: 0 }, // playT = ثانیه‌ی انباشته‌ی مزرعه — روزِ سیب‌دار بین سشن‌ها پیوسته
     farm: null, // [{i, kind, wet, crop}] — فقط تایل‌های تغییرکرده
     lastSeen: Date.now(),
@@ -29,6 +30,9 @@ function migrate(obj) {
   if (!obj.upgrades) obj.upgrades = defaultSave().upgrades;
   if (!obj.stats) obj.stats = defaultSave().stats;
   for (const k in defaultSave().stats) if (obj.stats[k] == null) obj.stats[k] = defaultSave().stats[k];
+  { const u = obj.upgrades || {}; // ن۱۳۸: آغلِ واحد + دام‌ها → سه آغلِ جدا (فقط با کارگر)
+    if (u.pen != null || u.chicken != null) { if (u.coop == null) u.coop = Math.min(5, u.chicken | 0); if (u.fold == null) u.fold = Math.min(5, u.sheep | 0); if (u.barn == null) u.barn = Math.min(5, u.cow | 0); delete u.pen; delete u.chicken; delete u.sheep; delete u.cow; } }
+  if (!obj.cart) obj.cart = { sold: 0, away: -1 };
   for (const k in defaultSave().upgrades) if (obj.upgrades[k] == null) obj.upgrades[k] = defaultSave().upgrades[k];
   if (obj.inventory) for (const k in defaultSave().inventory) if (obj.inventory[k] == null) obj.inventory[k] = 0;
   if (!obj.seeds) obj.seeds = defaultSave().seeds;

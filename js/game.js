@@ -1,6 +1,8 @@
 // game.js — هسته‌ی بازی (بدون DOM): قهرمان + به‌روزرسانی + صف کار + ذرات/متن‌ها + رندر صحنه
 // (اعمال ابزار/اقتصاد برداشت در game_apply.js — ن۳۴)
-import { Livestock, GOODS } from './livestock.js';
+import { Livestock } from './livestock.js';
+import { Merchant, STAND, sellable } from './merchant.js';
+import { findPath } from './astar.js';
 import { statVal } from './rpg.js';
 import { Farm, CROPS, WATER_TIME, FARM2_COST, SEED_TYPES } from './farm.js';
 import { farmCommand } from './farm_command.js';
@@ -47,6 +49,7 @@ export class Game {
     this.workers = [new FarmWorker(15.5 * TILE, 12.5 * TILE, 0)]; // کارگران مزرعه (تا ۲ تا — با ارتقا فعال)
     this.worker = this.workers[0]; // سازگاری
     this.livestock = new Livestock();
+    this.merchant = new Merchant(this.wallet); // تاجرِ گاری‌دار — تنها خریدار
     this.onEvent = null; // هوک مأموریت‌ها: (kind, n) — main_app وصل می‌کند
     this.onHouse = null; // تپ روی خانه → میز کار/منو (تخته‌ی مأموریت)
     this.sprCache = new Map();
@@ -106,6 +109,7 @@ export class Game {
     if (!h.path.length && h.work && h.act < 0) {
       const w = h.work;
       if (w.gate) { h.work = null; this.marker = null; this.onGate && this.onGate(); return; }
+      if (w.merchant) { h.work = null; this.marker = null; h.dir = 'right'; this.sellHere(); return; }
       if (w.house) { h.work = null; this.marker = null; this.onHouse && this.onHouse(); return; }
       if (w.tree) { // چیدن سیب — یک بار در روز از هر درخت
         const c = this.farm.cell(w.tx, w.ty);
@@ -184,6 +188,7 @@ export class Game {
     this.worker = this.workers[0] || null;
     for (const wk of this.workers) wk.update(dt, this);
     this.livestock.update(dt, this); // دامداری
+    this.merchant.update(dt, this);
     if (this.marker) this.marker.t += dt;
 
     // دوربین نرم
@@ -196,19 +201,29 @@ export class Game {
 
   float(x, y, txt, col) { this.fx.float(x, y, txt, col); }
 
+  // فروش فقط به تاجر: قهرمان به کنارِ گاری می‌رود و آنجا تحویل می‌دهد
   sellAll() {
-    const inv = this.wallet.inventory;
-    let total = 0, items = 0;
-    for (const k in inv) { const n = inv[k]; if (n && (CROPS[k] || GOODS[k])) { total += n * (CROPS[k] ? CROPS[k].sell : GOODS[k]); items += n; } } // سیب = غذای وعده، فروختنی نیست (ن۳۴: قبلاً CROPS.apple undefined → کرش!)
-    if (!items) { this.log.push({ k: 'nothing' }); return 0; }
-    for (const k in inv) if (CROPS[k] || GOODS[k]) inv[k] = 0; // فقط محصولات — سیب غذای وعده است (ن۳۴)
-    total = Math.round(total * (1 + statVal(this.wallet, 'trade'))); // RPG: بازاری
-    this.wallet.coins += total;
+    const m = this.merchant;
+    if (!m || !m.isHere()) { this.log.push({ k: 'cartAway' }); return 0; }
+    let any = false; for (const k in this.wallet.inventory) if (sellable(k) && this.wallet.inventory[k] > 0) { any = true; break; }
+    if (!any) { this.log.push({ k: 'nothing' }); return 0; }
+    const h = this.hero;
+    if (Math.hypot(h.x - (STAND.x * TILE + 8), h.y - (STAND.y * TILE + 8)) < 26) return this.sellHere();
+    const path = findPath(this.farm, Math.floor(h.x / TILE), Math.floor(h.y / TILE), STAND.x, STAND.y);
+    if (path == null) { this.log.push({ k: 'blocked' }); return 0; }
+    if (h.act >= 0) { h.act = -1; h.tool = 'none'; }
+    h.path = path; h.work = { merchant: true }; h.run = path.length > 8; this.marker = null;
+    return 0;
+  }
+  sellHere(who = this.hero, keep = null) { // تحویلِ همه‌ی محصولاتِ فروختنی (تا ظرفیتِ گاری)
+    const res = this.merchant.sell(this, keep);
+    if (res.away) { this.log.push({ k: 'cartAway' }); return 0; }
+    if (!res.items) { this.log.push({ k: 'nothing' }); return 0; }
     if (this.onSfx) this.onSfx('coin');
-    if (this.onEvent) this.onEvent('sell', items);
-    this.float(this.hero.x, this.hero.y - 44, '+' + total, 'gold');
-    this.log.push({ k: 'sold', n: total });
-    return total;
+    if (this.onEvent) this.onEvent('sell', res.items);
+    this.float(who.x, who.y - 44, '+' + res.coins, 'gold');
+    this.log.push({ k: 'sold', n: res.coins });
+    return res.coins;
   }
 
   // ---------- اسپرایت قهرمان (کش‌شده) ----------

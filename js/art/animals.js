@@ -22,6 +22,19 @@ const PAL = {
   m: [250, 250, 255, 255], // شیر
   c: [130, 170, 210, 255], // بطری
   g: [255, 255, 255, 255], // برق
+  R: [178, 52, 56, 255],   // شیروانی قرمز
+  Q: [130, 36, 52, 255],   // سایه‌ی قرمز
+  T: [222, 96, 82, 255],   // روشنِ قرمز
+  d: [150, 98, 60, 255],   // چوب
+  D: [108, 66, 46, 255],   // سایه‌ی چوب
+  l: [190, 136, 84, 255],  // روشنِ چوب
+  z: [226, 196, 110, 255], // کاه
+  Z: [176, 140, 70, 255],  // سایه‌ی کاه
+  n: [70, 46, 54, 255],    // درگاهِ تاریک
+  u: [92, 132, 196, 255],  // آبیِ سایبان
+  U: [62, 90, 150, 255],
+  a: [232, 120, 60, 255],  // هویج/کدو
+  v: [120, 180, 70, 255],  // سبزی
 };
 
 // همه رو به راست؛ چپ = آینه. ردیف‌های پا جدا تا فریم‌ها فقط پا را عوض کنند.
@@ -105,6 +118,77 @@ const COW_GRAZE = [
   '..ooooooooooooooPpPo..',
 ];
 
+const BLD = {
+  coop: [
+    '.....oooooo.....',
+    '....oTTRRRRo....',
+    '...oTRRRRRRRo...',
+    '..oTRRRRRRRRQo..',
+    '.oRRRRRRRRRRQQo.',
+    'ooooooooooooooo.',
+    '.olldddddddddo..',
+    '.oldddddoooddo..',
+    '.olddddonnnodo..',
+    '.oldDdDonnnodo..',
+    '.oldddddnnndDo..',
+    '.oDDDDDDnnnDDo..',
+    '..oooooooooooo..',
+  ],
+  fold: [
+    '..oooooooooooooooooooooooooooo..',
+    '.ozzzzzzzzzzzzzzzzzzzzzzzzzzzzo.',
+    'ozzZzzzzZzzzzZzzzzZzzzzZzzzzZzzo',
+    'oZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZo',
+    '.oooooooooooooooooooooooooooooo.',
+    '.old..........................do',
+    '.old..........................do',
+    '.old.....nnnnnnnnnnnnnnnn.....do',
+    '.old.....nnnnnnnnnnnnnnnn.....do',
+    '.oDD.....nnnZZnnnnZZnnnnn.....DD',
+    '.ooo......zzzzzzzzzzzzzz......oo',
+  ],
+  barn: [
+    '...........oooooooooo...........',
+    '.........ooTTTTRRRRRRoo.........',
+    '.......ooTTRRRRRRRRRRRRoo.......',
+    '.....ooTRRRRRRoooRRRRRRRQoo.....',
+    '...ooTRRRRRRRowwwoRRRRRRRQQoo...',
+    '.ooRRRRRRRRRRRowwoRRRRRRRRRQQoo.',
+    'oooooooooooooooooooooooooooooooo',
+    '.oTRRRRRRRRRRRRRRRRRRRRRRRRRRQo.',
+    '.oTRRRRRoooooooooooooooRRRRRRQo.',
+    '.oTRRRRRowwnnnnnnnnnwwoRRRRRRQo.',
+    '.oTRRRRRonwwnnnnnnnwwnoRRRRRRQo.',
+    '.oTRRRRRonnwwnnnnnwwnnoRRRRRRQo.',
+    '.oTRRRRRonnnwwnnnwwnnnoRRRRRRQo.',
+    '.oTRRRRRonnnnwwnwwnnnnoRRRRRRQo.',
+    '.oTRRRRRonnnnnwwwnnnnnoRRRRRRQo.',
+    '.oTRRRRRonnnnwwnwwnnnnoRRRRRRQo.',
+    '.oQQQQQQonnnwwnnnwwnnnoQQQQQQQo.',
+    '.ooooooooooooooooooooooooooooooo',
+  ],
+};
+// گاریِ تاجر (رو به چپ: مالبند سمت چپ) — سایبانِ راه‌راه، صندوقِ محصول، چرخ
+const CART = [
+  '.....oooooooooooooooooooo.....',
+  '....ouuwwuuwwuuwwuuwwuuwwo....',
+  '...ouuwwuuwwuuwwuuwwuuwwuuo...',
+  '...oUUwwUUwwUUwwUUwwUUwwUUo...',
+  '...oooooooooooooooooooooooo...',
+  '....od..................do....',
+  '....od..oaaovvoaaoovvo..do....',
+  '....od.oaaavvvaaaovvvvo.do....',
+  'ooooooooooooooooooooooooooo...',
+  '.ollllllllllllllllllllllldo...',
+  '.odddddddddddddddddddddddDo...',
+  '.oDDDDDoooDDDDDDDDDDDDDDDDo...',
+  '..ooooodddooooooooooooooooo...',
+  '.....odlllDo......................'.slice(0, 30),
+  '.....odDoDDo..................',
+  '......oddDo...................',
+  '.......ooo....................',
+];
+
 const ICONS = {
   egg: ['..ooo...', '.owwgo..', 'owwwwwo.', 'owwwwso.', 'owwwsso.', '.osssso.', '..oooo..'],
   wool: ['.oo.oo..', 'owwowwo.', 'owwwwwwo', 'owswwswo', 'osswssso', '.oooooo.'],
@@ -149,6 +233,16 @@ export function goodIcon(kind) {
   const key = 'i' + kind;
   let s = _cache.get(key);
   if (!s) { s = paint(ICONS[kind].map((r) => r.replace(/[^a-zA-Z.]/g, 'o'))); _cache.set(key, s); }
+  return s;
+}
+export function penBuilding(id) {
+  const key = 'b' + id; let s = _cache.get(key);
+  if (!s) { s = paint(BLD[id]); _cache.set(key, s); }
+  return s;
+}
+export function cartSprite(face) {
+  const key = 'cart' + face; let s = _cache.get(key);
+  if (!s) { s = paint(CART); if (face > 0) s = mirror(s); _cache.set(key, s); }
   return s;
 }
 // سایه‌ی بیضیِ زیرِ پا (نیم‌شفاف)

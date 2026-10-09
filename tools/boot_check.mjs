@@ -202,7 +202,7 @@ async function s07_lang() {
   w.document.getElementById('lang').click();
   await sleep(200);
   const back = w.document.querySelector('[data-i18n="sellAll"]').textContent;
-  const ok = a.errors.length === 0 && before === 'فروش همه' && after === 'Sell all' && back === 'فروش همه' && saved.lang === 'en';
+  const ok = a.errors.length === 0 && before === 'فروش به تاجر' && after === 'Sell to merchant' && back === 'فروش به تاجر' && saved.lang === 'en';
   a.close();
   return [ok, `fa→"${after}"→"${back}" · save.lang=${saved.lang}`];
 }

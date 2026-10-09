@@ -66,7 +66,7 @@ export class Farm {
   }
   insideFence(x, y) { return x >= 6 && x <= 23 && y >= 6 && y <= 13; }
   cell(x, y) { return (x < 0 || y < 0 || x >= this.cols || y >= this.rows) ? null : this.grid[y * this.cols + x]; }
-  walkable(x, y) { const c = this.cell(x, y); return !!c && (c.kind === 'grass' || c.kind === 'soil' || c.kind === 'path'); }
+  walkable(x, y) { const c = this.cell(x, y); return !!c && !c.block && (c.kind === 'grass' || c.kind === 'soil' || c.kind === 'path'); }
   isGate(x, y) { const c = this.cell(x, y); return !!c && c.kind === 'gate'; }
   farmable(x, y) { const c = this.cell(x, y); return !!c && c.farmable; }
   mature(c) { return !!c.crop && c.crop.progress >= CROPS[c.crop.type].grow; }

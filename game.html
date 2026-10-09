@@ -2713,14 +2713,26 @@ const pairs = [
 ];
 for (const [a, b] of pairs) WORKER2_SWAP.set(hexRGB(a).join(','), hexRGB(b));
 }
+const MERCHANT_SWAP = new Map(); // تاجرِ دوره‌گرد: ردای قرمز، شالِ کرم، کلاهِ حصیری
+{
+const pairs = [
+[PAL.jacketHi, PAL.scarf], [PAL.jacket, PAL.scarf], [PAL.jacketSh, PAL.scarfSh], [PAL.jacketDeep, PAL.hairSh],
+[PAL.scarf, PAL.shirt], [PAL.scarfSh, PAL.shirtSh], [PAL.hair, PAL.hairSh],
+];
+for (const [a, b] of pairs) MERCHANT_SWAP.set(hexRGB(a).join(','), hexRGB(b));
+}
 function recolorWorker(s, variant = 0) {
-const map = variant ? WORKER2_SWAP : WORKER_SWAP;
+const map = variant === 2 ? MERCHANT_SWAP : variant ? WORKER2_SWAP : WORKER_SWAP;
 const t = new Raster(s.w, s.h);
 t.d.set(s.d);
 for (let i = 0; i < t.d.length; i += 4) {
 if (t.d[i + 3] < 8) continue;
 const to = map.get(t.d[i] + ',' + t.d[i + 1] + ',' + t.d[i + 2]);
 if (to) { t.d[i] = to[0]; t.d[i + 1] = to[1]; t.d[i + 2] = to[2]; }
+else if (variant === 2) { // تاجر: هر رنگِ آبیِ کاپشن (پیکسل‌های AI خارج از PAL) → ردای قرمزِ هم‌روشنا
+const r = t.d[i], g = t.d[i + 1], b = t.d[i + 2];
+if (b > r + 18 && b >= g) { t.d[i] = Math.min(255, b + 20); t.d[i + 1] = r * 0.55 | 0; t.d[i + 2] = r * 0.6 | 0; }
+}
 }
 return t;
 }
@@ -4846,7 +4858,8 @@ tv.x = tx2; tv.y = ty2; tn++; // برای پرندگان
 }
 { let wt = FENTS[fn] || (FENTS[fn] = { y: 0, t: 0, sx: 0, sy: 0, v: 0 }); wt.y = h.y; wt.t = 1; fn++; }
 { let wt = FENTS[fn] || (FENTS[fn] = { y: 0, t: 0, sx: 0, sy: 0, v: 0 }); wt.y = (HOUSE.y + 2) * TILE; wt.t = 3; fn++; } // خانه
-for (const an of game.livestock.list) { let wt = FENTS[fn] || (FENTS[fn] = { y: 0, t: 0, sx: 0, sy: 0, v: 0, w: null }); wt.y = an.y; wt.t = 2; wt.w = an; fn++; } // دام‌ها (y-sort)
+for (const an of game.livestock.drawables()) { let wt = FENTS[fn] || (FENTS[fn] = { y: 0, t: 0, sx: 0, sy: 0, v: 0, w: null }); wt.y = an.y; wt.t = 2; wt.w = an; fn++; } // آغل‌ها + دام‌ها (y-sort)
+{ const m = game.merchant; if (m && m.state !== 'away') { let wt = FENTS[fn] || (FENTS[fn] = { y: 0, t: 0, sx: 0, sy: 0, v: 0, w: null }); wt.y = m.y; wt.t = 2; wt.w = m; fn++; } } // گاریِ تاجر
 for (const wk of game.workers) { let wt = FENTS[fn] || (FENTS[fn] = { y: 0, t: 0, sx: 0, sy: 0, v: 0, w: null }); wt.y = wk.y; wt.t = 2; wt.w = wk; fn++; }
 for (let i = 0; i < fn; i++) for (let j = i + 1; j < fn; j++) if (FENTS[j].y < FENTS[i].y) { const tmp = FENTS[i]; FENTS[i] = FENTS[j]; FENTS[j] = tmp; }
 for (let i = 0; i < fn; i++) {
@@ -7784,7 +7797,7 @@ c.farmable = soft && ((insideFence && (c.y - 6) < rows) || this.inFarm2(c.x, c.y
 }
 insideFence(x, y) { return x >= 6 && x <= 23 && y >= 6 && y <= 13; }
 cell(x, y) { return (x < 0 || y < 0 || x >= this.cols || y >= this.rows) ? null : this.grid[y * this.cols + x]; }
-walkable(x, y) { const c = this.cell(x, y); return !!c && (c.kind === 'grass' || c.kind === 'soil' || c.kind === 'path'); }
+walkable(x, y) { const c = this.cell(x, y); return !!c && !c.block && (c.kind === 'grass' || c.kind === 'soil' || c.kind === 'path'); }
 isGate(x, y) { const c = this.cell(x, y); return !!c && c.kind === 'gate'; }
 farmable(x, y) { const c = this.cell(x, y); return !!c && c.farmable; }
 mature(c) { return !!c.crop && c.crop.progress >= CROPS[c.crop.type].grow; }
@@ -7916,6 +7929,7 @@ return {ITEMS, SLOTS, equipSig, tierCol, seedCol, rollItemDrop, rollSeedDrop, ro
 const {ITEMS, SLOTS, equipSig, tierCol, seedCol, rollItemDrop, rollSeedDrop, rollCoinDrop, equipStats} = __m_items;
 const __m_farm_worker = (() => {
 const PRIO = { sickle: 0, can: 1, seed: 2, hoe: 3 }; // برداشت > آب > کاشت > شخم
+const workerKeep = (k) => (CROPS[k] ? 5 : 0); // کارگر ۵ تا از هر محصول را برای غذای سفر نگه می‌دارد
 class FarmWorker {
 constructor(x, y, variant = 0) {
 this.x = x; this.y = y;
@@ -7964,8 +7978,9 @@ const { tx, ty, tool } = this.task;
 const cx = tx * TILE + 8, cy = ty * TILE + 8;
 const dx = cx - this.x, dy = cy - this.y;
 this.dir = Math.abs(dx) > Math.abs(dy) ? (dx > 0 ? 'right' : 'left') : (dy > 0 ? 'down' : 'up');
-this.tool = tool; this.act = 0; this.applied = false;
-this.actDur = ACT_DUR[tool] * this.actMul(up);
+const care = tool === 'collect' || tool === 'sell';
+this.tool = care ? 'none' : tool; this.act = 0; this.applied = false;
+this.actDur = care ? 0.7 : ACT_DUR[tool] * this.actMul(up);
 return;
 }
 this.loco.update(dt, 0, 0, 0, false);
@@ -7976,6 +7991,7 @@ if (this.wanderT <= 0) { this.wanderT = 7 + Math.random() * 5; this._wander(game
 }
 _findTask(game) {
 const up = game.toolLvls, f = game.farm, w = game.wallet;
+if (this._careTask(game)) return; // دام‌ها و تحویل به تاجر
 const canPlant = up.wPlant && (w.seeds ? w.seeds[w.selectedCrop] : 0) > 0;
 const claimed = new Set();
 for (const o of (game.workers || [])) if (o !== this && o.task) claimed.add(o.task.tx + ',' + o.task.ty);
@@ -7998,6 +8014,23 @@ const path = this._pathTo(f, cand.tx, cand.ty);
 if (path && path.length) { this.task = cand; this.path = path; return; }
 }
 this.thinkT = 1.5; // فعلاً کاری نیست
+}
+_careTask(game) {
+const f = game.farm, ls = game.livestock, m = game.merchant, me = [Math.floor(this.x / TILE), Math.floor(this.y / TILE)];
+const busy = (kind, pen) => (game.workers || []).some((o) => o !== this && o.task && o.task.tool === kind && o.task.pen === pen);
+if (ls) for (const id of PEN_KEYS) {
+if (!(f.pens && f.pens[id]) || !ls.readyIn(id) || busy('collect', id)) continue;
+const [ix, iy] = PENS[id].inDoor, path = findPath(f, me[0], me[1], ix, iy);
+if (path) { this.task = { tool: 'collect', pen: id, tx: ix, ty: iy }; this.path = path; return true; }
+}
+if (m && m.isHere() && !busy('sell')) {
+let n = 0; for (const k in game.wallet.inventory) if (sellable(k)) n += Math.max(0, (game.wallet.inventory[k] | 0) - workerKeep(k));
+if (n >= 6) {
+const path = findPath(f, me[0], me[1], STAND.x, STAND.y);
+if (path) { this.task = { tool: 'sell', tx: STAND.x + 1, ty: STAND.y + 1 }; this.path = path; return true; }
+}
+}
+return false;
 }
 _wander(game) { // آدم بیکار جایی می‌رود — فقط داخل زمین مزرعه/باغ
 if (this.task || this.path.length) return;
@@ -8022,6 +8055,8 @@ return findPath(f, Math.floor(this.x / TILE), Math.floor(this.y / TILE), best.x,
 _apply(game) {
 const t = this.task;
 if (!t) return;
+if (t.tool === 'collect') { game.livestock.collect(game, t.pen); return; }
+if (t.tool === 'sell') { game.sellHere(this, workerKeep); return; }
 const res = game.farm.applyTool(t.tool, t.tx, t.ty, game.wallet.selectedCrop);
 if (!res.ok) return;
 if (res.ev === 'water') { const c0 = game.farm.cell(t.tx, t.ty); if (c0) c0.wetT = WATER_TIME * (1 + 0.2 * game.toolLvls.can) * pondK(t.tx, t.ty); } // هم‌فرمول قهرمان (ن۳۴)
@@ -8345,6 +8380,19 @@ b: [120, 88, 70, 255],   // سُم
 m: [250, 250, 255, 255], // شیر
 c: [130, 170, 210, 255], // بطری
 g: [255, 255, 255, 255], // برق
+R: [178, 52, 56, 255],   // شیروانی قرمز
+Q: [130, 36, 52, 255],   // سایه‌ی قرمز
+T: [222, 96, 82, 255],   // روشنِ قرمز
+d: [150, 98, 60, 255],   // چوب
+D: [108, 66, 46, 255],   // سایه‌ی چوب
+l: [190, 136, 84, 255],  // روشنِ چوب
+z: [226, 196, 110, 255], // کاه
+Z: [176, 140, 70, 255],  // سایه‌ی کاه
+n: [70, 46, 54, 255],    // درگاهِ تاریک
+u: [92, 132, 196, 255],  // آبیِ سایبان
+U: [62, 90, 150, 255],
+a: [232, 120, 60, 255],  // هویج/کدو
+v: [120, 180, 70, 255],  // سبزی
 };
 const CHICK_BODY = [
 '......rr...',
@@ -8423,6 +8471,75 @@ const COW_GRAZE = [
 '.osssssssppsssssopppo.',
 '..ooooooooooooooPpPo..',
 ];
+const BLD = {
+coop: [
+'.....oooooo.....',
+'....oTTRRRRo....',
+'...oTRRRRRRRo...',
+'..oTRRRRRRRRQo..',
+'.oRRRRRRRRRRQQo.',
+'ooooooooooooooo.',
+'.olldddddddddo..',
+'.oldddddoooddo..',
+'.olddddonnnodo..',
+'.oldDdDonnnodo..',
+'.oldddddnnndDo..',
+'.oDDDDDDnnnDDo..',
+'..oooooooooooo..',
+],
+fold: [
+'..oooooooooooooooooooooooooooo..',
+'.ozzzzzzzzzzzzzzzzzzzzzzzzzzzzo.',
+'ozzZzzzzZzzzzZzzzzZzzzzZzzzzZzzo',
+'oZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZo',
+'.oooooooooooooooooooooooooooooo.',
+'.old..........................do',
+'.old..........................do',
+'.old.....nnnnnnnnnnnnnnnn.....do',
+'.old.....nnnnnnnnnnnnnnnn.....do',
+'.oDD.....nnnZZnnnnZZnnnnn.....DD',
+'.ooo......zzzzzzzzzzzzzz......oo',
+],
+barn: [
+'...........oooooooooo...........',
+'.........ooTTTTRRRRRRoo.........',
+'.......ooTTRRRRRRRRRRRRoo.......',
+'.....ooTRRRRRRoooRRRRRRRQoo.....',
+'...ooTRRRRRRRowwwoRRRRRRRQQoo...',
+'.ooRRRRRRRRRRRowwoRRRRRRRRRQQoo.',
+'oooooooooooooooooooooooooooooooo',
+'.oTRRRRRRRRRRRRRRRRRRRRRRRRRRQo.',
+'.oTRRRRRoooooooooooooooRRRRRRQo.',
+'.oTRRRRRowwnnnnnnnnnwwoRRRRRRQo.',
+'.oTRRRRRonwwnnnnnnnwwnoRRRRRRQo.',
+'.oTRRRRRonnwwnnnnnwwnnoRRRRRRQo.',
+'.oTRRRRRonnnwwnnnwwnnnoRRRRRRQo.',
+'.oTRRRRRonnnnwwnwwnnnnoRRRRRRQo.',
+'.oTRRRRRonnnnnwwwnnnnnoRRRRRRQo.',
+'.oTRRRRRonnnnwwnwwnnnnoRRRRRRQo.',
+'.oQQQQQQonnnwwnnnwwnnnoQQQQQQQo.',
+'.ooooooooooooooooooooooooooooooo',
+],
+};
+const CART = [
+'.....oooooooooooooooooooo.....',
+'....ouuwwuuwwuuwwuuwwuuwwo....',
+'...ouuwwuuwwuuwwuuwwuuwwuuo...',
+'...oUUwwUUwwUUwwUUwwUUwwUUo...',
+'...oooooooooooooooooooooooo...',
+'....od..................do....',
+'....od..oaaovvoaaoovvo..do....',
+'....od.oaaavvvaaaovvvvo.do....',
+'ooooooooooooooooooooooooooo...',
+'.ollllllllllllllllllllllldo...',
+'.odddddddddddddddddddddddDo...',
+'.oDDDDDoooDDDDDDDDDDDDDDDDo...',
+'..ooooodddooooooooooooooooo...',
+'.....odlllDo......................'.slice(0, 30),
+'.....odDoDDo..................',
+'......oddDo...................',
+'.......ooo....................',
+];
 const ICONS = {
 egg: ['..ooo...', '.owwgo..', 'owwwwwo.', 'owwwwso.', 'owwwsso.', '.osssso.', '..oooo..'],
 wool: ['.oo.oo..', 'owwowwo.', 'owwwwwwo', 'owswwswo', 'osswssso', '.oooooo.'],
@@ -8466,61 +8583,84 @@ let s = _cache.get(key);
 if (!s) { s = paint(ICONS[kind].map((r) => r.replace(/[^a-zA-Z.]/g, 'o'))); _cache.set(key, s); }
 return s;
 }
+function penBuilding(id) {
+const key = 'b' + id; let s = _cache.get(key);
+if (!s) { s = paint(BLD[id]); _cache.set(key, s); }
+return s;
+}
+function cartSprite(face) {
+const key = 'cart' + face; let s = _cache.get(key);
+if (!s) { s = paint(CART); if (face > 0) s = mirror(s); _cache.set(key, s); }
+return s;
+}
 const _sh = [20, 30, 16, 90];
 function drawAnimalShadow(r, cx, by, w) { r.ellipse(cx, by, Math.max(3, w >> 1), 2, _sh); }
-return {animalSprite, goodIcon, drawAnimalShadow};
+return {animalSprite, goodIcon, penBuilding, cartSprite, drawAnimalShadow};
 })();
-const {animalSprite, goodIcon, drawAnimalShadow} = __m_art_animals;
+const {animalSprite, goodIcon, penBuilding, cartSprite, drawAnimalShadow} = __m_art_animals;
 const __m_livestock = (() => {
-const PEN = { x0: 1, x1: 10, y0: 15, y1: 18, door: 17 }; // در: ضلع شرقی (10,17)
-const inPen = (tx, ty) => tx > PEN.x0 && tx < PEN.x1 && ty > PEN.y0 && ty <= PEN.y1;
+const ANIMAL_MAX = 5;
+const PENS = {
+coop: { animal: 'chicken', good: 'egg',  x0: 1,  x1: 4,  y0: 16, y1: 18, door: [3, 16],  inDoor: [3, 17],  bld: [[2, 16]],           out: [3, 15] },
+fold: { animal: 'sheep',   good: 'wool', x0: 4,  x1: 10, y0: 16, y1: 18, door: [8, 16],  inDoor: [8, 17],  bld: [[5, 16], [6, 16]],  out: [8, 15] },
+barn: { animal: 'cow',     good: 'milk', x0: 24, x1: 28, y0: 1,  y1: 7,  door: [25, 7],  inDoor: [25, 6],  bld: [[26, 1], [27, 1]],  out: [25, 8], wallB: true }, // دیوارِ پایین هم دارد (بقیه روی پرچینِ جنوبی)
+};
+const PEN_KEYS = Object.keys(PENS);
 const ANIMALS = {
-chicken: { good: 'egg',  time: 40,  sell: 14, speed: 14, w: 11 },
-sheep:   { good: 'wool', time: 90,  sell: 48, speed: 9,  w: 17 },
-cow:     { good: 'milk', time: 140, sell: 95, speed: 7,  w: 21 },
+chicken: { time: 40,  speed: 12 },
+sheep:   { time: 90,  speed: 8 },
+cow:     { time: 140, speed: 6 },
 };
 const GOODS = { egg: 14, wool: 48, milk: 95 };
-const goodsValue = (inv) => { let v = 0; for (const k in GOODS) v += (inv[k] | 0) * GOODS[k]; return v; };
-function stampPen(farm) {
-if (farm.penOn) return;
-farm.penOn = true;
-for (let y = PEN.y0; y <= PEN.y1; y++) for (let x = PEN.x0; x <= PEN.x1; x++) {
+const isWall = (p, x, y) => (x === p.x0 || x === p.x1 || y === p.y0 || (p.wallB && y === p.y1)) && x >= p.x0 && x <= p.x1 && y >= p.y0 && y <= p.y1;
+function stampPen(farm, id) {
+farm.pens = farm.pens || {};
+if (farm.pens[id]) return;
+farm.pens[id] = true;
+const p = PENS[id];
+const isBld = (x, y) => p.bld.some(([bx, by]) => bx === x && by === y);
+for (let y = p.y0; y <= p.y1; y++) for (let x = p.x0; x <= p.x1; x++) {
 const c = farm.cell(x, y); if (!c) continue;
-const edge = y === PEN.y0 || x === PEN.x0 || x === PEN.x1;
-if (edge && !(x === PEN.x1 && y === PEN.door)) { c.kind = 'fence'; c.farmable = false; }
+c.farmable = false;
+if (isBld(x, y)) { c.kind = 'grass'; c.variant &= 1; c.block = true; }
+else if (isWall(p, x, y) && !(x === p.door[0] && y === p.door[1])) c.kind = 'fence';
 else if (c.kind === 'tree' || c.kind === 'fence') { c.kind = 'grass'; c.variant &= 1; }
 }
-for (let y = PEN.y0; y <= PEN.y1; y++) for (let x = PEN.x0; x <= PEN.x1; x++) {
-const c = farm.cell(x, y); if (!c || c.kind !== 'fence') continue;
-const l = farm.cell(x - 1, y), r = farm.cell(x + 1, y);
+const [ox, oy] = p.out;
+const clr = (x, y) => { const c = farm.cell(x, y); if (c && c.kind === 'tree') { c.kind = 'grass'; c.variant &= 1; } };
+if (oy === 15) for (let x = 1; x <= 13; x++) clr(x, 15); else clr(ox, oy);
+for (const c of farm.grid) if (c.kind === 'fence') { // ریلِ افقی (مثل farm_layout)
+const l = farm.cell(c.x - 1, c.y), r = farm.cell(c.x + 1, c.y);
 c.fenceH = (l && l.kind === 'fence') || (r && r.kind === 'fence');
 }
-for (const [dx, dy] of [[1, 0], [1, -1], [1, 1], [2, 0]]) { const d = farm.cell(PEN.x1 + dx, PEN.door + dy); if (d && d.kind === 'tree') d.kind = 'grass'; } // جلوی در باز بماند
 farm.onAll?.();
 }
 class Animal {
-constructor(kind, i) {
-this.kind = kind; this.def = ANIMALS[kind];
-this.x = (PEN.x0 + 1.5 + ((i * 3.7) % (PEN.x1 - PEN.x0 - 2))) * TILE;
-this.y = (PEN.y0 + 1.6 + ((i * 1.3) % 2)) * TILE;
-this.face = i % 2 ? -1 : 1; this.tx = this.x; this.ty = this.y;
-this.idleT = Math.random() * 2; this.graze = 0;
+constructor(kind, pen, i) {
+this.kind = kind; this.pen = pen; this.def = ANIMALS[kind];
+const [x, y] = this._spot(i * 0.37 + 0.11, i * 0.61 + 0.23);
+this.x = x; this.y = y; this.tx = x; this.ty = y;
+this.face = i % 2 ? -1 : 1; this.idleT = Math.random() * 2; this.graze = 0; this.walkT = 0;
 this.prod = this.def.time * (0.3 + Math.random() * 0.5); this.ready = false;
+}
+_spot(a, b) { // نقطه‌ی تصادفیِ داخلِ آغل (پیکسل، نقطه‌ی پا)
+const p = this.pen;
+const x = (p.x0 + 1 + 0.3 + (a % 1) * (p.x1 - p.x0 - 1.6)) * TILE;
+const y = (p.y0 + 1 + 0.55 + (b % 1) * (p.y1 - p.y0 - (p.wallB ? 1.75 : 0.75))) * TILE;
+return [x, y];
 }
 update(dt) {
 if (!this.ready) { this.prod -= dt; if (this.prod <= 0) this.ready = true; }
 if (this.idleT > 0) { this.idleT -= dt; this.graze = Math.max(0, this.graze - dt); return; }
 const dx = this.tx - this.x, dy = this.ty - this.y, d = Math.hypot(dx, dy);
-if (d < 1.5) { // مقصد بعدی یا ایستادن/چریدن
+if (d < 1.5) {
 this.idleT = 1 + Math.random() * 3; if (Math.random() < 0.6) this.graze = this.idleT;
-this.tx = (PEN.x0 + 1.2 + Math.random() * (PEN.x1 - PEN.x0 - 1.4)) * TILE;
-this.ty = (PEN.y0 + 1.5 + Math.random() * (PEN.y1 - PEN.y0 - 0.6)) * TILE;
+[this.tx, this.ty] = this._spot(Math.random(), Math.random());
 return;
 }
 const s = Math.min(d, this.def.speed * dt);
-this.x += (dx / d) * s; this.y += (dy / d) * s;
+this.x += (dx / d) * s; this.y += (dy / d) * s; this.walkT += dt;
 if (Math.abs(dx) > 0.5) this.face = dx > 0 ? 1 : -1;
-this.walkT = (this.walkT || 0) + dt;
 }
 render(r, cx, cy, time) {
 const moving = this.idleT <= 0;
@@ -8529,45 +8669,58 @@ const sp = animalSprite(this.kind, fr, this.face);
 const sx = Math.round(this.x) - (sp.w >> 1) - cx, sy = Math.round(this.y) - sp.h - cy;
 drawAnimalShadow(r, sx + (sp.w >> 1), sy + sp.h, sp.w - 2);
 sp.over(r, sx, sy);
-if (this.ready) { // حباب محصول با بالا-پایینِ آرام (۲ پله)
-const ic = goodIcon(this.def.good), bob = Math.floor(time * 2 + this.x) % 2;
+if (this.ready) {
+const ic = goodIcon(PENS_BY_ANIMAL[this.kind].good), bob = Math.floor(time * 2 + this.x) % 2;
 ic.over(r, sx + (sp.w >> 1) - (ic.w >> 1), sy - ic.h - 2 - bob);
 }
 }
 }
+const PENS_BY_ANIMAL = {}; for (const k of PEN_KEYS) PENS_BY_ANIMAL[PENS[k].animal] = PENS[k];
+class PenBuilding { // ساختمانِ آغل به‌عنوان موجودیتِ y-sort
+constructor(id) { const p = PENS[id]; this.id = id; const b = p.bld; this.x = b[0][0] * TILE; this.y = (b[0][1] + 1) * TILE - 1; this.w = b.length * TILE; }
+render(r, cx, cy) { const s = penBuilding(this.id); s.over(r, this.x + ((this.w - s.w) >> 1) - cx, this.y + 1 - s.h - cy); }
+}
 class Livestock {
-constructor() { this.list = []; this._t = 0; }
+constructor() { this.list = []; this.blds = []; }
 sync(up, farm) {
-if (up.pen && farm && !farm.penOn) stampPen(farm);
-for (const k of Object.keys(ANIMALS)) {
-const want = up.pen ? (up[k] | 0) : 0;
-let have = this.list.filter((a) => a.kind === k).length;
-while (have < want) this.list.push(new Animal(k, this.list.length)), have++;
+for (const id of PEN_KEYS) {
+const want = Math.min(ANIMAL_MAX, up[id] | 0);
+if (want && farm && !(farm.pens && farm.pens[id])) { stampPen(farm, id); }
+if (want && !this.blds.some((b) => b.id === id)) this.blds.push(new PenBuilding(id));
+let have = 0; for (const a of this.list) if (a.pen === PENS[id]) have++;
+while (have < want) this.list.push(new Animal(PENS[id].animal, PENS[id], have++));
 }
 }
 update(dt, game) {
 this.sync(game.toolLvls, game.farm);
 for (const a of this.list) a.update(dt);
-const h = game.hero; // قهرمان داخل یا کنار آغل ⇒ جمع‌آوری
-if (this.list.length && h.x > (PEN.x0) * TILE && h.x < (PEN.x1 + 1) * TILE && h.y > (PEN.y0 - 0.5) * TILE && h.y < (PEN.y1 + 1) * TILE) this.collect(game);
+const h = game.hero; // قهرمان کنارِ/داخلِ یک آغل ⇒ جمع‌آوریِ همان آغل
+for (const id of PEN_KEYS) {
+const p = PENS[id];
+if (game.farm.pens && game.farm.pens[id] && h.x > p.x0 * TILE - 8 && h.x < (p.x1 + 1) * TILE + 8 && h.y > p.y0 * TILE - 8 && h.y < (p.y1 + 1) * TILE + 8) this.collect(game, id);
 }
-collect(game) {
+}
+readyIn(id) { let n = 0; for (const a of this.list) if (a.ready && a.pen === PENS[id]) n++; return n; }
+collect(game, id) {
 let n = 0;
-for (const a of this.list) if (a.ready) {
+for (const a of this.list) if (a.ready && a.pen === PENS[id]) {
 a.ready = false; a.prod = a.def.time;
-game.wallet.inventory[a.def.good] = (game.wallet.inventory[a.def.good] | 0) + 1; n++;
+const g = PENS[id].good;
+game.wallet.inventory[g] = (game.wallet.inventory[g] | 0) + 1; n++;
 game.float(a.x, a.y - 22, '+1', 'gold');
 }
 if (n) { if (game.onSfx) game.onSfx('harvest'); if (game.onEvent) game.onEvent('animal', n); }
 return n;
 }
+drawables() { return this.blds.concat(this.list); }
 }
 let _gk = '';
 function syncGoodsChips(s) {
 const row = document.querySelector('#dockFarm .row.chips'); if (!row) return;
-const key = (s.upgrades.pen | 0) + ':' + Object.keys(GOODS).map((k) => s.inventory[k] | 0).join(',');
+const key = PEN_KEYS.map((id) => (s.upgrades[id] | 0) + '/' + (s.inventory[PENS[id].good] | 0)).join(',');
 if (key === _gk) return; _gk = key;
-for (const k of Object.keys(GOODS)) {
+for (const id of PEN_KEYS) {
+const k = PENS[id].good;
 let el = document.getElementById('gc-' + k);
 if (!el) {
 el = document.createElement('div'); el.className = 'chip'; el.id = 'gc-' + k;
@@ -8575,13 +8728,78 @@ const cv = rasterToCanvas(goodIcon(k)); cv.className = 'pico'; cv.style.width = 
 el.appendChild(cv); el.appendChild(document.createElement('b'));
 const anchor = row.querySelector('.f2:last-of-type'); row.insertBefore(el, anchor ? anchor.nextSibling : null);
 }
-el.style.display = s.upgrades.pen ? '' : 'none';
+el.style.display = s.upgrades[id] ? '' : 'none';
 el.querySelector('b').textContent = faNum(s.inventory[k] | 0);
 }
 }
-return {PEN, inPen, ANIMALS, GOODS, goodsValue, stampPen, Livestock, syncGoodsChips};
+return {ANIMAL_MAX, PENS, PEN_KEYS, ANIMALS, GOODS, stampPen, Livestock, syncGoodsChips};
 })();
-const {PEN, inPen, ANIMALS, GOODS, goodsValue, stampPen, Livestock, syncGoodsChips} = __m_livestock;
+const {ANIMAL_MAX, PENS, PEN_KEYS, ANIMALS, GOODS, stampPen, Livestock, syncGoodsChips} = __m_livestock;
+const __m_merchant = (() => {
+const CART_CAP = 50;                 // ظرفیتِ خریدِ روزانه (تعداد محصول)
+const CART = { x: 21 * TILE + 8, y: 17 * TILE + 10 }; // جای پارکِ گاری (جنوبِ مسیر، شرقِ خانه)
+const STAND = { x: 20, y: 16 };       // تایلی که فروشنده (قهرمان/کارگر) کنارِ گاری می‌ایستد
+const OFF_X = 31 * TILE;                     // بیرونِ نقشه از شرق
+const priceOf = (k) => (CROPS[k] ? CROPS[k].sell : GOODS[k] || 0);
+const sellable = (k) => !!(CROPS[k] || GOODS[k]); // سیب = غذای وعده، فروختنی نیست
+class Merchant {
+constructor(wallet) {
+this.w = wallet;
+if (!wallet.cart || typeof wallet.cart !== 'object') wallet.cart = { sold: 0, away: -1 };
+this.state = wallet.cart.away >= 0 ? 'away' : 'here';
+this.x = this.state === 'here' ? CART.x : OFF_X; this.y = CART.y; this.face = -1;
+this.npc = new FarmWorker(this.x + 16, this.y, 2); this.npc.dir = 'left';
+}
+get left() { return Math.max(0, CART_CAP - this.w.cart.sold); }
+isHere() { return this.state === 'here'; }
+day(game) { return Math.floor(game.time / DAY_LEN); }
+update(dt, game) {
+const c = this.w.cart;
+if (this.state === 'away' && this.day(game) > c.away) { this.state = 'arriving'; c.sold = 0; game.log.push({ k: 'cartBack' }); }
+let vx = 0;
+if (this.state === 'arriving') { vx = -1; if (this.x <= CART.x) { this.x = CART.x; this.state = 'here'; c.away = -1; } }
+else if (this.state === 'leaving') { vx = 1; if (this.x >= OFF_X) { this.x = OFF_X; this.state = 'away'; } }
+const sp = 22;
+if (vx) this.x += vx * sp * dt;
+const n = this.npc; // تاجر گاری را از جلو می‌کشد؛ ایستاده: کنارِ گاری رو به مزرعه
+n.x = this.x + (vx > 0 ? 24 : vx < 0 ? -24 : 23); n.y = this.y + 1;
+n.dir = vx > 0 ? 'right' : 'left';
+n.loco.update(dt, vx ? sp : 0, vx, 0, false);
+if (vx) this.face = vx;
+}
+sell(game, keep = null) {
+if (!this.isHere()) return { coins: 0, items: 0, away: true };
+const inv = this.w.inventory; let coins = 0, items = 0;
+for (const k in inv) {
+if (!sellable(k)) continue;
+let n = Math.max(0, (inv[k] | 0) - (keep ? keep(k) : 0));
+n = Math.min(n, this.left - items);
+if (n <= 0) continue;
+inv[k] -= n; items += n; coins += n * priceOf(k);
+}
+if (!items) return { coins: 0, items: 0 };
+coins = Math.round(coins * (1 + statVal(this.w, 'trade'))); // RPG: بازاری
+this.w.coins += coins; this.w.cart.sold += items;
+if (this.left <= 0) { this.state = 'leaving'; this.w.cart.away = this.day(game); game.log.push({ k: 'cartFull' }); }
+return { coins, items };
+}
+hit(wx, wy) { return this.state === 'here' && Math.abs(wx - this.x) < 22 && wy > this.y - 28 && wy < this.y + 6; }
+render(r, cx, cy, time) {
+if (this.state === 'away') return;
+const s = cartSprite(this.face);
+const sx = Math.round(this.x) - (s.w >> 1) - cx, sy = Math.round(this.y) - s.h + 4 - cy;
+drawAnimalShadow(r, sx + (s.w >> 1), sy + s.h - 3, s.w - 6);
+s.over(r, sx, sy);
+this.npc.render(r, cx, cy, time);
+if (this.state === 'here') { // نوارِ ظرفیت بالای سایبان (سبز = جای خالی)
+const w = 24, fx = sx + ((s.w - w) >> 1), fy = sy - 4, k = Math.round(w * this.left / CART_CAP);
+r.rect(fx - 1, fy - 1, w + 2, 4, [40, 26, 40, 255]); r.rect(fx, fy, w, 2, [90, 60, 70, 255]); r.rect(fx, fy, k, 2, [140, 210, 90, 255]);
+}
+}
+}
+return {CART_CAP, CART, STAND, priceOf, sellable, Merchant};
+})();
+const {CART_CAP, CART, STAND, priceOf, sellable, Merchant} = __m_merchant;
 const __m_farm_command = (() => {
 const DX4 = [1, -1, 0, 0], DY4 = [0, 0, 1, -1]; // ثابت ماژول — بدون تخصیص آرایه در هر فرمان
 function nearFree(f, tx, ty, hx, hy) {
@@ -8596,6 +8814,7 @@ return best;
 }
 function farmCommand(game, wx, wy) {
 const h = game.hero, f = game.farm, wallet = game.wallet;
+if (game.merchant && game.merchant.hit(wx, wy)) { game.sellAll(); return; } // تپ روی گاریِ تاجر = برو بفروش
 const busy = h.act >= 0 || h.path.length > 0;
 if (busy) {
 const tx0 = Math.floor(wx / TILE), ty0 = Math.floor(wy / TILE);
@@ -8758,6 +8977,7 @@ this.fish = new Fish(1); // ن۳۶: یک ماهی — رخداد نادرِ زن
 this.workers = [new FarmWorker(15.5 * TILE, 12.5 * TILE, 0)]; // کارگران مزرعه (تا ۲ تا — با ارتقا فعال)
 this.worker = this.workers[0]; // سازگاری
 this.livestock = new Livestock();
+this.merchant = new Merchant(this.wallet); // تاجرِ گاری‌دار — تنها خریدار
 this.onEvent = null; // هوک مأموریت‌ها: (kind, n) — main_app وصل می‌کند
 this.onHouse = null; // تپ روی خانه → میز کار/منو (تخته‌ی مأموریت)
 this.sprCache = new Map();
@@ -8808,6 +9028,7 @@ this._lastStep = Math.floor(ph * 2);
 if (!h.path.length && h.work && h.act < 0) {
 const w = h.work;
 if (w.gate) { h.work = null; this.marker = null; this.onGate && this.onGate(); return; }
+if (w.merchant) { h.work = null; this.marker = null; h.dir = 'right'; this.sellHere(); return; }
 if (w.house) { h.work = null; this.marker = null; this.onHouse && this.onHouse(); return; }
 if (w.tree) { // چیدن سیب — یک بار در روز از هر درخت
 const c = this.farm.cell(w.tx, w.ty);
@@ -8883,6 +9104,7 @@ if (this.workers.length > wn) this.workers.length = wn;
 this.worker = this.workers[0] || null;
 for (const wk of this.workers) wk.update(dt, this);
 this.livestock.update(dt, this); // دامداری
+this.merchant.update(dt, this);
 if (this.marker) this.marker.t += dt;
 const txx = WORLD_W <= this.view.w ? (WORLD_W - this.view.w) / 2 : clamp(h.x - this.view.w / 2, 0, WORLD_W - this.view.w);
 const tyy = WORLD_H <= this.view.h ? (WORLD_H - this.view.h) / 2 : clamp(h.y - this.view.h / 2, 0, WORLD_H - this.view.h);
@@ -8892,18 +9114,27 @@ this.cam.y += (tyy - this.cam.y) * k;
 }
 float(x, y, txt, col) { this.fx.float(x, y, txt, col); }
 sellAll() {
-const inv = this.wallet.inventory;
-let total = 0, items = 0;
-for (const k in inv) { const n = inv[k]; if (n && (CROPS[k] || GOODS[k])) { total += n * (CROPS[k] ? CROPS[k].sell : GOODS[k]); items += n; } } // سیب = غذای وعده، فروختنی نیست (ن۳۴: قبلاً CROPS.apple undefined → کرش!)
-if (!items) { this.log.push({ k: 'nothing' }); return 0; }
-for (const k in inv) if (CROPS[k] || GOODS[k]) inv[k] = 0; // فقط محصولات — سیب غذای وعده است (ن۳۴)
-total = Math.round(total * (1 + statVal(this.wallet, 'trade'))); // RPG: بازاری
-this.wallet.coins += total;
+const m = this.merchant;
+if (!m || !m.isHere()) { this.log.push({ k: 'cartAway' }); return 0; }
+let any = false; for (const k in this.wallet.inventory) if (sellable(k) && this.wallet.inventory[k] > 0) { any = true; break; }
+if (!any) { this.log.push({ k: 'nothing' }); return 0; }
+const h = this.hero;
+if (Math.hypot(h.x - (STAND.x * TILE + 8), h.y - (STAND.y * TILE + 8)) < 26) return this.sellHere();
+const path = findPath(this.farm, Math.floor(h.x / TILE), Math.floor(h.y / TILE), STAND.x, STAND.y);
+if (path == null) { this.log.push({ k: 'blocked' }); return 0; }
+if (h.act >= 0) { h.act = -1; h.tool = 'none'; }
+h.path = path; h.work = { merchant: true }; h.run = path.length > 8; this.marker = null;
+return 0;
+}
+sellHere(who = this.hero, keep = null) { // تحویلِ همه‌ی محصولاتِ فروختنی (تا ظرفیتِ گاری)
+const res = this.merchant.sell(this, keep);
+if (res.away) { this.log.push({ k: 'cartAway' }); return 0; }
+if (!res.items) { this.log.push({ k: 'nothing' }); return 0; }
 if (this.onSfx) this.onSfx('coin');
-if (this.onEvent) this.onEvent('sell', items);
-this.float(this.hero.x, this.hero.y - 44, '+' + total, 'gold');
-this.log.push({ k: 'sold', n: total });
-return total;
+if (this.onEvent) this.onEvent('sell', res.items);
+this.float(who.x, who.y - 44, '+' + res.coins, 'gold');
+this.log.push({ k: 'sold', n: res.coins });
+return res.coins;
 }
 _heroSprite() { return farmHeroSprite(this); }
 render(r) { renderFarm(this, r); }
@@ -10546,10 +10777,9 @@ sickle:   { base: 20, max: 5, cur: 'essence', name: { fa: 'داس', en: 'Sickle'
 sword:    { base: 25, max: 5, cur: 'essence', name: { fa: 'شمشیر', en: 'Sword' } },
 armor:    { base: 30, max: 5, cur: 'essence', name: { fa: 'زره', en: 'Armor' } },
 boots:    { base: 20, max: 5, cur: 'essence', name: { fa: 'چکمه', en: 'Boots' } },
-pen:      { base: 400, max: 1, cur: 'coins', name: { fa: 'آغل دام', en: 'Animal pen' } },
-chicken:  { base: 150, max: 4, costs: [150, 220, 320, 460], req: 'pen', cur: 'coins', name: { fa: 'مرغ', en: 'Chicken' } },
-sheep:    { base: 600, max: 3, costs: [600, 860, 1250], req: 'pen', cur: 'coins', name: { fa: 'گوسفند', en: 'Sheep' } },
-cow:      { base: 1500, max: 2, costs: [1500, 2300], req: 'pen', cur: 'coins', name: { fa: 'گاو', en: 'Cow' } },
+coop:     { base: 250, max: 5, costs: [250, 180, 240, 320, 420], req: 'worker', cur: 'coins', name: { fa: 'مرغدانی', en: 'Chicken coop' } },
+fold:     { base: 700, max: 5, costs: [700, 500, 650, 850, 1100], req: 'worker', cur: 'coins', name: { fa: 'آغل گوسفند', en: 'Sheep fold' } },
+barn:     { base: 1600, max: 5, costs: [1600, 1100, 1400, 1800, 2300], req: 'worker', cur: 'coins', name: { fa: 'طویله‌ی گاو', en: 'Cow barn' } },
 fert:     { base: 12, max: 5, cur: 'essence', name: { fa: 'کود گوهری', en: 'Gem fertilizer' } },
 };
 const upgradeCost = (kind, level) => UPG[kind].costs ? UPG[kind].costs[level] : Math.round(UPG[kind].base * Math.pow(1.15, level));
@@ -10572,7 +10802,7 @@ get wallet() { return this.s; }
 cost(kind) { return upgradeCost(kind, this.s.upgrades[kind]); }
 canBuy(kind) {
 const u = UPG[kind];
-if (u.req && !this.s.upgrades[u.req]) return false; // دام: اول آغل
+if (u.req && !this.s.upgrades[u.req]) return false; // دام: اول کارگر
 return this.s.upgrades[kind] < u.max && this.s[u.cur] >= this.cost(kind);
 }
 buy(kind) {
@@ -10654,12 +10884,12 @@ if (up.wTill && c.farmable && c.kind === 'grass') { c.kind = 'soil'; c.wet = fal
 return null;
 } else if (kind === 'sprinkler') { // اولین خاکِ خشکِ دارای محصول → آبیاری
 for (const c of f.grid) if (c.kind === 'soil' && c.crop && !c.wet) { f.soak(c, WATER_TIME * (1 + 0.2 * this.s.upgrades.can)); return 'watered'; }
-} else if (kind === 'basket') { // اولین محصول رسیده → برداشت و فروش مستقیم
+} else if (kind === 'basket') { // اولین محصول رسیده → برداشت به انبار
 const L = f.crops;
 for (let i = 0; i < L.length; i++) {
 const c = L[i];
-if (c.crop && f.mature(c)) {
-w.coins += CROPS[c.crop.type].sell * (c.crop.g ? 4 : 1); // طلایی ×۴ (ن۳۴)
+if (c.crop && f.mature(c)) { // ن۱۳۸: فروشِ مستقیم ممنوع — به انبار؛ فروش فقط با تاجر
+w.inventory[c.crop.type] = (w.inventory[c.crop.type] | 0) + (c.crop.g ? 4 : 1); // طلایی ×۴
 f._delCrop(c); c.crop = null; c.wet = false;
 return 'harvested';
 }
@@ -10731,7 +10961,8 @@ seeds: { carrot: 6, wheat: 0, pumpkin: 0, strawberry: 0, eggplant: 0, corn: 0 },
 items: {},      // آیتم‌های پوشیدنی: id → تعداد
 equipped: null, // { hat, body, boots, sword } — idهای پوشیده‌شده
 selectedCrop: 'carrot',
-upgrades: { pen: 0, chicken: 0, sheep: 0, cow: 0, land: 1, farm2: 0, worker: 0, wTill: 0, wPlant: 0, wWater: 0, wHarvest: 0, wSpeed: 0, sprinkler: 0, basket: 0, hoe: 0, can: 0, sickle: 0, sword: 0, armor: 0, boots: 0, fert: 0 },
+cart: { sold: 0, away: -1 },
+upgrades: { coop: 0, fold: 0, barn: 0, land: 1, farm2: 0, worker: 0, wTill: 0, wPlant: 0, wWater: 0, wHarvest: 0, wSpeed: 0, sprinkler: 0, basket: 0, hoe: 0, can: 0, sickle: 0, sword: 0, armor: 0, boots: 0, fert: 0 },
 stats: { bestFloor: 1, kills: 0, deaths: 0, runs: 0, playT: 0 }, // playT = ثانیه‌ی انباشته‌ی مزرعه — روزِ سیب‌دار بین سشن‌ها پیوسته
 farm: null, // [{i, kind, wet, crop}] — فقط تایل‌های تغییرکرده
 lastSeen: Date.now(),
@@ -10745,6 +10976,9 @@ function migrate(obj) {
 if (!obj.upgrades) obj.upgrades = defaultSave().upgrades;
 if (!obj.stats) obj.stats = defaultSave().stats;
 for (const k in defaultSave().stats) if (obj.stats[k] == null) obj.stats[k] = defaultSave().stats[k];
+{ const u = obj.upgrades || {}; // ن۱۳۸: آغلِ واحد + دام‌ها → سه آغلِ جدا (فقط با کارگر)
+if (u.pen != null || u.chicken != null) { if (u.coop == null) u.coop = Math.min(5, u.chicken | 0); if (u.fold == null) u.fold = Math.min(5, u.sheep | 0); if (u.barn == null) u.barn = Math.min(5, u.cow | 0); delete u.pen; delete u.chicken; delete u.sheep; delete u.cow; } }
+if (!obj.cart) obj.cart = { sold: 0, away: -1 };
 for (const k in defaultSave().upgrades) if (obj.upgrades[k] == null) obj.upgrades[k] = defaultSave().upgrades[k];
 if (obj.inventory) for (const k in defaultSave().inventory) if (obj.inventory[k] == null) obj.inventory[k] = 0;
 if (!obj.seeds) obj.seeds = defaultSave().seeds;
@@ -10795,7 +11029,7 @@ pumpkin: { fa: 'کدو', en: 'Pumpkin' },
 strawberry: { fa: 'توت‌فرنگی', en: 'Strawberry' },
 eggplant:   { fa: 'بادمجان', en: 'Eggplant' },
 corn:       { fa: 'ذرت', en: 'Corn' },
-sellAll: { fa: 'فروش همه', en: 'Sell all' },
+sellAll: { fa: 'فروش به تاجر', en: 'Sell to merchant' },
 inv:     { fa: 'سبد', en: 'Basket' },
 noCoins: { fa: 'سکه کافی نیست', en: 'Not enough coins' },
 sold:    { fa: 'فروخته شد', en: 'Sold' },
@@ -10859,7 +11093,7 @@ tier:    { fa: 'تیتر', en: 'tier' },
 statDmg: { fa: 'دمیج', en: 'dmg' }, statHp: { fa: 'جان', en: 'HP' },
 statSpd: { fa: 'سرعت', en: 'speed' }, statCrit: { fa: 'کریت', en: 'crit' },
 fx_sprinkler:{ fa: 'آبیاری خودکار', en: 'auto watering' },
-fx_basket:{ fa: 'برداشت و فروش خودکار', en: 'auto harvest & sell' },
+fx_basket:{ fa: 'برداشت خودکار به انبار', en: 'auto harvest to storage' },
 fx_hoe:  { fa: 'سطح ۳+: شخم همسایه هم‌زمان', en: 'Lv3+: tills a neighbor too' },
 fx_can:  { fa: '+۲۰٪ رطوبت/سطح، سطح ۳+: آب ۴ طرف', en: '+20% wet/level · Lv3+: waters neighbors' },
 fx_sickle:{ fa: 'سطح ۲+: شانس محصول اضافه', en: 'Lv2+: chance of bonus crop' },
@@ -10894,11 +11128,13 @@ fx_wPlant:{ fa: 'کارگر یاد می‌گیرد بذر بکارد', en: 'Work
 fx_wWater:{ fa: 'کارگر یاد می‌گیرد آبیاری کند', en: 'Worker learns to water crops' },
 fx_wHarvest:{ fa: 'کارگر یاد می‌گیرد برداشت کند', en: 'Worker learns to harvest' },
 fx_wSpeed:{ fa: '۱۵٪ سریع‌تر کار/سطح + آفلاین', en: '15% faster work per level + offline' },
-fx_pen:  { fa: 'آغل در جنوب‌غربی — مرغ، گوسفند و گاو', en: 'Pen in the south-west — chickens, sheep, cows' },
-fx_chicken:{ fa: 'هر ۴۰ ثانیه یک تخم‌مرغ (۱۴ سکه)', en: 'An egg every 40s (14 coins)' },
-fx_sheep:{ fa: 'هر ۹۰ ثانیه پشم (۴۸ سکه)', en: 'Wool every 90s (48 coins)' },
-fx_cow:  { fa: 'هر ۱۴۰ ثانیه شیر (۹۵ سکه)', en: 'Milk every 140s (95 coins)' },
-needPen: { fa: 'اول آغل دام را بخر', en: 'Buy the animal pen first' },
+fx_coop: { fa: 'تا ۵ مرغ — هر ۴۰ ثانیه تخم‌مرغ (۱۴ سکه)', en: 'Up to 5 hens — an egg every 40s (14 coins)' },
+fx_fold: { fa: 'تا ۵ گوسفند — هر ۹۰ ثانیه پشم (۴۸ سکه)', en: 'Up to 5 sheep — wool every 90s (48 coins)' },
+fx_barn: { fa: 'تا ۵ گاو — هر ۱۴۰ ثانیه شیر (۹۵ سکه)', en: 'Up to 5 cows — milk every 140s (95 coins)' },
+needPen: { fa: 'اول کارگر مزرعه را استخدام کن', en: 'Hire a farm worker first' },
+cartAway:{ fa: 'تاجر رفته — فردا برمی‌گردد', en: 'The merchant left — back tomorrow' },
+cartFull:{ fa: 'گاریِ تاجر پر شد؛ رفت و فردا برمی‌گردد', en: 'The cart is full; the merchant leaves until tomorrow' },
+cartBack:{ fa: 'تاجر با گاری برگشت', en: 'The merchant is back' },
 lvUp:    { fa: 'سطح بالا! سطح', en: 'Level up! Lv' },
 lvPts:   { fa: 'یک امتیاز استات گرفتی — منو ← شخصیت', en: '+1 stat point — Menu → Character' },
 fx_boots:{ fa: '+۶٪ سرعت حرکت/سطح', en: '+6% move speed per level' },
@@ -10960,7 +11196,7 @@ c.clearRect(0, 0, cv.width, cv.height);
 c.drawImage(rasterToCanvas(cropIcon(type)), 0, 0, 16, 16, 0, 0, cv.width, cv.height);
 }
 }
-const MENU_KINDS = ['land', 'farm2', 'worker', 'wTill', 'wPlant', 'wWater', 'wHarvest', 'wSpeed', 'sprinkler', 'basket', 'pen', 'chicken', 'sheep', 'cow', 'hoe', 'can', 'sickle', 'sword', 'armor', 'boots', 'fert'];
+const MENU_KINDS = ['land', 'farm2', 'worker', 'wTill', 'wPlant', 'wWater', 'wHarvest', 'wSpeed', 'sprinkler', 'basket', 'coop', 'fold', 'barn', 'hoe', 'can', 'sickle', 'sword', 'armor', 'boots', 'fert'];
 function buildMenu(app, hooks) {
 const list = $('menuList');
 list.innerHTML = '';
@@ -10980,6 +11216,7 @@ list.appendChild(row);
 }
 for (const kind of MENU_KINDS) {
 const u = UPG[kind], lvl = app.s.upgrades[kind];
+if (u.req && !app.s.upgrades[u.req]) continue; // ن۱۳۸: دامداری پس از خریدِ کارگر ظاهر می‌شود
 const row = document.createElement('div');
 row.className = 'upgRow';
 const maxed = lvl >= u.max;
@@ -11490,7 +11727,7 @@ function refreshHud(force) {
 if (env.getScene() === 'farm') {
 let sellTotal = 0, seedSum = 0;
 for (const k of Object.keys(CROPS)) { sellTotal += app.s.inventory[k] * CROPS[k].sell; seedSum += app.s.seeds ? (app.s.seeds[k] || 0) : 0; }
-sellTotal += goodsValue(app.s.inventory); // محصولات دامی
+for (const k in GOODS) sellTotal += (app.s.inventory[k] | 0) * GOODS[k]; // محصولات دامی
 _fn = 0;
 let dirty = force;
 const chk = (v) => { if (_fs[_fn] !== v) { _fs[_fn] = v; dirty = true; } _fn++; };

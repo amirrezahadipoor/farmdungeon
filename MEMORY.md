@@ -38,6 +38,7 @@ farmdungeon/
     │   **rpg⟨124⟩ سطح/XP/امتیاز، ۸ استات (str/vit/agi/crit + bounty/seeker/green/trade)، rpgSection، refreshLvChip**
     │   ui⟨164⟩ توست/بنر/منو (rpgSection بالای منو) · app_ui⟨133⟩ چسب DOM + menuHooks(onBuy/onRpg) · ui_hud⟨71⟩ · ui_shrine⟨54⟩ محراب
     ├── مزرعه: game⟨217⟩ صحنه/صف/sellAll(×trade، +محصول دامی) + feetFree (برخوردِ جای‌پا با مانع؛ حرکت مستقیم) + livestock · game_apply⟨73⟩ نتیجه‌ی ابزار، برداشت(×bounty) · farm⟨137⟩ گرید+CROPS
+- `js/merchant.js` — تاجرِ گاری‌دار (تنها خریدار؛ CART_CAP=50/روز، پر ⇒ می‌رود، روزِ بعد برمی‌گردد؛ save.cart={sold,away}؛ sell(game,keep)).
     │   farm_command⟨90⟩ تپ→مسیر · farm_worker⟨184⟩ کارگر · farm_layout⟨76⟩ · farm_terrain⟨280⟩ کش زمین · farm_render⟨197⟩ (دام‌ها در y-sort)
     │   **livestock⟨124⟩ آغل PEN(x1..10,y15..18، در (10,17))، stampPen، ANIMALS/GOODS، Livestock(sync/update/collect با نزدیک‌شدن)، syncGoodsChips**
     ├── دانجن: run⟨259⟩ حرکت(feetFree)/طبقه/مهارت/دوج/برکت/restart(از run._base) · run_combat⟨90⟩ حمله/کریت · run_loot⟨85⟩ دراپ(+seedP، _bossKills)
@@ -78,3 +79,5 @@ farmdungeon/
 - ن۱۳۵: سیستم RPG (`js/rpg.js`) + فیکسِ restart (کریتِ تجهیز/برکتِ آسیب).
 - ن۱۳۶: پاکسازی ریپو — MEMORY فشرده، رودمپ و `roadmap/` و `shots/` حذف، `hero_ref.js` و `hero_ref_shot.mjs` مرده حذف.
 - ن۱۳۷: فیکس برخورد (حرکت مستقیم در مزرعه از حصار/درخت/خانه/آب رد می‌شد؛ دانجن نصف بدن در دیوار) با feetFree + دامداری (آغل/مرغ/گوسفند/گاو، خریدنی).
+
+- ن۱۳۸: سه آغلِ جدا coop/fold/barn (req worker، هرکدام ۵ حیوان، ساختمان روی نقشه پس از خرید، cell.block)؛ فروشِ مستقیم حذف ⇒ فقط تاجر (merchant.js)؛ کارگر محصولِ دام را جمع و به تاجر می‌فروشد (۵ تا از هر محصول نگه می‌دارد)؛ سبد ⇒ انبار؛ migrate pen/chicken/sheep/cow.

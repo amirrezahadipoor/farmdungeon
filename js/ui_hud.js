@@ -1,6 +1,6 @@
 // ui_hud.js — تازه‌سازی HUD مزرعه/دانجن (جداسازی از app_ui.js — ن۳۴)
 // چک عددی Float64Array بدون رشته/تخصیص — حالت پایدار: صفر زباله در هر فریم
-import { goodsValue } from './livestock.js';
+import { GOODS } from './livestock.js';
 import { faNum, getLang } from './i18n.js';
 import { $ } from './ui.js';
 import { CROPS } from './farm.js';
@@ -14,7 +14,7 @@ export function makeHud(env) {
     if (env.getScene() === 'farm') {
       let sellTotal = 0, seedSum = 0;
       for (const k of Object.keys(CROPS)) { sellTotal += app.s.inventory[k] * CROPS[k].sell; seedSum += app.s.seeds ? (app.s.seeds[k] || 0) : 0; }
-      sellTotal += goodsValue(app.s.inventory); // محصولات دامی
+      for (const k in GOODS) sellTotal += (app.s.inventory[k] | 0) * GOODS[k]; // محصولات دامی
       _fn = 0;
       let dirty = force;
       const chk = (v) => { if (_fs[_fn] !== v) { _fs[_fn] = v; dirty = true; } _fn++; };

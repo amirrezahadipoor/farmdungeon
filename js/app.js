@@ -22,10 +22,9 @@ export const UPG = {
   sword:    { base: 25, max: 5, cur: 'essence', name: { fa: 'شمشیر', en: 'Sword' } },
   armor:    { base: 30, max: 5, cur: 'essence', name: { fa: 'زره', en: 'Armor' } },
   boots:    { base: 20, max: 5, cur: 'essence', name: { fa: 'چکمه', en: 'Boots' } },
-  pen:      { base: 400, max: 1, cur: 'coins', name: { fa: 'آغل دام', en: 'Animal pen' } },
-  chicken:  { base: 150, max: 4, costs: [150, 220, 320, 460], req: 'pen', cur: 'coins', name: { fa: 'مرغ', en: 'Chicken' } },
-  sheep:    { base: 600, max: 3, costs: [600, 860, 1250], req: 'pen', cur: 'coins', name: { fa: 'گوسفند', en: 'Sheep' } },
-  cow:      { base: 1500, max: 2, costs: [1500, 2300], req: 'pen', cur: 'coins', name: { fa: 'گاو', en: 'Cow' } },
+  coop:     { base: 250, max: 5, costs: [250, 180, 240, 320, 420], req: 'worker', cur: 'coins', name: { fa: 'مرغدانی', en: 'Chicken coop' } },
+  fold:     { base: 700, max: 5, costs: [700, 500, 650, 850, 1100], req: 'worker', cur: 'coins', name: { fa: 'آغل گوسفند', en: 'Sheep fold' } },
+  barn:     { base: 1600, max: 5, costs: [1600, 1100, 1400, 1800, 2300], req: 'worker', cur: 'coins', name: { fa: 'طویله‌ی گاو', en: 'Cow barn' } },
   fert:     { base: 12, max: 5, cur: 'essence', name: { fa: 'کود گوهری', en: 'Gem fertilizer' } },
 };
 export const upgradeCost = (kind, level) => UPG[kind].costs ? UPG[kind].costs[level] : Math.round(UPG[kind].base * Math.pow(1.15, level));
@@ -53,7 +52,7 @@ export class App {
   cost(kind) { return upgradeCost(kind, this.s.upgrades[kind]); }
   canBuy(kind) {
     const u = UPG[kind];
-    if (u.req && !this.s.upgrades[u.req]) return false; // دام: اول آغل
+    if (u.req && !this.s.upgrades[u.req]) return false; // دام: اول کارگر
     return this.s.upgrades[kind] < u.max && this.s[u.cur] >= this.cost(kind);
   }
   buy(kind) {
@@ -138,12 +137,12 @@ export class App {
       return null;
     } else if (kind === 'sprinkler') { // اولین خاکِ خشکِ دارای محصول → آبیاری
       for (const c of f.grid) if (c.kind === 'soil' && c.crop && !c.wet) { f.soak(c, WATER_TIME * (1 + 0.2 * this.s.upgrades.can)); return 'watered'; }
-    } else if (kind === 'basket') { // اولین محصول رسیده → برداشت و فروش مستقیم
+    } else if (kind === 'basket') { // اولین محصول رسیده → برداشت به انبار
       const L = f.crops;
       for (let i = 0; i < L.length; i++) {
         const c = L[i];
-        if (c.crop && f.mature(c)) {
-          w.coins += CROPS[c.crop.type].sell * (c.crop.g ? 4 : 1); // طلایی ×۴ (ن۳۴)
+        if (c.crop && f.mature(c)) { // ن۱۳۸: فروشِ مستقیم ممنوع — به انبار؛ فروش فقط با تاجر
+          w.inventory[c.crop.type] = (w.inventory[c.crop.type] | 0) + (c.crop.g ? 4 : 1); // طلایی ×۴
           f._delCrop(c); c.crop = null; c.wet = false;
           return 'harvested';
         }

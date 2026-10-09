@@ -61,7 +61,7 @@ globalThis.localStorage = {
   g.farm.cell(8, 8).kind = 'soil'; g.farm._addCrop(g.farm.cell(8, 8), 'carrot'); g.farm.cell(8, 8).wet = true;
   const rep = app.simulateOffline((Date.now() - s.lastSeen) / 1000);
   A(rep.sec === 8 * 3600, 'آفلاین: سقف ۸ ساعت اعمال شد', (rep.sec / 3600) + 'h');
-  A(rep.earned > 0 && rep.harvested > 0, 'آفلاین: درآمد و برداشت', `+${rep.earned}💰 ${rep.harvested}🌾`);
+  A(rep.harvested > 0, 'آفلاین: برداشت به انبار (ن۱۳۸: فروش فقط با تاجر)', `+${rep.earned}💰 ${rep.harvested}🌾`);
   // بدون دستیار → آفلاین بی‌اثر
   const s2 = defaultSave(); s2.lastSeen = Date.now() - 5 * 3600 * 1000;
   const app2 = new App(s2); const g2 = new Game(s2, 1, s2.upgrades);

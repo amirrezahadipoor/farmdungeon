@@ -1,6 +1,8 @@
 // farm_worker.js — کارگر مزرعه‌ی «واقعی» روی نقشه: می‌خرد، قابلیت‌هایش را ارتقا می‌دهی،
 // خودش راه می‌رود (A*)، کنار تایل می‌ایستد و با انیمیشن ابزار کار می‌کند.
 // ظاهر: همان اسکلت قهرمان با پالت عوض‌شده (روپوش سبز + کلاه حصیری + دستمال کرم)
+import { PENS, PEN_KEYS } from './livestock.js';
+import { STAND, sellable } from './merchant.js';
 import { findPath } from './astar.js';
 import { Locomotion, GAITS } from './skeleton.js';
 import { drawHeroFrame, frameKey, framePhase, halfSprite } from './art/hero.js';
@@ -11,6 +13,8 @@ import { CROPS, WATER_TIME, pondK } from './farm.js';
 
 // ---------- تعویض پالت قهرمان → کارگر ----------
 const PRIO = { sickle: 0, can: 1, seed: 2, hoe: 3 }; // برداشت > آب > کاشت > شخم
+
+const workerKeep = (k) => (CROPS[k] ? 5 : 0); // کارگر ۵ تا از هر محصول را برای غذای سفر نگه می‌دارد
 
 export class FarmWorker {
   constructor(x, y, variant = 0) {
@@ -69,8 +73,9 @@ export class FarmWorker {
       const cx = tx * TILE + 8, cy = ty * TILE + 8;
       const dx = cx - this.x, dy = cy - this.y;
       this.dir = Math.abs(dx) > Math.abs(dy) ? (dx > 0 ? 'right' : 'left') : (dy > 0 ? 'down' : 'up');
-      this.tool = tool; this.act = 0; this.applied = false;
-      this.actDur = ACT_DUR[tool] * this.actMul(up);
+      const care = tool === 'collect' || tool === 'sell';
+      this.tool = care ? 'none' : tool; this.act = 0; this.applied = false;
+      this.actDur = care ? 0.7 : ACT_DUR[tool] * this.actMul(up);
       return;
     }
 
@@ -84,6 +89,7 @@ export class FarmWorker {
 
   _findTask(game) {
     const up = game.toolLvls, f = game.farm, w = game.wallet;
+    if (this._careTask(game)) return; // دام‌ها و تحویل به تاجر
     const canPlant = up.wPlant && (w.seeds ? w.seeds[w.selectedCrop] : 0) > 0;
     // تایل‌های در دستِ کارگر دیگر را نچین
     const claimed = new Set();
@@ -108,6 +114,25 @@ export class FarmWorker {
       if (path && path.length) { this.task = cand; this.path = path; return; }
     }
     this.thinkT = 1.5; // فعلاً کاری نیست
+  }
+
+  // رسیدگی به دام: جمع‌کردنِ محصولِ آماده‌ی هر آغل · بعد تحویل به تاجر (۵ تا از هر محصولِ کشاورزی برای غذا می‌ماند)
+  _careTask(game) {
+    const f = game.farm, ls = game.livestock, m = game.merchant, me = [Math.floor(this.x / TILE), Math.floor(this.y / TILE)];
+    const busy = (kind, pen) => (game.workers || []).some((o) => o !== this && o.task && o.task.tool === kind && o.task.pen === pen);
+    if (ls) for (const id of PEN_KEYS) {
+      if (!(f.pens && f.pens[id]) || !ls.readyIn(id) || busy('collect', id)) continue;
+      const [ix, iy] = PENS[id].inDoor, path = findPath(f, me[0], me[1], ix, iy);
+      if (path) { this.task = { tool: 'collect', pen: id, tx: ix, ty: iy }; this.path = path; return true; }
+    }
+    if (m && m.isHere() && !busy('sell')) {
+      let n = 0; for (const k in game.wallet.inventory) if (sellable(k)) n += Math.max(0, (game.wallet.inventory[k] | 0) - workerKeep(k));
+      if (n >= 6) {
+        const path = findPath(f, me[0], me[1], STAND.x, STAND.y);
+        if (path) { this.task = { tool: 'sell', tx: STAND.x + 1, ty: STAND.y + 1 }; this.path = path; return true; }
+      }
+    }
+    return false;
   }
 
   _wander(game) { // آدم بیکار جایی می‌رود — فقط داخل زمین مزرعه/باغ
@@ -136,6 +161,8 @@ export class FarmWorker {
   _apply(game) {
     const t = this.task;
     if (!t) return;
+    if (t.tool === 'collect') { game.livestock.collect(game, t.pen); return; }
+    if (t.tool === 'sell') { game.sellHere(this, workerKeep); return; }
     const res = game.farm.applyTool(t.tool, t.tx, t.ty, game.wallet.selectedCrop);
     if (!res.ok) return;
     if (res.ev === 'water') { const c0 = game.farm.cell(t.tx, t.ty); if (c0) c0.wetT = WATER_TIME * (1 + 0.2 * game.toolLvls.can) * pondK(t.tx, t.ty); } // هم‌فرمول قهرمان (ن۳۴)

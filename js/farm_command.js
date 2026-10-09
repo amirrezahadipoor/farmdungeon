@@ -19,6 +19,7 @@ function nearFree(f, tx, ty, hx, hy) {
 
 export function farmCommand(game, wx, wy) {
   const h = game.hero, f = game.farm, wallet = game.wallet;
+  if (game.merchant && game.merchant.hit(wx, wy)) { game.sellAll(); return; } // تپ روی گاریِ تاجر = برو بفروش
   const busy = h.act >= 0 || h.path.length > 0;
   if (busy) {
     // رنگ‌آمیزی: صف کار تا ۸ تایل متمایز

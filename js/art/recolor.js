@@ -25,14 +25,27 @@ const WORKER2_SWAP = new Map(); // کارگر دوم: کاپشن آبی → حن
   for (const [a, b] of pairs) WORKER2_SWAP.set(hexRGB(a).join(','), hexRGB(b));
 }
 
+const MERCHANT_SWAP = new Map(); // تاجرِ دوره‌گرد: ردای قرمز، شالِ کرم، کلاهِ حصیری
+{
+  const pairs = [
+    [PAL.jacketHi, PAL.scarf], [PAL.jacket, PAL.scarf], [PAL.jacketSh, PAL.scarfSh], [PAL.jacketDeep, PAL.hairSh],
+    [PAL.scarf, PAL.shirt], [PAL.scarfSh, PAL.shirtSh], [PAL.hair, PAL.hairSh],
+  ];
+  for (const [a, b] of pairs) MERCHANT_SWAP.set(hexRGB(a).join(','), hexRGB(b));
+}
+
 export function recolorWorker(s, variant = 0) {
-  const map = variant ? WORKER2_SWAP : WORKER_SWAP;
+  const map = variant === 2 ? MERCHANT_SWAP : variant ? WORKER2_SWAP : WORKER_SWAP;
   const t = new Raster(s.w, s.h);
   t.d.set(s.d);
   for (let i = 0; i < t.d.length; i += 4) {
     if (t.d[i + 3] < 8) continue;
     const to = map.get(t.d[i] + ',' + t.d[i + 1] + ',' + t.d[i + 2]);
     if (to) { t.d[i] = to[0]; t.d[i + 1] = to[1]; t.d[i + 2] = to[2]; }
+    else if (variant === 2) { // تاجر: هر رنگِ آبیِ کاپشن (پیکسل‌های AI خارج از PAL) → ردای قرمزِ هم‌روشنا
+      const r = t.d[i], g = t.d[i + 1], b = t.d[i + 2];
+      if (b > r + 18 && b >= g) { t.d[i] = Math.min(255, b + 20); t.d[i + 1] = r * 0.55 | 0; t.d[i + 2] = r * 0.6 | 0; }
+    }
   }
   return t;
 }
