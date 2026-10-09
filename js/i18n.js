@@ -106,6 +106,8 @@ const STR = {
   fx_wWater:{ fa: 'کارگر یاد می‌گیرد آبیاری کند', en: 'Worker learns to water crops' },
   fx_wHarvest:{ fa: 'کارگر یاد می‌گیرد برداشت کند', en: 'Worker learns to harvest' },
   fx_wSpeed:{ fa: '۱۵٪ سریع‌تر کار/سطح + آفلاین', en: '15% faster work per level + offline' },
+  lvUp:    { fa: 'سطح بالا! سطح', en: 'Level up! Lv' },
+  lvPts:   { fa: 'یک امتیاز استات گرفتی — منو ← شخصیت', en: '+1 stat point — Menu → Character' },
   fx_boots:{ fa: '+۶٪ سرعت حرکت/سطح', en: '+6% move speed per level' },
 };
 let lang = 'fa';

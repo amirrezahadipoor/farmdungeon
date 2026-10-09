@@ -1,5 +1,6 @@
 // game.js — هسته‌ی بازی (بدون DOM): قهرمان + به‌روزرسانی + صف کار + ذرات/متن‌ها + رندر صحنه
 // (اعمال ابزار/اقتصاد برداشت در game_apply.js — ن۳۴)
+import { statVal } from './rpg.js';
 import { Farm, CROPS, WATER_TIME, FARM2_COST, SEED_TYPES } from './farm.js';
 import { farmCommand } from './farm_command.js';
 import { gameApply } from './game_apply.js';
@@ -185,6 +186,7 @@ export class Game {
     for (const k in inv) { const n = inv[k]; if (n && CROPS[k]) { total += n * CROPS[k].sell; items += n; } } // سیب = غذای وعده، فروختنی نیست (ن۳۴: قبلاً CROPS.apple undefined → کرش!)
     if (!items) { this.log.push({ k: 'nothing' }); return 0; }
     for (const k in inv) if (CROPS[k]) inv[k] = 0; // فقط محصولات — سیب غذای وعده است (ن۳۴)
+    total = Math.round(total * (1 + statVal(this.wallet, 'trade'))); // RPG: بازاری
     this.wallet.coins += total;
     if (this.onSfx) this.onSfx('coin');
     if (this.onEvent) this.onEvent('sell', items);

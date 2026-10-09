@@ -3,6 +3,7 @@ import { t, faNum, getLang } from './i18n.js';
 import { UPG, upgradeCost, MEALS } from './app.js';
 import { questLabel } from './quests.js';
 import { paintIcon, iconEl } from './art/icons.js';
+import { rpgSection } from './rpg.js';
 import { CROPS } from './farm.js';
 import { ITEMS, SLOTS } from './items.js';
 import { rasterToCanvas } from './raster.js';
@@ -59,6 +60,7 @@ const MENU_KINDS = ['land', 'farm2', 'worker', 'wTill', 'wPlant', 'wWater', 'wHa
 export function buildMenu(app, hooks) {
   const list = $('menuList');
   list.innerHTML = '';
+  rpgSection(app.s, list, (r) => hooks.onRpg(r)); // RPG: سطح/امتیاز/استات‌ها
   // ---- مأموریت‌های چرخان ----
   const qh = document.createElement('div');
   qh.className = 'mealHead';

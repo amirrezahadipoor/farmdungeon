@@ -240,7 +240,9 @@ export class Run {
   }
   restart() {
     this.essence = 0; this.kills = 0; this.eliteKills = 0; this._maxCombo = 0;
-    this.critBonus = 0; this.greedBonus = 0; this.rangeBonus = 0; this.deaths++;
+    const b = this._base; // RPG: برکت‌های محراب پاک، استات/تجهیز می‌ماند (قبلاً کریتِ تجهیز با تلاشِ دوباره صفر و برکتِ آسیب ماندگار می‌شد)
+    if (b) { this.baseDmg = b.baseDmg; this.skillDmg = b.skillDmg; this.speedMul = b.speedMul; }
+    this.critBonus = b ? b.critBonus : 0; this.greedBonus = 0; this.rangeBonus = 0; this.deaths++; this._bossKills = 0;
     this._banked = false; this.comboN = 0; this.comboT = 0; // دورِ نو: پایانِ دور قبلی واریز شد (ن۳۴)
     const h = this.hero;
     h.hp = this.maxHp; h.dead = false; h.deadT = 0;

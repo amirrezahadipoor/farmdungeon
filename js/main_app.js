@@ -1,5 +1,6 @@
 // main_app.js — بوت و حلقه‌ی بازی نهایی: مزرعه ⇄ دانجن در یک صفحه
 // (تعویض صحنه/پایان دور در main_scene.js — ن۳۴؛ چسب DOM رابط در app_ui.js؛ مسیریابی فرمان در farm_command.js)
+import { ensureRpg, statVal, refreshLvChip, XP, addXp } from './rpg.js';
 import { t, faNum, getLang } from './i18n.js';
 import { Input } from './input.js';
 import { Game } from './game.js';
@@ -24,6 +25,7 @@ ctx.imageSmoothingEnabled = false;
 
 // ---------- اپ + صحنه‌ها ----------
 const app = new App(loadSave());
+ensureRpg(app.s); // RPG: سیوهای قدیمی
 const farmScene = new Game(app.s, app.s.upgrades.land, app.s.upgrades, app.s.upgrades.boots);
 app.hydrateFarm(farmScene);
 window.__app = app; window.__farm = farmScene; // برای تست
@@ -41,7 +43,7 @@ function saveNow() {
   writeSave(app.s);
 }
 let UI = null;
-const S = initScenes({ app, farmScene, saveNow, getView: () => ({ w: sc.w, h: sc.h }), getUI: () => UI });
+const S = initScenes({ app, farmScene, saveNow, getView: () => ({ w: sc.w, h: sc.h }), getUI: () => UI, gainXp: (n) => gainXp(n) });
 
 function resize() {
   const dpr = window.devicePixelRatio || 1;
@@ -102,8 +104,14 @@ UI = initAppUI({ app, farmScene, saveNow, getRun: S.getRun, getScene: S.getScene
 
 farmScene.onSfx = (n) => playSfx(n);
 farmScene.onGate = () => S.enterDungeon();
+function gainXp(n) { // RPG: XP → سطح؛ هر سطح ۱ امتیاز
+  const ups = addXp(app.s, n);
+  if (ups) { showBanner(t('lvUp') + ' ' + faNum(app.s.rpg.lvl), true); toast(t('lvPts')); playSfx('quest'); UI.buildMenuIfOpen(); }
+}
+window.__gainXp = gainXp;
 farmScene.onHouse = () => { $('menuBtn').click(); }; // خانه = میز کار: منوی مأموریت‌ها/ارتقاها
 farmScene.onEvent = (k, n) => { // مأموریت‌ها: برداشت/فروش/طلایی
+  if (k === 'harvest') gainXp(n * XP.harvest);
   const done = app.track(k, n);
   for (const q of done) { toast(t('questDone') + ' — ' + questLabel(q)); UI.buildMenuIfOpen(); UI.refreshHud(true); }
   if (done.length) playSfx('quest');
@@ -169,7 +177,8 @@ function frame(now) {
   if (farmScene.equipSig !== app._eqSig) UI.syncEquip(); // فقط بعد از تعویض تجهیز
   const spd = (1 + 0.06 * app.s.upgrades.boots) * (1 + app._eqStats.speed);
   if (scene === 'farm' && farmScene.speedMul !== spd) farmScene.speedMul = spd;
-  if (scene === 'farm' && farmScene.fertMul !== 1 + 0.08 * app.s.upgrades.fert) farmScene.fertMul = 1 + 0.08 * app.s.upgrades.fert;
+  if (scene === 'farm') { const fm = (1 + 0.08 * app.s.upgrades.fert) * (1 + statVal(app.s, 'green')); if (farmScene.fertMul !== fm) farmScene.fertMul = fm; } // RPG: دستِ سبز
+  refreshLvChip(app.s);
   // آمبینت پیوسته: پد مزرعه/دانجن + لایه‌ی باران — فقط وقتی عوض شود
   {
     const wantScene = scene === 'farm' ? 'farm' : 'dungeon';

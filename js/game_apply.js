@@ -1,5 +1,6 @@
 // game_apply.js — اعمال ابزار روی تایل + اقتصاد برداشت/طلایی (جداسازی از game.js — ن۳۴):
 // ضربه در نیمه‌ی انیمیشن اعمال می‌شود؛ سکه/ذرات/شناورها همین‌جا
+import { statVal } from './rpg.js';
 import { CROPS, WATER_TIME, pondK } from './farm.js';
 import { E, TILE } from './tiles.js';
 
@@ -47,6 +48,7 @@ export function gameApply(game) {
     }
   } else if (res.ev === 'harvest') {
     if (game.toolLvls.sickle >= 2 && Math.random() < 0.22 * (game.toolLvls.sickle - 1)) res.count += 1; // داس: محصول اضافه
+    if (Math.random() < statVal(game.wallet, 'bounty')) { res.count *= 2; game.float(cx, cy - 16, '×۲', 'crit'); } // RPG: برداشت پربار
     game.wallet.inventory[res.type] += res.count;
     game.float(cx, cy - 6, '+' + res.count, 'gold');
     partBurst(game, w.tx, w.ty, 'harvest' + res.type[0].toUpperCase() + res.type.slice(1));

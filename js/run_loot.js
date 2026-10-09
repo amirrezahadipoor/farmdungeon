@@ -23,7 +23,8 @@ export function lootKill(run, e) {
   let n = e.isBoss ? Math.round(25 * mul) : Math.max(1, Math.round((1 + Math.random()) * mul)) + run.greedBonus;
   if (e.isElite) { n = Math.round(n * 2.2) + 2; D.drops.push({ x: e.x, y: e.y - 4, kind: 'heart', t: 0 }); } // نخبه: غنیمت×۲٫۲ + قلب تضمینی
   for (let j = 0; j < n; j++) D.drops.push({ x: e.x + (Math.random() - 0.5) * 12, y: e.y + (Math.random() - 0.5) * 12, kind: Math.random() < 0.1 ? 'heart' : 'essence', t: Math.random() * 6 });
-  const seedN = e.isBoss ? 2 : 1;
+  if (e.isBoss) run._bossKills = (run._bossKills || 0) + 1; // RPG: XP باس
+  const seedN = (e.isBoss ? 2 : 1) + (Math.random() < (run.seedP || 0) ? 1 : 0); // RPG: بذریابی
   for (let j = 0; j < seedN; j++) {
     const st = rollSeedDrop(run.floor, e.isElite, e.isBoss);
     if (st) D.drops.push({ x: e.x + (Math.random() - 0.5) * 14, y: e.y + (Math.random() - 0.5) * 14, kind: 'seed', ty: st, t: Math.random() * 6 });

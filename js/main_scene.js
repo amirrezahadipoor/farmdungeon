@@ -8,6 +8,7 @@ import { ITEMS } from './items.js';
 import { questLabel } from './quests.js';
 import { $, toast } from './ui.js';
 import { playSfx } from './sfx/sounds.js';
+import { applyRunStats, runXp } from './rpg.js';
 
 export function initScenes(env) {
   // env: { app, farmScene, saveNow, getView, getUI }
@@ -31,6 +32,7 @@ export function initScenes(env) {
       app.s.stats.runs++;
       const meal = app.s.buff ? MEALS[app.s.buff] : null; // غذا هنگام ورود مصرف می‌شود
       run = new Run((Date.now() % 100000) | 0, { swordLvl: app.s.upgrades.sword, armorLvl: app.s.upgrades.armor, bootsLvl: app.s.upgrades.boots, meal: meal ? meal.buff : null, equip: app.s.equipped });
+      applyRunStats(run, app.s); // RPG: قدرت/بنیه/چابکی/مهلک/بذریابی
       if (meal) { app.s.buff = null; toast(t('buffOn') + ' ' + meal.name[getLang()]); }
       run.view = env.getView();
       run.onSfx = (n) => playSfx(n);
@@ -46,6 +48,7 @@ export function initScenes(env) {
     if (!run || run._banked) return;
     run._banked = true;
     const got = app.bankEssence(run);
+    if (env.gainXp) env.gainXp(runXp(run)); // RPG: XP دور (شکار/نخبه/طبقه/باس)
     app.s.stats.bestFloor = Math.max(app.s.stats.bestFloor, run.floor);
     app.s.stats.kills += run.kills;
     if (got > 0) toast('+' + faNum(got) + ' ' + t('essence'));

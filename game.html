@@ -289,6 +289,32 @@ body.debug .fps { display: inline; }
 #bossBar { inset-inline: 25%; top: 70px; }
 .btn.x { font-size: 26px; line-height: 1; }
 
+/* RPG: نشانِ سطح + کارتِ شخصیت */
+.lvChip { display: flex; align-items: center; gap: 4px; background: #2a1f3a; border: 3px solid var(--ol); clip-path: var(--notch); padding: 3px 8px 5px;
+  box-shadow: inset 0 -3px 0 #1a1226, inset 0 3px 0 #3d2f55; color: #c9f27a; text-shadow: var(--txt-ol); font-size: 15px; font-weight: 900; direction: ltr; }
+.lvChip .lvT { font-size: 11px; color: #e3d6f0; }
+.lvChip .xpT { width: 38px; height: 7px; background: #120c1c; border: 1px solid #000; position: relative; }
+.lvChip .xpT i { position: absolute; inset: 0 auto 0 0; background: #8fd468; width: 0; }
+.lvChip.pts { animation: rdy 0.8s steps(2) infinite; color: #ffe36a; }
+.rpgCard { background: #2e2140; border: 3px solid var(--ol); clip-path: var(--notch); padding: 10px; display: flex; flex-direction: column; gap: 8px; box-shadow: inset 0 3px 0 #4a3660; }
+.rpgTop { display: flex; justify-content: space-between; align-items: center; }
+.rpgLv { font-size: 22px; font-weight: 900; color: #c9f27a; text-shadow: var(--txt-ol); }
+.rpgPts { font-size: 14px; color: #e3d6f0; text-shadow: var(--txt-ol); }
+.rpgPts.has { color: #ffe36a; animation: rdy 0.8s steps(2) infinite; }
+.xpBar { position: relative; height: 18px; background: #120c1c; border: 3px solid var(--ol); }
+.xpBar i { position: absolute; inset-block: 0; inset-inline-start: 0; background: linear-gradient(#c9f27a 0 35%, #6cb83c 35% 75%, #3c7a24 75%); }
+.xpBar span { position: absolute; inset: 0; text-align: center; font-size: 11px; line-height: 12px; color: #fff; text-shadow: var(--txt-ol); direction: ltr; }
+.rpgBuy { align-self: stretch; }
+.rpgGrp { font-size: 14px; font-weight: 900; color: #ffe9a8; text-shadow: var(--txt-ol); margin-top: 4px; }
+.rpgRow.cb { box-shadow: inset 4px 0 0 #d33a3a, inset 0 3px 0 #66507a, inset 0 -3px 0 #2e2140; }
+.rpgRow.fm { box-shadow: inset 4px 0 0 #6cb83c, inset 0 3px 0 #66507a, inset 0 -3px 0 #2e2140; }
+[dir="rtl"] .rpgRow.cb { box-shadow: inset -4px 0 0 #d33a3a, inset 0 3px 0 #66507a, inset 0 -3px 0 #2e2140; }
+[dir="rtl"] .rpgRow.fm { box-shadow: inset -4px 0 0 #6cb83c, inset 0 3px 0 #66507a, inset 0 -3px 0 #2e2140; }
+.rpgV { font-size: 12px; color: #c9f27a; margin-inline-start: 6px; }
+.rpgPlus { min-width: 52px; min-height: 48px; font-size: 24px; --b: #3a3654; --hi: #4c4770; --lo: #26223a; }
+.rpgPlus.can { --b: #4f9a3a; --hi: #8fd468; --lo: #2b5e24; }
+.rpgPlus:disabled { filter: saturate(.3) brightness(.7); }
+
 </style>
 </head>
 <body>
@@ -297,6 +323,7 @@ body.debug .fps { display: inline; }
 <header id="topbar">
   <div class="topL">
     <span class="coins"><canvas id="coinIcon" width="18" height="18"></canvas><b id="coinN">60</b></span>
+    <span class="lvChip" id="lvChip"><b class="lvT">Lv</b><b id="lvN">1</b><span class="xpT"><i id="xpFill"></i></span></span>
     <span class="essChip"><canvas id="gemIcon" width="18" height="18" class="pico"></canvas><b id="essN">0</b></span>
   </div>
   <div class="topbtns">
@@ -4541,6 +4568,116 @@ return cv;
 return {iconGrid, iconCellRGB, iconImage, paintIcon, iconEl};
 })();
 const {iconGrid, iconCellRGB, iconImage, paintIcon, iconEl} = __m_art_icons;
+const __m_rpg = (() => {
+const STAT_MAX = 25;
+const STATS = {
+str:    { grp: 'cb', per: 0.06, fa: 'قدرت',       en: 'Strength',     dfa: '+۶٪ آسیب',                den: '+6% damage' },
+vit:    { grp: 'cb', per: 8,    fa: 'بنیه',        en: 'Vitality',     dfa: '+۸ جان حداکثر',            den: '+8 max HP' },
+agi:    { grp: 'cb', per: 0.03, fa: 'چابکی',       en: 'Agility',      dfa: '+۳٪ سرعت حرکت',           den: '+3% move speed' },
+crit:   { grp: 'cb', per: 0.02, fa: 'ضربه‌ی مهلک', en: 'Critical',     dfa: '+۲٪ شانس ضربه‌ی مهلک',   den: '+2% critical hit chance' },
+bounty: { grp: 'fm', per: 0.04, fa: 'برداشت پربار', en: 'Bounty',      dfa: '+۴٪ شانس محصولِ دوبرابر',  den: '+4% double-harvest chance' },
+seeker: { grp: 'fm', per: 0.03, fa: 'بذریابی',      en: 'Seed seeker', dfa: '+۳٪ شانس بذرِ اضافه از هیولا', den: '+3% extra seed drop chance' },
+green:  { grp: 'fm', per: 0.04, fa: 'دستِ سبز',     en: 'Green thumb', dfa: '+۴٪ سرعت رشد',             den: '+4% growth speed' },
+trade:  { grp: 'fm', per: 0.03, fa: 'بازاری',       en: 'Trader',      dfa: '+۳٪ قیمت فروش',            den: '+3% sell price' },
+};
+const STAT_KEYS = Object.keys(STATS);
+const xpNeed = (lvl) => Math.round(20 * Math.pow(lvl, 1.5));       // سطح ۱→۲: ۲۰ · ۱۰→۱۱: ۶۳۲
+const pointCost = (bought) => Math.round(250 * Math.pow(1.4, bought)); // خرید امتیاز با سکه
+function ensureRpg(s) {
+if (!s.rpg || typeof s.rpg !== 'object') s.rpg = { lvl: 1, xp: 0, pts: 0, bought: 0, st: {} };
+const r = s.rpg;
+for (const k of ['lvl', 'xp', 'pts', 'bought']) if (!Number.isFinite(r[k]) || r[k] < 0) r[k] = k === 'lvl' ? 1 : 0;
+if (!r.st || typeof r.st !== 'object') r.st = {};
+for (const k of STAT_KEYS) r.st[k] = Math.max(0, Math.min(STAT_MAX, r.st[k] | 0));
+return r;
+}
+const stat = (s, k) => (s.rpg && s.rpg.st ? s.rpg.st[k] | 0 : 0);
+const statVal = (s, k) => stat(s, k) * STATS[k].per;   // اثرِ کل
+function addXp(s, n) {
+const r = ensureRpg(s); let ups = 0;
+r.xp += Math.max(0, Math.round(n));
+while (r.xp >= xpNeed(r.lvl) && r.lvl < 99) { r.xp -= xpNeed(r.lvl); r.lvl++; r.pts++; ups++; }
+return ups;
+}
+function spendPoint(s, k) {
+const r = ensureRpg(s);
+if (!STATS[k] || r.pts <= 0 || r.st[k] >= STAT_MAX) return false;
+r.pts--; r.st[k]++; return true;
+}
+function buyPoint(s) {
+const r = ensureRpg(s), c = pointCost(r.bought);
+if (s.coins < c) return false;
+s.coins -= c; r.bought++; r.pts++; return true;
+}
+const XP = { harvest: 2, kill: 4, elite: 10, floor: 8, boss: 60 };
+function runXp(run) {
+return run.kills * XP.kill + (run.eliteKills || 0) * XP.elite + Math.max(0, run.floor - 1) * XP.floor + (run._bossKills || 0) * XP.boss;
+}
+function applyRunStats(run, s) {
+const k = 1 + statVal(s, 'str');
+run.baseDmg = Math.round(run.baseDmg * k); run.skillDmg = Math.round(run.skillDmg * k);
+run.maxHp += statVal(s, 'vit'); run.hero.hp = run.maxHp;
+run.speedMul *= 1 + statVal(s, 'agi');
+run.critBonus += statVal(s, 'crit');
+run.seedP = statVal(s, 'seeker');
+run._base = { baseDmg: run.baseDmg, skillDmg: run.skillDmg, speedMul: run.speedMul, critBonus: run.critBonus }; // تلاشِ دوباره: برکت‌ها پاک، استات‌ها می‌مانند
+}
+const L = (fa, en) => (getLang() === 'fa' ? fa : en);
+function rpgSection(s, list, onChange) {
+const r = ensureRpg(s);
+const head = document.createElement('div');
+head.className = 'mealHead'; head.textContent = L('شخصیت', 'Character');
+list.appendChild(head);
+const card = document.createElement('div');
+card.className = 'rpgCard';
+const need = xpNeed(r.lvl), pct = Math.min(100, Math.round((r.xp / need) * 100));
+card.innerHTML =
+`<div class="rpgTop"><span class="rpgLv">${L('سطح', 'Lv')} ${faNum(r.lvl)}</span>` +
+`<span class="rpgPts${r.pts ? ' has' : ''}">${L('امتیاز آزاد', 'Points')}: ${faNum(r.pts)}</span></div>` +
+`<div class="xpBar"><i style="width:${pct}%"></i><span>${faNum(r.xp)} / ${faNum(need)} XP</span></div>`;
+const buy = document.createElement('button');
+const c = pointCost(r.bought);
+buy.className = 'btn upgBuy rpgBuy' + (s.coins >= c ? ' can' : '');
+buy.innerHTML = `<span>${L('خرید امتیاز', 'Buy point')}</span> <span class="cost">${faNum(c)}</span>`;
+buy.appendChild(iconEl('coin', 14));
+buy.addEventListener('click', () => onChange(buyPoint(s) ? 'buy' : 'nocoin'));
+card.appendChild(buy);
+list.appendChild(card);
+for (const grp of ['cb', 'fm']) {
+const gh = document.createElement('div');
+gh.className = 'rpgGrp'; gh.textContent = grp === 'cb' ? L('نبرد', 'Combat') : L('کشاورزی', 'Farming');
+list.appendChild(gh);
+for (const k of STAT_KEYS) {
+const d = STATS[k]; if (d.grp !== grp) continue;
+const v = r.st[k], full = v >= STAT_MAX;
+const row = document.createElement('div');
+row.className = 'upgRow rpgRow ' + grp;
+row.innerHTML = `<div class="upgInfo"><b>${L(d.fa, d.en)} <span class="rpgV">${faNum(v)}/${faNum(STAT_MAX)}</span></b>` +
+`<small>${L(d.dfa, d.den)} — ${L('فعلی', 'now')}: ${fmtVal(k, v)}</small></div>` +
+`<button class="btn rpgPlus${r.pts > 0 && !full ? ' can' : ''}" ${r.pts > 0 && !full ? '' : 'disabled'} aria-label="+">+</button>`;
+row.querySelector('button').addEventListener('click', () => onChange(spendPoint(s, k) ? 'spend' : 'none'));
+list.appendChild(row);
+}
+}
+}
+function fmtVal(k, v) {
+const x = v * STATS[k].per;
+return k === 'vit' ? '+' + faNum(x) : '+' + faNum(Math.round(x * 100)) + '٪';
+}
+let _last = '';
+function refreshLvChip(s) {
+const r = s.rpg; if (!r) return;
+const key = r.lvl + ':' + r.xp + ':' + r.pts + getLang();
+if (key === _last) return; _last = key;
+const n = document.getElementById('lvN'), f = document.getElementById('xpFill'), ch = document.getElementById('lvChip');
+if (!n || !f) return;
+n.textContent = faNum(r.lvl);
+f.style.width = Math.min(100, Math.round((r.xp / xpNeed(r.lvl)) * 100)) + '%';
+if (ch) ch.classList.toggle('pts', r.pts > 0);
+}
+return {STAT_MAX, STATS, STAT_KEYS, xpNeed, pointCost, stat, statVal, XP, ensureRpg, addXp, spendPoint, buyPoint, runXp, applyRunStats, rpgSection, refreshLvChip};
+})();
+const {STAT_MAX, STATS, STAT_KEYS, xpNeed, pointCost, stat, statVal, XP, ensureRpg, addXp, spendPoint, buyPoint, runXp, applyRunStats, rpgSection, refreshLvChip} = __m_rpg;
 const __m_art_gate = (() => {
 const TAU = Math.PI * 2;
 const GATE_BOX = { ox: 4, oy: 4, w: 24, h: 12 };   // دهانه (نسبت به گوشه‌ی بالا-چپِ دروازه‌ی ۲×۲)
@@ -8308,6 +8445,7 @@ if (c2 && c2.kind === 'soil' && c2.crop && !c2.wet) { c2.wet = true; c2.wetT = W
 }
 } else if (res.ev === 'harvest') {
 if (game.toolLvls.sickle >= 2 && Math.random() < 0.22 * (game.toolLvls.sickle - 1)) res.count += 1; // داس: محصول اضافه
+if (Math.random() < statVal(game.wallet, 'bounty')) { res.count *= 2; game.float(cx, cy - 16, '×۲', 'crit'); } // RPG: برداشت پربار
 game.wallet.inventory[res.type] += res.count;
 game.float(cx, cy - 6, '+' + res.count, 'gold');
 partBurst(game, w.tx, w.ty, 'harvest' + res.type[0].toUpperCase() + res.type.slice(1));
@@ -8486,6 +8624,7 @@ let total = 0, items = 0;
 for (const k in inv) { const n = inv[k]; if (n && CROPS[k]) { total += n * CROPS[k].sell; items += n; } } // سیب = غذای وعده، فروختنی نیست (ن۳۴: قبلاً CROPS.apple undefined → کرش!)
 if (!items) { this.log.push({ k: 'nothing' }); return 0; }
 for (const k in inv) if (CROPS[k]) inv[k] = 0; // فقط محصولات — سیب غذای وعده است (ن۳۴)
+total = Math.round(total * (1 + statVal(this.wallet, 'trade'))); // RPG: بازاری
 this.wallet.coins += total;
 if (this.onSfx) this.onSfx('coin');
 if (this.onEvent) this.onEvent('sell', items);
@@ -9323,7 +9462,8 @@ const mul = 1 + run.floor / 10;
 let n = e.isBoss ? Math.round(25 * mul) : Math.max(1, Math.round((1 + Math.random()) * mul)) + run.greedBonus;
 if (e.isElite) { n = Math.round(n * 2.2) + 2; D.drops.push({ x: e.x, y: e.y - 4, kind: 'heart', t: 0 }); } // نخبه: غنیمت×۲٫۲ + قلب تضمینی
 for (let j = 0; j < n; j++) D.drops.push({ x: e.x + (Math.random() - 0.5) * 12, y: e.y + (Math.random() - 0.5) * 12, kind: Math.random() < 0.1 ? 'heart' : 'essence', t: Math.random() * 6 });
-const seedN = e.isBoss ? 2 : 1;
+if (e.isBoss) run._bossKills = (run._bossKills || 0) + 1; // RPG: XP باس
+const seedN = (e.isBoss ? 2 : 1) + (Math.random() < (run.seedP || 0) ? 1 : 0); // RPG: بذریابی
 for (let j = 0; j < seedN; j++) {
 const st = rollSeedDrop(run.floor, e.isElite, e.isBoss);
 if (st) D.drops.push({ x: e.x + (Math.random() - 0.5) * 14, y: e.y + (Math.random() - 0.5) * 14, kind: 'seed', ty: st, t: Math.random() * 6 });
@@ -9667,7 +9807,9 @@ this.fx.float(h.x, h.y - 52, '✦', 'skill');
 }
 restart() {
 this.essence = 0; this.kills = 0; this.eliteKills = 0; this._maxCombo = 0;
-this.critBonus = 0; this.greedBonus = 0; this.rangeBonus = 0; this.deaths++;
+const b = this._base; // RPG: برکت‌های محراب پاک، استات/تجهیز می‌ماند (قبلاً کریتِ تجهیز با تلاشِ دوباره صفر و برکتِ آسیب ماندگار می‌شد)
+if (b) { this.baseDmg = b.baseDmg; this.skillDmg = b.skillDmg; this.speedMul = b.speedMul; }
+this.critBonus = b ? b.critBonus : 0; this.greedBonus = 0; this.rangeBonus = 0; this.deaths++; this._bossKills = 0;
 this._banked = false; this.comboN = 0; this.comboT = 0; // دورِ نو: پایانِ دور قبلی واریز شد (ن۳۴)
 const h = this.hero;
 h.hp = this.maxHp; h.dead = false; h.deadT = 0;
@@ -10473,6 +10615,8 @@ fx_wPlant:{ fa: 'کارگر یاد می‌گیرد بذر بکارد', en: 'Work
 fx_wWater:{ fa: 'کارگر یاد می‌گیرد آبیاری کند', en: 'Worker learns to water crops' },
 fx_wHarvest:{ fa: 'کارگر یاد می‌گیرد برداشت کند', en: 'Worker learns to harvest' },
 fx_wSpeed:{ fa: '۱۵٪ سریع‌تر کار/سطح + آفلاین', en: '15% faster work per level + offline' },
+lvUp:    { fa: 'سطح بالا! سطح', en: 'Level up! Lv' },
+lvPts:   { fa: 'یک امتیاز استات گرفتی — منو ← شخصیت', en: '+1 stat point — Menu → Character' },
 fx_boots:{ fa: '+۶٪ سرعت حرکت/سطح', en: '+6% move speed per level' },
 };
 let lang = 'fa';
@@ -10536,6 +10680,7 @@ const MENU_KINDS = ['land', 'farm2', 'worker', 'wTill', 'wPlant', 'wWater', 'wHa
 function buildMenu(app, hooks) {
 const list = $('menuList');
 list.innerHTML = '';
+rpgSection(app.s, list, (r) => hooks.onRpg(r)); // RPG: سطح/امتیاز/استات‌ها
 const qh = document.createElement('div');
 qh.className = 'mealHead';
 qh.textContent = t('questsTitle');
@@ -11142,6 +11287,11 @@ onMeal(kind) {
 if (app.buyMeal(kind)) { playSfx('apple'); buildMenu(app, menuHooks); refreshHud(true); saveNow(); }
 else toast(t('needCrops'));
 },
+onRpg(r) { // RPG: خرج/خرید امتیاز
+if (r === 'nocoin') { toast(t('noCoins')); return; }
+if (r === 'none') return;
+playSfx('upgrade'); buildMenu(app, menuHooks); refreshHud(true); saveNow();
+},
 onBuy(kind) {
 if (app.buy(kind)) { playSfx('upgrade'); buildMenu(app, menuHooks); refreshHud(true); saveNow(); }
 else toast(t('noCoins'));
@@ -11310,6 +11460,7 @@ saveNow();
 app.s.stats.runs++;
 const meal = app.s.buff ? MEALS[app.s.buff] : null; // غذا هنگام ورود مصرف می‌شود
 run = new Run((Date.now() % 100000) | 0, { swordLvl: app.s.upgrades.sword, armorLvl: app.s.upgrades.armor, bootsLvl: app.s.upgrades.boots, meal: meal ? meal.buff : null, equip: app.s.equipped });
+applyRunStats(run, app.s); // RPG: قدرت/بنیه/چابکی/مهلک/بذریابی
 if (meal) { app.s.buff = null; toast(t('buffOn') + ' ' + meal.name[getLang()]); }
 run.view = env.getView();
 run.onSfx = (n) => playSfx(n);
@@ -11323,6 +11474,7 @@ function bankRun() {
 if (!run || run._banked) return;
 run._banked = true;
 const got = app.bankEssence(run);
+if (env.gainXp) env.gainXp(runXp(run)); // RPG: XP دور (شکار/نخبه/طبقه/باس)
 app.s.stats.bestFloor = Math.max(app.s.stats.bestFloor, run.floor);
 app.s.stats.kills += run.kills;
 if (got > 0) toast('+' + faNum(got) + ' ' + t('essence'));
@@ -11376,6 +11528,7 @@ const canvas = document.getElementById('game');
 const ctx = canvas.getContext('2d');
 ctx.imageSmoothingEnabled = false;
 const app = new App(loadSave());
+ensureRpg(app.s); // RPG: سیوهای قدیمی
 const farmScene = new Game(app.s, app.s.upgrades.land, app.s.upgrades, app.s.upgrades.boots);
 app.hydrateFarm(farmScene);
 window.__app = app; window.__farm = farmScene; // برای تست
@@ -11391,7 +11544,7 @@ app.s.lang = getLang();
 writeSave(app.s);
 }
 let UI = null;
-const S = initScenes({ app, farmScene, saveNow, getView: () => ({ w: sc.w, h: sc.h }), getUI: () => UI });
+const S = initScenes({ app, farmScene, saveNow, getView: () => ({ w: sc.w, h: sc.h }), getUI: () => UI, gainXp: (n) => gainXp(n) });
 function resize() {
 const dpr = window.devicePixelRatio || 1;
 if (innerWidth < 2 || innerHeight < 2) return; // ن۴۰: iframe با اندازه‌ی صفر (پیش‌نمایش سندباکس) — بعداً که سایز گرفت پایش دوره‌ای می‌گیردش
@@ -11439,8 +11592,14 @@ if (e.code === 'KeyK') $('dash').dispatchEvent(new Event('click'));
 UI = initAppUI({ app, farmScene, saveNow, getRun: S.getRun, getScene: S.getScene, input });
 farmScene.onSfx = (n) => playSfx(n);
 farmScene.onGate = () => S.enterDungeon();
+function gainXp(n) { // RPG: XP → سطح؛ هر سطح ۱ امتیاز
+const ups = addXp(app.s, n);
+if (ups) { showBanner(t('lvUp') + ' ' + faNum(app.s.rpg.lvl), true); toast(t('lvPts')); playSfx('quest'); UI.buildMenuIfOpen(); }
+}
+window.__gainXp = gainXp;
 farmScene.onHouse = () => { $('menuBtn').click(); }; // خانه = میز کار: منوی مأموریت‌ها/ارتقاها
 farmScene.onEvent = (k, n) => { // مأموریت‌ها: برداشت/فروش/طلایی
+if (k === 'harvest') gainXp(n * XP.harvest);
 const done = app.track(k, n);
 for (const q of done) { toast(t('questDone') + ' — ' + questLabel(q)); UI.buildMenuIfOpen(); UI.refreshHud(true); }
 if (done.length) playSfx('quest');
@@ -11503,7 +11662,8 @@ if (UI.isShrineOpen() && (scene !== 'dungeon' || !run || S.getFade() < 0.99)) UI
 if (farmScene.equipSig !== app._eqSig) UI.syncEquip(); // فقط بعد از تعویض تجهیز
 const spd = (1 + 0.06 * app.s.upgrades.boots) * (1 + app._eqStats.speed);
 if (scene === 'farm' && farmScene.speedMul !== spd) farmScene.speedMul = spd;
-if (scene === 'farm' && farmScene.fertMul !== 1 + 0.08 * app.s.upgrades.fert) farmScene.fertMul = 1 + 0.08 * app.s.upgrades.fert;
+if (scene === 'farm') { const fm = (1 + 0.08 * app.s.upgrades.fert) * (1 + statVal(app.s, 'green')); if (farmScene.fertMul !== fm) farmScene.fertMul = fm; } // RPG: دستِ سبز
+refreshLvChip(app.s);
 {
 const wantScene = scene === 'farm' ? 'farm' : 'dungeon';
 if (wantScene !== _ambScene) { _ambScene = wantScene; setAmbient(wantScene); }

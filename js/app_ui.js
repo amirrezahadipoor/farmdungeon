@@ -38,6 +38,11 @@ export function initAppUI(env) {
       if (app.buyMeal(kind)) { playSfx('apple'); buildMenu(app, menuHooks); refreshHud(true); saveNow(); }
       else toast(t('needCrops'));
     },
+    onRpg(r) { // RPG: خرج/خرید امتیاز
+      if (r === 'nocoin') { toast(t('noCoins')); return; }
+      if (r === 'none') return;
+      playSfx('upgrade'); buildMenu(app, menuHooks); refreshHud(true); saveNow();
+    },
     onBuy(kind) {
       if (app.buy(kind)) { playSfx('upgrade'); buildMenu(app, menuHooks); refreshHud(true); saveNow(); }
       else toast(t('noCoins'));
