@@ -5,7 +5,8 @@ import { Raster, rot } from '../raster.js';
 import { ik, GAITS, bodyBob, ease } from '../skeleton.js';
 import { SPR, OX, OY, DIRS, GEO, ACT, actionPose, gaitPose, poseLerp, mapPts } from './hero_pose.js';
 import { drawEquipHat, drawEquipBody, drawEquipBoots, swordPal } from './equipment.js';
-import { drawHeroPx, up2 } from './hero_px.js';
+import { up2 } from './hero_px.js';
+import { drawHeroMap } from './hero_map.js';   // S10.4: بدنه‌ی تمام‌نقشه‌ای (دست‌پیکسل)
 import { bake } from './bake.js';                       // S6.1: خط لولهٔ واحدِ پخت (half/rim/outline/lock)
 
 // ---------- قطعات ----------
@@ -86,11 +87,20 @@ export function drawHeroFrame(opts) {
   // ترتیب لایه: بازوی دور → پای دور → تنه → پای نزدیک → سر/کلاه → بازوی نزدیک → ابزار
   // S9.3: بدنه‌ی دست‌پیکسل در مقیاس نهایی (۶۴) → ۲× روی بومِ ۱۲۸؛ تجهیزات/ابزار همچنان در ۱۲۸
   const lo = new Raster(SPR / 2, SPR / 2);
-  drawHeroPx(lo, dir, P, 'back');
-  up2(lo, body); lo.d.fill(0);
-  if (equip && equip.body) drawEquipBody(body, dir, P, equip.body);
-  drawHeroPx(lo, dir, P, 'front', { blink, noHat: !!(equip && equip.hat) });
+  // S10.4: فریمِ نقشه از همان کلیدِ کش (۶ گام / ۴ idle)؛ لنگرهای نقشه جای مفاصلِ اسکلت را برای تجهیزات/ابزار می‌گیرند
+  const N = anim === 'idle' ? 4 : 6, fr = Math.floor((((phase % 1) + 1) % 1) * N) % N;
+  const act = toolAng !== null && actP >= 0 ? { hand: [P.arms.near.hand[0] / 2, P.arms.near.hand[1] / 2] } : null;
+  const A = drawHeroMap(lo, { dir, frame: fr, anim: anim !== 'idle' && moveW < 0.5 ? 'idle' : anim, blink, act });
+  const d2 = (p) => [p[0] * 2, p[1] * 2];
+  P.headC = d2(A.headC); P.neck = d2(A.neck); P.pelvis = d2(A.pelvis);
+  P.arms.near.shoulder = d2(A.shoulderN); P.arms.far.shoulder = d2(A.shoulderF);
+  P.arms.near.hand = d2(A.handN); P.arms.far.hand = d2(A.handF);
+  P.legs.near.ankle = d2(A.ankleN); P.legs.far.ankle = d2(A.ankleF);
+  if (equip && equip.hat) { // کلاهِ تجهیز جای کلاهِ نقشه: ۵ ردیفِ بالای نقشه پاک
+    for (let y = A.top; y < A.top + 5; y++) for (let x = 0; x < lo.w; x++) lo.d[(y * lo.w + x) * 4 + 3] = 0;
+  }
   up2(lo, body);
+  if (equip && equip.body) drawEquipBody(body, dir, P, equip.body);
   if (equip && equip.hat) drawEquipHat(body, dir, P.headC, equip.hat);
   if (equip && equip.boots) drawEquipBoots(body, dir, P, equip.boots);
   if (tool !== 'none' && toolAng !== null) {
