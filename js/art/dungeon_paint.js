@@ -94,6 +94,11 @@ function paintDress(r, ox, oy, d, P, x, y, DM, W) {
   else if (d.t === 'puddle') { r.ellipse(ox + 8, oy + 9, 6, 3, c4([40, 70, 96], 170)); r.rect(ox + 5, oy + 8, 3, 1, c4([140, 190, 220], 160)); }
   else if (d.t === 'web') { const w = c4([220, 220, 230], 120); r.line?.(ox, oy, ox + 15, oy + 15, w); r.rect(ox + 2, oy + 2, 12, 1, w); r.rect(ox + 2, oy + 2, 1, 12, w); for (let i = 3; i < 14; i += 4) r.rect(ox + 2, oy + i, i, 1, w); }
   else if (d.t === 'ember') { for (let i = 0; i < 3; i++) r.rect(ox + 3 + ((d.v + i) * 5) % 10, oy + 4 + i * 4, 2, 1, c4([255, 140, 60], 200)); }
+  else if (d.t === 'rails') { r.rect(ox, oy + 4, 16, 1, c4([120, 100, 80])); r.rect(ox, oy + 11, 16, 1, c4([120, 100, 80])); for (let i = 1; i < 16; i += 5) r.rect(ox + i, oy + 3, 2, 10, c4([92, 64, 40])); r.rect(ox, oy + 5, 16, 1, c4([170, 160, 150])); r.rect(ox, oy + 12, 16, 1, c4([170, 160, 150])); } // ریلِ معدن
+  else if (d.t === 'grave') { r.rect(ox + 4, oy + 9, 8, 6, c4([70, 60, 50], 150)); r.rect(ox + 5, oy + 2, 6, 8, c4([150, 150, 160])); r.rect(ox + 6, oy + 1, 4, 1, c4([150, 150, 160])); r.rect(ox + 5, oy + 9, 6, 1, c4([96, 96, 110])); r.rect(ox + 7, oy + 4, 2, 1, c4([90, 90, 100])); r.rect(ox + 7, oy + 3, 1, 4, c4([90, 90, 100])); } // سنگِ قبر
+  else if (d.t === 'candle') { r.rect(ox + 6, oy + 8, 2, 4, c4([236, 228, 200])); r.rect(ox + 6, oy + 6, 2, 2, c4([255, 200, 90])); r.rect(ox + 10, oy + 10, 2, 3, c4([236, 228, 200])); r.rect(ox + 10, oy + 9, 1, 1, c4([255, 220, 120])); r.rect(ox + 5, oy + 12, 8, 1, c4([180, 170, 140], 160)); }
+  else if (d.t === 'crystal') { const c = [140, 210, 255]; r.rect(ox + 6, oy + 4, 3, 9, c4(c)); r.rect(ox + 7, oy + 2, 1, 2, c4(c)); r.rect(ox + 6, oy + 4, 1, 9, c4([230, 250, 255])); r.rect(ox + 10, oy + 8, 2, 5, c4([90, 160, 220])); r.rect(ox + 4, oy + 9, 2, 4, c4([90, 160, 220])); }
+  else if (d.t === 'crack') { const c = c4([255, 110, 40], 230); r.rect(ox + 2, oy + 7, 5, 1, c); r.rect(ox + 6, oy + 8, 4, 1, c); r.rect(ox + 9, oy + 9, 5, 1, c); r.rect(ox + 7, oy + 4, 1, 4, c); r.rect(ox + 7, oy + 5, 1, 1, c4([255, 220, 120])); } // شکافِ گدازه
   else if (d.t === 'ice') { r.rect(ox + 1, oy + 1, 14, 14, c4([190, 230, 255], 60)); r.rect(ox + 3, oy + 4, 5, 1, c4([240, 250, 255], 150)); }
 }
 function paintBanner(r, ox, oy, v, theme) { // پرچمِ آویخته روی نمای آجری

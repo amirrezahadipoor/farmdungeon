@@ -2,9 +2,10 @@
 // طبقه‌هایی که هنوز طراحیِ دستی ندارند spec موقتِ قطعی (بر اساسِ شماره‌ی طبقه) می‌گیرند تا بازی همیشه کامل باشد.
 import { F001_010 } from './f001_010.js';
 import { F011_020 } from './f011_020.js';
+import { F021_040 } from './f021_040.js';
 import { isBossFloor } from './tiers.js';
 
-export const DESIGNED = { ...F001_010, ...F011_020 };
+export const DESIGNED = { ...F001_010, ...F011_020, ...F021_040 };
 export const MAX_FLOOR = 100;
 const LAYOUTS = ['scatter', 'chain', 'hub', 'grid', 'twin', 'ring'];
 

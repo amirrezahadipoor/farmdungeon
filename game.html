@@ -8008,8 +8008,54 @@ shapes: ['oval', 'ring'], dress: ['web', 'bones'], dressN: 0.14, banners: 0.5, r
 return {F011_020};
 })();
 const {F011_020} = __m_floors_f011_020;
+const __m_floors_f021_040 = (() => {
+const F021_040 = {
+21: { name: { fa: 'دهانه‌ی معدن', en: 'Mine Mouth' }, layout: 'chain', cols: 120, rows: 84, rooms: 14, chainCols: 5, rw: [12, 17], rh: [9, 12],
+winding: true, shapes: ['rect', 'L'], dress: ['rails', 'rubble'], dressN: 0.12, treasure: 2, empty: 0.25, dens: 1, startAt: 'left' },
+22: { name: { fa: 'رگه‌های طلا', en: 'Gold Veins' }, layout: 'scatter', cols: 120, rows: 90, rooms: 15, rw: [12, 18], rh: [10, 13],
+shapes: ['oval', 'L'], dress: ['rubble', 'rails'], treasure: 4, empty: 0.25, dens: 1.1 },
+23: { name: { fa: 'اردوگاهِ راهزنان', en: 'Bandit Camp' }, layout: 'hub', cols: 128, rows: 90, rooms: 16, rw: [13, 19], rh: [10, 14],
+shapes: ['rect'], dress: ['bones', 'rubble'], banners: 0.6, pillars: 0.3, treasure: 3, empty: 0.15, dens: 1.2 },
+24: { name: { fa: 'چاه‌های ریزش', en: 'Collapse Shafts' }, layout: 'twin', cols: 128, rows: 90, rooms: 16, rw: [12, 17], rh: [10, 13],
+shapes: ['L', 'oval'], dress: ['rubble', 'rubble', 'rails'], dressN: 0.15, cross: 0.3, treasure: 2, empty: 0.2, dens: 1.2, startAt: 'left' },
+25: { name: { fa: 'خزانه‌ی سرکرده', en: "Chief's Vault" }, layout: 'ring', cols: 128, rows: 96, rooms: 14, spokes: 3, rw: [12, 18], rh: [10, 13],
+shapes: ['rect', 'ring'], dress: ['rails', 'bones'], banners: 0.7, treasure: 4, empty: 0.1, dens: 1.3, boss: true },
+26: { name: { fa: 'دروازه‌ی گورستان', en: 'Graveyard Gate' }, layout: 'grid', cols: 120, rows: 90, gridCols: 5, gridRows: 4, holes: 0.2, rw: [13, 17], rh: [10, 13],
+shapes: ['rect', 'oval'], dress: ['grave', 'grave', 'bones'], dressN: 0.1, treasure: 2, empty: 0.25, dens: 1.1 },
+27: { name: { fa: 'سردابِ شمع‌ها', en: 'Candle Crypt' }, layout: 'chain', cols: 128, rows: 90, rooms: 16, chainCols: 4, rw: [12, 16], rh: [10, 12],
+winding: true, shapes: ['rect', 'L'], dress: ['candle', 'bones'], dressN: 0.12, banners: 0.3, treasure: 2, empty: 0.2, dens: 1.2, startAt: 'top' },
+28: { name: { fa: 'استخوان‌خانه', en: 'The Ossuary' }, layout: 'hub', cols: 128, rows: 96, rooms: 16, rw: [13, 19], rh: [10, 14],
+shapes: ['ring', 'oval'], dress: ['bones', 'bones', 'grave'], dressN: 0.16, treasure: 2, empty: 0.15, dens: 1.3 },
+29: { name: { fa: 'مقبره‌های اشراف', en: 'Noble Tombs' }, layout: 'scatter', cols: 128, rows: 96, rooms: 17, rw: [12, 18], rh: [10, 13],
+pillars: 0.5, shapes: ['rect', 'ring'], dress: ['grave', 'candle'], banners: 0.5, treasure: 3, empty: 0.2, dens: 1.3 },
+30: { name: { fa: 'تختِ شاهِ استخوان', en: 'Bone King Throne' }, layout: 'ring', cols: 128, rows: 96, rooms: 14, spokes: 4, rw: [12, 18], rh: [10, 13],
+shapes: ['oval', 'rect'], dress: ['candle', 'grave', 'bones'], banners: 0.6, round: 3, treasure: 2, empty: 0.1, dens: 1.4, boss: true },
+31: { name: { fa: 'دالانِ یخ‌بندان', en: 'Frost Corridor' }, layout: 'chain', cols: 128, rows: 90, rooms: 15, chainCols: 5, rw: [12, 17], rh: [10, 13],
+winding: true, shapes: ['oval'], dress: ['ice', 'crystal'], dressN: 0.12, treasure: 2, empty: 0.25, dens: 1.2, startAt: 'left' },
+32: { name: { fa: 'تالارِ کریستال', en: 'Crystal Hall' }, layout: 'hub', cols: 128, rows: 96, rooms: 16, rw: [13, 19], rh: [10, 14],
+pillars: 0.5, shapes: ['ring', 'rect'], dress: ['crystal', 'crystal', 'ice'], dressN: 0.13, treasure: 3, empty: 0.2, dens: 1.3 },
+33: { name: { fa: 'دریاچه‌ی منجمد', en: 'Frozen Lake' }, layout: 'scatter', cols: 128, rows: 96, rooms: 16, rw: [14, 20], rh: [11, 15],
+pools: 0.7, shapes: ['oval', 'oval', 'L'], dress: ['ice', 'puddle'], dressN: 0.14, loops: 0.1, treasure: 2, empty: 0.2, dens: 1.3 },
+34: { name: { fa: 'کتابخانه‌ی ارواح', en: 'Haunted Library' }, layout: 'grid', cols: 128, rows: 96, gridCols: 5, gridRows: 4, holes: 0.1, rw: [13, 18], rh: [10, 13],
+shapes: ['rect', 'L'], dress: ['candle', 'crystal'], banners: 0.6, pillars: 0.4, treasure: 3, empty: 0.15, dens: 1.4 },
+35: { name: { fa: 'تختِ ملکه‌ی یخ', en: 'Ice Wraith Throne' }, layout: 'ring', cols: 136, rows: 96, rooms: 15, spokes: 4, rw: [12, 18], rh: [10, 13],
+shapes: ['oval', 'ring'], dress: ['crystal', 'ice'], dressN: 0.14, banners: 0.5, round: 3, treasure: 2, empty: 0.1, dens: 1.4, boss: true },
+36: { name: { fa: 'دمِ کوره', en: 'Forge Breath' }, layout: 'twin', cols: 128, rows: 90, rooms: 16, rw: [12, 18], rh: [10, 13],
+shapes: ['rect', 'L'], dress: ['ember', 'crack'], dressN: 0.12, treasure: 2, empty: 0.25, dens: 1.3, startAt: 'left' },
+37: { name: { fa: 'رودِ گدازه', en: 'Lava Run' }, layout: 'chain', cols: 136, rows: 96, rooms: 16, chainCols: 4, rw: [12, 17], rh: [10, 13],
+winding: true, cross: 0.3, shapes: ['oval', 'rect'], dress: ['crack', 'crack', 'ember'], dressN: 0.14, treasure: 2, empty: 0.2, dens: 1.4, startAt: 'top' },
+38: { name: { fa: 'سندان‌خانه', en: 'Anvil Halls' }, layout: 'hub', cols: 136, rows: 96, rooms: 17, rw: [13, 19], rh: [10, 14],
+pillars: 0.5, shapes: ['ring', 'rect'], dress: ['rubble', 'ember'], banners: 0.5, treasure: 3, empty: 0.15, dens: 1.4 },
+39: { name: { fa: 'خاکسترستان', en: 'Ash Fields' }, layout: 'scatter', cols: 136, rows: 96, rooms: 17, rw: [13, 20], rh: [10, 14],
+shapes: ['oval', 'L'], dress: ['ember', 'bones', 'crack'], dressN: 0.15, loops: 0.1, treasure: 2, empty: 0.15, dens: 1.5 },
+40: { name: { fa: 'تختِ شاه‌ایمپ', en: 'Imp Lord Throne' }, layout: 'ring', cols: 136, rows: 96, rooms: 15, spokes: 4, rw: [12, 18], rh: [10, 13],
+shapes: ['oval', 'ring'], dress: ['crack', 'ember'], dressN: 0.15, banners: 0.6, round: 3, treasure: 2, empty: 0.1, dens: 1.5, boss: true },
+};
+return {F021_040};
+})();
+const {F021_040} = __m_floors_f021_040;
 const __m_floors_index = (() => {
-const DESIGNED = { ...F001_010, ...F011_020 };
+const DESIGNED = { ...F001_010, ...F011_020, ...F021_040 };
 const MAX_FLOOR = 100;
 const LAYOUTS = ['scatter', 'chain', 'hub', 'grid', 'twin', 'ring'];
 function specFor(f) {
@@ -8299,6 +8345,11 @@ else if (d.t === 'bones') { const b = [214, 206, 184]; r.rect(ox + 3, oy + 8 + d
 else if (d.t === 'puddle') { r.ellipse(ox + 8, oy + 9, 6, 3, c4([40, 70, 96], 170)); r.rect(ox + 5, oy + 8, 3, 1, c4([140, 190, 220], 160)); }
 else if (d.t === 'web') { const w = c4([220, 220, 230], 120); r.line?.(ox, oy, ox + 15, oy + 15, w); r.rect(ox + 2, oy + 2, 12, 1, w); r.rect(ox + 2, oy + 2, 1, 12, w); for (let i = 3; i < 14; i += 4) r.rect(ox + 2, oy + i, i, 1, w); }
 else if (d.t === 'ember') { for (let i = 0; i < 3; i++) r.rect(ox + 3 + ((d.v + i) * 5) % 10, oy + 4 + i * 4, 2, 1, c4([255, 140, 60], 200)); }
+else if (d.t === 'rails') { r.rect(ox, oy + 4, 16, 1, c4([120, 100, 80])); r.rect(ox, oy + 11, 16, 1, c4([120, 100, 80])); for (let i = 1; i < 16; i += 5) r.rect(ox + i, oy + 3, 2, 10, c4([92, 64, 40])); r.rect(ox, oy + 5, 16, 1, c4([170, 160, 150])); r.rect(ox, oy + 12, 16, 1, c4([170, 160, 150])); } // ریلِ معدن
+else if (d.t === 'grave') { r.rect(ox + 4, oy + 9, 8, 6, c4([70, 60, 50], 150)); r.rect(ox + 5, oy + 2, 6, 8, c4([150, 150, 160])); r.rect(ox + 6, oy + 1, 4, 1, c4([150, 150, 160])); r.rect(ox + 5, oy + 9, 6, 1, c4([96, 96, 110])); r.rect(ox + 7, oy + 4, 2, 1, c4([90, 90, 100])); r.rect(ox + 7, oy + 3, 1, 4, c4([90, 90, 100])); } // سنگِ قبر
+else if (d.t === 'candle') { r.rect(ox + 6, oy + 8, 2, 4, c4([236, 228, 200])); r.rect(ox + 6, oy + 6, 2, 2, c4([255, 200, 90])); r.rect(ox + 10, oy + 10, 2, 3, c4([236, 228, 200])); r.rect(ox + 10, oy + 9, 1, 1, c4([255, 220, 120])); r.rect(ox + 5, oy + 12, 8, 1, c4([180, 170, 140], 160)); }
+else if (d.t === 'crystal') { const c = [140, 210, 255]; r.rect(ox + 6, oy + 4, 3, 9, c4(c)); r.rect(ox + 7, oy + 2, 1, 2, c4(c)); r.rect(ox + 6, oy + 4, 1, 9, c4([230, 250, 255])); r.rect(ox + 10, oy + 8, 2, 5, c4([90, 160, 220])); r.rect(ox + 4, oy + 9, 2, 4, c4([90, 160, 220])); }
+else if (d.t === 'crack') { const c = c4([255, 110, 40], 230); r.rect(ox + 2, oy + 7, 5, 1, c); r.rect(ox + 6, oy + 8, 4, 1, c); r.rect(ox + 9, oy + 9, 5, 1, c); r.rect(ox + 7, oy + 4, 1, 4, c); r.rect(ox + 7, oy + 5, 1, 1, c4([255, 220, 120])); } // شکافِ گدازه
 else if (d.t === 'ice') { r.rect(ox + 1, oy + 1, 14, 14, c4([190, 230, 255], 60)); r.rect(ox + 3, oy + 4, 5, 1, c4([240, 250, 255], 150)); }
 }
 function paintBanner(r, ox, oy, v, theme) { // پرچمِ آویخته روی نمای آجری
