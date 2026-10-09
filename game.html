@@ -5298,9 +5298,9 @@ const FOOT_F = [1, 0, -1, -2, -3, -1];                    // روبه‌رو/پ�
 const BOB = [0, 1, -1, 0, 1, -1], BOB_RUN = [0, 2, -1, 0, 2, -1];
 const IDLE_BOB = [0, 0, 1, 1];
 const SIDE_POSE = {
-CF: { offs: [0, 0, 1, 1, 2, 3, 3, 4], boot: 4, lift: 0 }, DP: { offs: [0, 0, 0, 1, 1, 1, 2, 2], boot: 2, lift: 0 },
-PP: { offs: [0, 0, 0, 0, 0, -1, -1, -1], boot: -1, lift: 0 }, CB: { offs: [0, 0, -1, -1, -2, -3, -3, -4], boot: -4, lift: 0 },
-DL: { offs: [0, 0, -1, -1, -2, -2, -3], boot: -3, lift: 1 }, PL: { offs: [0, 1, 1, 2, 1], boot: 1, lift: 3 },
+CF: { offs: [0, 0, 1, 1, 2, 2, 3, 3], boot: 3, lift: 0 }, DP: { offs: [0, 0, 0, 0, 1, 1, 1, 1], boot: 1, lift: 0 },
+PP: { offs: [0, 0, 0, 0, 0, 0, 0, 0], boot: 0, lift: 0 }, CB: { offs: [0, 0, -1, -1, -2, -2, -3, -3], boot: -3, lift: 0 },
+DL: { offs: [0, 0, 0, -1, -1, -1, -2], boot: -2, lift: 1 }, PL: { offs: [0, 0, 0, 0, -1, -1], boot: -1, lift: 2 },
 };
 const SIDE_BOOT = ['BBBBb', 'eeeee', 'Bbbbb', 'Bbbbbb'];   // ساقه · بند · رویه · پنجه (از چکمه‌ی AI)                            // تنفس (پاها ثابت، لگن همراهِ بالاتنه)
 const HERO_MAP_GAIT = { GAIT_DX: FX, LIFT: FL, BOB, IDLE_BOB };
@@ -5345,13 +5345,13 @@ const leg = (ps, far) => {
 const P = SIDE_POSE[ps], lift = idle ? 0 : P.lift + (run && P.lift ? 1 : 0);
 const sc = (v) => (idle ? 0 : Math.round(v * amp));
 const ay = GROUND - 3 - lift, n = ay - hipY, L = P.offs.length;
-const [cL, cD] = far ? ['p', 'q'] : ['P', 'p'];
+const [cL, cD] = far ? ['p', 'q'] : ['P', 'p'];   // پای دور یک پله تیره‌تر (نه سیاه)
 for (let k = 0; k < n; k++) {
 const x = hx + sc(P.offs[Math.min(L - 1, Math.round(k * (L - 1) / Math.max(1, n - 1)))]), y = hipY + k;
 if (!far && occ.has((flip ? 2 * OXL - 1 - (x - 1) : x - 1) * 1000 + y)) put(x - 1, y, K.e);
 for (let q = 0; q < 4; q++) put(x + q, y, col(q === 3 ? cD : cL), far);
 }
-const bx = hx + sc(P.boot), tone = far ? { B: 'b', b: 'n' } : null;
+const bx = hx + sc(P.boot), tone = far ? { B: 'b' } : null;
 SIDE_BOOT.forEach((row, j) => { for (let q = 0; q < row.length; q++) if (row[q] !== '.') {
 if (!far && j > 1 && q === 0 && occ.has((flip ? 2 * OXL - 1 - (bx - 1) : bx - 1) * 1000 + ay + j)) put(bx - 1, ay + j, K.e);
 put(bx + q, ay + j, row[q] === 'e' ? K.e : col(tone ? tone[row[q]] || row[q] : row[q], 'boots'), far);
