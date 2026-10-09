@@ -5,9 +5,10 @@ import { F011_020 } from './f011_020.js';
 import { F021_040 } from './f021_040.js';
 import { F041_060 } from './f041_060.js';
 import { F061_080 } from './f061_080.js';
+import { F081_100 } from './f081_100.js';
 import { isBossFloor } from './tiers.js';
 
-export const DESIGNED = { ...F001_010, ...F011_020, ...F021_040, ...F041_060, ...F061_080 };
+export const DESIGNED = { ...F001_010, ...F011_020, ...F021_040, ...F041_060, ...F061_080, ...F081_100 };
 export const MAX_FLOOR = 100;
 const LAYOUTS = ['scatter', 'chain', 'hub', 'grid', 'twin', 'ring'];
 

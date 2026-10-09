@@ -104,6 +104,10 @@ function paintDress(r, ox, oy, d, P, x, y, DM, W) {
   else if (d.t === 'snow') { r.ellipse(ox + 8, oy + 9, 7, 4, c4([232, 240, 250], 210)); r.rect(ox + 4, oy + 7, 5, 1, c4([255, 255, 255])); }
   else if (d.t === 'sand') { r.ellipse(ox + 8, oy + 9, 7, 4, c4([196, 164, 104], 170)); for (let i = 0; i < 4; i++) r.rect(ox + 3 + i * 3, oy + 8 + (i & 1), 2, 1, c4([226, 196, 130])); }
   else if (d.t === 'vine') { const g = c4([70, 130, 60]), l = c4([110, 170, 80]); for (let k = 0; k < 14; k++) r.rect(ox + 2 + k, oy + 8 + Math.round(2 * Math.sin((k + d.v * 3) * 0.7)), 1, 1, g); r.rect(ox + 5, oy + 6, 2, 2, l); r.rect(ox + 11, oy + 9, 2, 2, l); }
+  else if (d.t === 'spore') { for (let i = 0; i < 5; i++) { const x = ox + 2 + ((d.v * 5 + i * 3) % 12), y = oy + 3 + ((d.v * 7 + i * 5) % 11); r.rect(x, y, 2, 2, c4([150, 240, 160], 150)); r.rect(x, y, 1, 1, c4([220, 255, 210], 230)); } r.rect(ox + 9, oy + 10, 3, 3, c4([180, 60, 60])); r.rect(ox + 10, oy + 13, 1, 2, c4([230, 220, 200])); } // هاگِ درخشان + قارچِ کوچک
+  else if (d.t === 'rune') { const c = c4([220, 60, 80], 200), h = c4([255, 150, 160], 230); r.rect(ox + 3, oy + 3, 10, 1, c); r.rect(ox + 3, oy + 12, 10, 1, c); r.rect(ox + 3, oy + 3, 1, 10, c); r.rect(ox + 12, oy + 3, 1, 10, c); r.rect(ox + 7, oy + 5, 2, 6, h); r.rect(ox + 5, oy + 7, 6, 2, h); } // نشانِ اهریمنی
+  else if (d.t === 'armor') { r.rect(ox + 4, oy + 6, 6, 5, c4([110, 116, 130])); r.rect(ox + 4, oy + 6, 6, 1, c4([170, 176, 190])); r.rect(ox + 6, oy + 8, 2, 1, c4([40, 40, 50])); r.rect(ox + 10, oy + 9, 5, 1, c4([190, 196, 210])); r.rect(ox + 9, oy + 8, 1, 3, c4([120, 90, 50])); } // کلاه‌خود و شمشیرِ افتاده
+  else if (d.t === 'scale') { for (let i = 0; i < 6; i++) r.rect(ox + 2 + ((d.v * 3 + i * 5) % 12), oy + 3 + ((d.v + i * 4) % 11), 2, 1, c4([90, 170, 90], 200)); }
   else if (d.t === 'ice') { r.rect(ox + 1, oy + 1, 14, 14, c4([190, 230, 255], 60)); r.rect(ox + 3, oy + 4, 5, 1, c4([240, 250, 255], 150)); }
 }
 function paintBanner(r, ox, oy, v, theme) { // پرچمِ آویخته روی نمای آجری
