@@ -110,6 +110,25 @@ export class Dungeon {
         this._spawnMobAt(k, sp.x, sp.y, hpMul, dmgMul);
       }
     }
+    this._reachFix();
+  }
+  // S8.3: هیولای غیرباس روی جزیره‌ی محصور ⇒ نزدیک‌ترین کفِ قابل‌دسترس از اسپاون (بدون RNG ⇒ چیدمان/سید دست‌نخورده)
+  _reachFix() {
+    const seen = new Uint8Array(COLS * ROWS), q = [this.spawn.y * COLS + this.spawn.x], ok = [];
+    seen[q[0]] = 1;
+    while (q.length) {
+      const i = q.pop(), x = i % COLS, y = (i / COLS) | 0;
+      if (this.grid[i].kind === 'dfloor') ok.push(i);
+      for (const [dx, dy] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) { const X = x + dx, Y = y + dy; if (this.walkable(X, Y) && !seen[Y * COLS + X]) { seen[Y * COLS + X] = 1; q.push(Y * COLS + X); } }
+    }
+    ok.sort((a, b) => a - b);
+    for (const e of this.enemies) {
+      const ex = Math.floor(e.x / TILE), ey = Math.floor(e.y / TILE);
+      if (e.isBoss || seen[ey * COLS + ex]) continue;
+      let best = -1, bd = 1e9;
+      for (const i of ok) { const d = Math.abs(i % COLS - ex) + Math.abs(((i / COLS) | 0) - ey); if (d < bd) { bd = d; best = i; } }
+      if (best >= 0) { e.x = (best % COLS) * TILE + 8; e.y = ((best / COLS) | 0) * TILE + 8; }
+    }
   }
   // اسپاون روی تایل مشخص (نقشه‌ی دست‌چین)
   _spawnMobAt(kind, tx, ty, hpMul = 1, dmgMul = 1) {
