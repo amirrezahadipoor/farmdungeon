@@ -12,17 +12,6 @@ import { drawWater, dungeonShore } from './art/water.js'; // S2.7: آب و کر�
 import { drawPillarHead } from './art/ground.js'; // S3.8: سرستونِ بیرون‌زده (بعد از موجودات ⇒ y-sort)
 import { drawProjs } from './projectiles.js'; // ن۴۴
 import { applyDarkness, COLOR_LIGHTS, C_RAD_CAP, C_MAX, setThemeGrade, GRADE } from './art/light.js'; // S4.1: پاسِ نورِ رنگی
-const _rims = new WeakMap(), RIM_C = [242, 239, 228, 210];
-function heroRim(spr) { // حلقه‌ی ۴-همسایه دورِ پیکسل‌های مات (α≥200؛ سایه‌ی پخته‌شده نادیده) — یک‌بار به‌ازای هر اسپرایت؛ فهرستِ اندیس (ارزان)
-  let m = _rims.get(spr);
-  if (m) return m;
-  const w = spr.w, h = spr.h, d = spr.d; m = [];
-  const op = (x, y) => x >= 0 && y >= 0 && x < w && y < h && d[(y * w + x) * 4 + 3] >= 200;
-  for (let y = 0; y < h; y++) for (let x = 0; x < w; x++) if (!op(x, y) && (op(x - 1, y) || op(x + 1, y) || op(x, y - 1) || op(x, y + 1))) m.push(x, y);
-  _rims.set(spr, m);
-  return m;
-}
-function drawRim(r, m, ox, oy) { for (let i = 0; i < m.length; i += 2) r.px(ox + m[i], oy + m[i + 1], RIM_C); }
 const LIT = [], LIT_R2 = 92 * 92; // S9.2: شعاعِ «موجودِ روشن» ≈ هاله‌ی دیدِ قهرمان (۷۸) + حاشیه
 import { drawMotes } from './art/motes.js'; // S4.8: غبار/اخگرِ آرامِ تم
 import { glowBegin, glowAdd, glowDraw, GLOW } from './art/glow.js'; // S4.6: درخششِ ارزان
@@ -155,7 +144,7 @@ export function renderRun(run, r) {
     function drawEnt(en) {
       if (en.hero) {
         const hx = Math.round(h.x) - HOX - cx, hy = Math.round(h.y) - HOY - cy;
-        drawRim(r, heroRim(run._heroSprite()), hx, hy); // S9.2: حلقه‌ی روشنِ ۱px بیرونِ outline ⇒ قهرمان روی هر کف جدا
+        // S9.10: حلقه‌ی سفیدِ دورِ قهرمان حذف شد (حاشیه‌ی دوبل = حسِ برچسبِ بی‌کیفیت)؛ جدایی از کف با رسمِ پس از تاریکی
         run._heroSprite().over(r, hx, hy); // سایه داخل اسپرایت پخته شده (ن۳۵: دوبل حذف شد)
         // فلاش قرمز هنگام آسیب (سوسو)
         if (h.hurtT > 0 && Math.floor(h.hurtT * 30) % 2 === 0) run._heroSprite(true).over(r, hx, hy);
@@ -278,7 +267,7 @@ export function renderRun(run, r) {
     }
     r.rect(mx - 1, my - 1, COLS * s + 2, ROWS * s + 2, MINI_BG);
     run._mini.over(r, mx, my);
-    { const lb = t('floor') + ' ' + faNum(run.floor); drawText(r, lb, Math.min(Math.round(mx + COLS * s / 2 - textW(lb, 1) / 2), r.w - textW(lb, 1) - 3), my + ROWS * s + 3, E.gold, 1, { outline: true }); } // ن۴۹: برچسب هرگز از لبه بیرون نمی‌زند // ن۴۱: برچسب طبقه زیر مینی‌مپ
+    // S9.10: برچسبِ طبقه زیرِ مینی‌مپ حذف شد — در نمای کوچک بزرگ و بریده از لبه‌ی چپ بود؛ شماره‌ی طبقه در نوارِ پایینِ HUD هست
     const hx = Math.floor(h.x / TILE), hy = Math.floor(h.y / TILE);
     if (Math.floor(run.time * 4) % 2 === 0) r.rect(mx + hx * s, my + hy * s, 2, 2, [255, 255, 255, 255]);
     if (bossRef) r.px(mx + Math.floor(bossRef.x / TILE) * s, my + Math.floor(bossRef.y / TILE) * s, BOSS_DOT);

@@ -9432,17 +9432,6 @@ return {READ_GAP, READ_FLOOR, FLOOR_PASSES, bakeFloor};
 })();
 const {READ_GAP, READ_FLOOR, FLOOR_PASSES, bakeFloor} = __m_dungeon_bake;
 const __m_run_render = (() => {
-const _rims = new WeakMap(), RIM_C = [242, 239, 228, 210];
-function heroRim(spr) { // حلقه‌ی ۴-همسایه دورِ پیکسل‌های مات (α≥200؛ سایه‌ی پخته‌شده نادیده) — یک‌بار به‌ازای هر اسپرایت؛ فهرستِ اندیس (ارزان)
-let m = _rims.get(spr);
-if (m) return m;
-const w = spr.w, h = spr.h, d = spr.d; m = [];
-const op = (x, y) => x >= 0 && y >= 0 && x < w && y < h && d[(y * w + x) * 4 + 3] >= 200;
-for (let y = 0; y < h; y++) for (let x = 0; x < w; x++) if (!op(x, y) && (op(x - 1, y) || op(x + 1, y) || op(x, y - 1) || op(x, y + 1))) m.push(x, y);
-_rims.set(spr, m);
-return m;
-}
-function drawRim(r, m, ox, oy) { for (let i = 0; i < m.length; i += 2) r.px(ox + m[i], oy + m[i + 1], RIM_C); }
 const LIT = [], LIT_R2 = 92 * 92; // S9.2: شعاعِ «موجودِ روشن» ≈ هاله‌ی دیدِ قهرمان (۷۸) + حاشیه
 const _sprCache = new Map(); // کش اسپرایت قهرمان (LRU)
 const ENTS = []; // لیست موجودات قابل رندر — بازمصرف بین فریم‌ها
@@ -9555,7 +9544,6 @@ LIT.length = nLit;
 function drawEnt(en) {
 if (en.hero) {
 const hx = Math.round(h.x) - HOX - cx, hy = Math.round(h.y) - HOY - cy;
-drawRim(r, heroRim(run._heroSprite()), hx, hy); // S9.2: حلقه‌ی روشنِ ۱px بیرونِ outline ⇒ قهرمان روی هر کف جدا
 run._heroSprite().over(r, hx, hy); // سایه داخل اسپرایت پخته شده (ن۳۵: دوبل حذف شد)
 if (h.hurtT > 0 && Math.floor(h.hurtT * 30) % 2 === 0) run._heroSprite(true).over(r, hx, hy);
 else if (h.iframe > 0 && Math.floor(h.iframe * 24) % 2 === 0) r.rect(hx + 14, hy + 14, 36, 36, IFRAME_BOX); // ن۳۵: بوم ۶۴px
@@ -9663,7 +9651,6 @@ run._miniFloor = run.floor;
 }
 r.rect(mx - 1, my - 1, COLS * s + 2, ROWS * s + 2, MINI_BG);
 run._mini.over(r, mx, my);
-{ const lb = t('floor') + ' ' + faNum(run.floor); drawText(r, lb, Math.min(Math.round(mx + COLS * s / 2 - textW(lb, 1) / 2), r.w - textW(lb, 1) - 3), my + ROWS * s + 3, E.gold, 1, { outline: true }); } // ن۴۹: برچسب هرگز از لبه بیرون نمی‌زند // ن۴۱: برچسب طبقه زیر مینی‌مپ
 const hx = Math.floor(h.x / TILE), hy = Math.floor(h.y / TILE);
 if (Math.floor(run.time * 4) % 2 === 0) r.rect(mx + hx * s, my + hy * s, 2, 2, [255, 255, 255, 255]);
 if (bossRef) r.px(mx + Math.floor(bossRef.x / TILE) * s, my + Math.floor(bossRef.y / TILE) * s, BOSS_DOT);
