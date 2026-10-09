@@ -90,3 +90,4 @@ farmdungeon/
 - ن۱۴۱: طبقه‌های ۲۱–۴۰ دستی (`f021_040.js`: معدن/گورستان/یخ/کوره)؛ dress جدید در dungeon_paint: rails/grave/candle/crystal/crack. ۴۱–۱۰۰ هنوز auto.
 - ن۱۴۲: طبقه‌های ۴۱–۸۰ دستی (`f041_060.js` کماندار/گرگ/قوچ/یتی، `f061_080.js` مومیایی/غول/زامبی/عقرب)؛ dress جدید: arrows/claw/snow/sand/vine. ۸۱–۱۰۰ هنوز auto.
 - ن۱۴۳: طبقه‌های ۸۱–۱۰۰ دستی (`f081_100.js` قارچ/مارمولک/شوالیه/اهریمن؛ ۱۰۰ = نقشه‌ی ۱۶۸×۱۱۲). dress جدید: spore/rune/armor/scale. **هر ۱۰۰ طبقه طراحی‌شده؛ specFor auto دیگر استفاده نمی‌شود (fallback).** ۴۱–۸۰ با اسکریپت جدول‌محور ساخته شده‌اند.
+- ن۱۴۴: ۴۱–۸۰ بازطراحیِ کاملاً دستی (جایگزینِ جدول‌محور). centre (قطعه‌ی مرکزیِ ۲×۲ مسدود: well/fire/statue/altar/cage/tree/crystal/anvil/coffin/fountain/bones) در dungeon_gen + paintCentre در dungeon_paint، برای هر ۱۰۰ طبقه. حیاطِ ring = ردیفِ ستونِ توخالی؛ محراب ستون نمی‌گیرد (رفعِ تداخلِ موزاییک).

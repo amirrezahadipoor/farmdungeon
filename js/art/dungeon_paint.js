@@ -37,7 +37,9 @@ export function paintRows(r, D, y0, y1) {
       if (x % 2 === 0) r.rect(ox, oy, 1, TILE, FMOR); if (y % 2 === 0) r.rect(ox, oy, TILE, 1, FMOR);
       if (hash(x, y, 3) < 0.1) { let cx = ox + 3 + Math.floor(hash(x, y, 4) * 8), cy = oy + 3; for (let k = 0; k < 8; k++) { r.rect(cx, cy, 1, 1, FMOR); cx += hash(x, y, k) < 0.5 ? 1 : 0; cy++; } }
       if (!fl(x, y - 1)) r.rect(ox, oy, TILE, 3, FSH); if (!fl(x - 1, y)) r.rect(ox, oy, 2, TILE, FSH);
-      { const dd = DM.get(y * W + x); if (dd) paintDress(r, ox, oy, dd, P, x, y, DM, W); }
+      const dd = DM.get(y * W + x);
+      if (dd && dd.t === 'cp') { if (dd.q === 3) paintCentre(r, ox - TILE, oy - TILE, dd.v, P); continue; }
+      if (dd) paintDress(r, ox, oy, dd, P, x, y, DM, W);
       if (c.kind === 'decor') paintDecor(r, ox, oy, c.v | 0, ACC, FMOR, CAPHI, x, y);
       else if (c.kind === 'stairs') for (let i = 0; i < 4; i++) { r.rect(ox + 1, oy + 1 + i * 4, TILE - 2, 4, [CAPHI, CAP, CAPSH, OUT][i]); r.rect(ox + 1, oy + 1 + i * 4, TILE - 2, 1, i ? CAPSH : CAPHI); }
       else if (c.kind === 'pillar') { r.ellipse(ox + 8, oy + 13, 7, 3, FSH); r.rect(ox + 3, oy + 2, 10, 12, BR); r.rect(ox + 3, oy + 2, 2, 12, BRHI); r.rect(ox + 11, oy + 2, 2, 12, BRSH); r.rect(ox + 3, oy + 7, 10, 1, MOR); }
@@ -114,4 +116,29 @@ function paintBanner(r, ox, oy, v, theme) { // پرچمِ آویخته روی ن
   const [dk, mid] = BAN[v % 3];
   r.rect(ox + 3, oy, 10, 1, c4([70, 50, 40])); r.rect(ox + 4, oy + 1, 8, 12, c4(mid)); r.rect(ox + 4, oy + 1, 2, 12, c4(dk));
   r.rect(ox + 4, oy + 13, 3, 2, c4(mid)); r.rect(ox + 9, oy + 13, 3, 2, c4(mid)); r.rect(ox + 7, oy + 5, 2, 3, c4([230, 196, 80]));
+}
+
+// ---------- ن۱۴۴: قطعه‌ی مرکزیِ ۳۲×۳۲ (روی ۲×۲ کاشیِ مسدود؛ هنگامِ کاشیِ چهارم کشیده می‌شود تا روی هر چهار بنشیند) ----------
+const S = { st: [120, 118, 128], stH: [168, 166, 176], stD: [72, 70, 82], wd: [112, 76, 44], wdD: [72, 48, 28], ir: [80, 84, 96], irH: [150, 156, 170] };
+function paintCentre(r, x, y, v, P) {
+  const R = (a, b, w, h, c, al = 255) => r.rect(x + a, y + b, w, h, c4(c, al));
+  r.ellipse(x + 16, y + 27, 14, 4, c4([0, 0, 0], 70)); // سایه
+  if (v === 'well') { r.ellipse(x + 16, y + 17, 12, 9, c4(S.stD)); r.ellipse(x + 16, y + 16, 12, 9, c4(S.st)); r.ellipse(x + 16, y + 16, 8, 6, c4([24, 40, 60])); r.ellipse(x + 15, y + 15, 3, 1, c4([120, 170, 210], 180));
+    for (let i = 0; i < 6; i++) R(4 + i * 4, 9 + (i % 2), 3, 2, S.stH); R(4, 2, 2, 14, S.wd); R(26, 2, 2, 14, S.wd); R(4, 2, 24, 2, S.wdD); R(15, 4, 1, 8, [190, 180, 150]); R(13, 11, 5, 3, S.wd); }
+  else if (v === 'fire') { for (let i = 0; i < 8; i++) { const a = i / 8 * 6.283; R(14 + Math.round(Math.cos(a) * 10), 17 + Math.round(Math.sin(a) * 6), 4, 3, i % 2 ? S.st : S.stD); }
+    R(8, 18, 16, 3, S.wd); R(11, 15, 10, 3, S.wdD); r.ellipse(x + 16, y + 14, 6, 7, c4([230, 90, 40])); r.ellipse(x + 16, y + 15, 4, 5, c4([255, 170, 60])); r.ellipse(x + 16, y + 16, 2, 3, c4([255, 240, 170])); R(15, 4, 2, 4, [255, 120, 50], 200); R(19, 7, 1, 3, [255, 200, 90], 200); }
+  else if (v === 'statue') { R(6, 20, 20, 7, S.stD); R(6, 19, 20, 2, S.stH); R(11, 8, 10, 12, S.st); R(11, 8, 3, 12, S.stH); R(12, 2, 8, 7, S.st); R(13, 2, 2, 7, S.stH); R(14, 4, 1, 1, S.stD); R(17, 4, 1, 1, S.stD); R(21, 3, 2, 17, S.irH); R(20, 12, 4, 1, S.stD); R(9, 9, 2, 8, S.st); }
+  else if (v === 'altar') { R(4, 14, 24, 12, S.stD); R(4, 12, 24, 4, S.st); R(4, 12, 24, 1, S.stH); R(12, 12, 8, 14, [150, 40, 50]); R(12, 12, 8, 1, [210, 80, 80]); R(15, 18, 2, 4, [230, 190, 80]);
+    for (const cx of [6, 24]) { R(cx, 5, 2, 7, [236, 228, 200]); R(cx, 3, 2, 2, [255, 200, 90]); } R(14, 7, 4, 5, [120, 200, 220]); R(15, 6, 2, 1, [220, 250, 255]); }
+  else if (v === 'cage') { R(3, 24, 26, 3, S.ir); R(3, 3, 26, 2, S.ir); for (let i = 3; i < 30; i += 4) { R(i, 3, 2, 22, S.ir); R(i, 3, 1, 22, S.irH); } R(10, 19, 8, 2, [214, 206, 184]); R(18, 17, 5, 4, [222, 214, 192]); R(19, 18, 1, 1, [30, 24, 34]); R(21, 18, 1, 1, [30, 24, 34]); }
+  else if (v === 'tree') { R(13, 14, 6, 13, S.wd); R(13, 14, 2, 13, [150, 104, 64]); R(9, 24, 5, 3, S.wdD); R(18, 24, 6, 3, S.wdD); const G = P[14];
+    r.ellipse(x + 16, y + 10, 13, 9, c4([G[0] * 0.6, G[1] * 0.6, G[2] * 0.6])); r.ellipse(x + 14, y + 8, 10, 7, c4(G)); r.ellipse(x + 12, y + 6, 5, 3, c4([Math.min(255, G[0] + 60), Math.min(255, G[1] + 60), Math.min(255, G[2] + 60)]));
+    for (let i = 0; i < 5; i++) R(6 + i * 5, 10 + (i % 2) * 4, 1, 1, [255, 240, 160]); }
+  else if (v === 'crystal') { const C = [[90, 160, 220], [140, 210, 255], [230, 250, 255]]; R(6, 22, 20, 5, S.stD);
+    for (const [a, b, w, h] of [[13, 2, 6, 22], [7, 10, 5, 13], [20, 8, 5, 15], [4, 16, 4, 8], [25, 15, 4, 9]]) { R(a, b, w, h, C[0]); R(a, b, 2, h, C[1]); R(a + 1, b - 2, w - 2, 2, C[1]); R(a, b + 1, 1, h >> 1, C[2]); } }
+  else if (v === 'anvil') { R(4, 18, 10, 9, S.stD); R(4, 17, 10, 2, [255, 120, 50]); R(6, 15, 6, 2, [255, 200, 90], 200); R(15, 20, 12, 7, S.wdD); R(17, 16, 8, 4, S.ir); R(14, 12, 15, 4, S.ir); R(14, 12, 15, 1, S.irH); R(11, 13, 4, 2, S.ir); R(19, 6, 2, 6, S.wd); R(16, 4, 8, 3, S.irH); }
+  else if (v === 'coffin') { R(9, 2, 14, 25, S.stD); R(8, 4, 16, 21, S.st); R(10, 2, 12, 2, S.st); R(8, 4, 16, 1, S.stH); R(15, 6, 2, 14, [214, 180, 80]); R(12, 10, 8, 2, [214, 180, 80]); R(10, 24, 12, 2, S.stD); }
+  else if (v === 'fountain') { r.ellipse(x + 16, y + 19, 14, 8, c4(S.stD)); r.ellipse(x + 16, y + 18, 14, 8, c4(S.st)); r.ellipse(x + 16, y + 18, 11, 6, c4([50, 110, 160])); R(14, 6, 4, 13, S.stH); R(12, 5, 8, 2, S.st);
+    for (const [a, b] of [[10, 3], [21, 3], [8, 8], [23, 8]]) R(a, b, 2, 2, [180, 220, 250], 200); R(15, 1, 2, 4, [200, 235, 255], 220); r.ellipse(x + 11, y + 18, 2, 1, c4([170, 220, 250], 200)); }
+  else if (v === 'bones') { r.ellipse(x + 16, y + 20, 13, 7, c4([170, 160, 140])); for (let i = 0; i < 7; i++) R(5 + i * 3, 14 + (i % 3) * 3, 7, 2, [222, 214, 192]); for (const [a, b] of [[10, 10], [17, 8], [21, 13]]) { R(a, b, 6, 5, [230, 222, 200]); R(a + 1, b + 2, 1, 1, [30, 24, 34]); R(a + 4, b + 2, 1, 1, [30, 24, 34]); } }
 }

@@ -95,7 +95,8 @@ export function generate(spec, seed) {
       if (cross && dx < (o.w / 4 | 0) && dy < (o.h / 4 | 0)) continue;
       if (shp === 'oval' && ((x + 0.5 - o.x - o.w / 2) / (o.w / 2)) ** 2 + ((y + 0.5 - o.y - o.h / 2) / (o.h / 2)) ** 2 > 1.02) continue;
       if (shp === 'L' && (x - o.x < o.w / 2) === (q & 1 ? true : false) && (y - o.y < o.h / 2) === (q & 2 ? true : false) && x !== o.cx && y !== o.cy) continue;
-      if (shp === 'ring' && Math.abs(x - o.cx) < o.w / 4 - 1 && Math.abs(y - o.cy) < o.h / 4 - 1 && Math.abs(x - o.cx) > 0) { kind[y * W + x] = K_PILLAR; room[y * W + x] = o.id; continue; } // حیاط: هسته‌ی ستون‌دار
+      if (shp === 'ring') { const ax = Math.max(2, (o.w >> 2)), ay = Math.max(2, (o.h >> 2)), dx2 = Math.abs(x - o.cx), dy2 = Math.abs(y - o.cy); // حیاط: ردیفِ ستون‌های توخالی دورِ میانه (ن۱۴۴)
+        if (dx2 <= ax && dy2 <= ay && (dx2 === ax || dy2 === ay) && (x + y) % 2 === 0 && dx2 + dy2 > 1) { kind[y * W + x] = K_PILLAR; room[y * W + x] = o.id; continue; } }
       kind[y * W + x] = K_FLOOR; room[y * W + x] = o.id;
     }
   }
@@ -134,12 +135,21 @@ export function generate(spec, seed) {
   for (const o of rooms) {
     if (o.role === 'start' || o.role === 'treasure') continue;
     const big = o.w >= 14 && o.h >= 10;
+    if (o.shape === 'ring' || o.role === 'shrine') { o.feat = o.shape === 'ring' ? 'court' : null; continue; } // حیاط/محراب ستونِ اضافه نمی‌گیرد
     if (big && spec.pillars && R() < spec.pillars) { o.feat = 'pillars';
       for (let y = o.y + 3; y < o.y + o.h - 3; y += 3) for (let x = o.x + 3; x < o.x + o.w - 3; x += 4) if (room[y * W + x] === o.id) kind[y * W + x] = K_PILLAR; }
     else if (big && spec.pools && R() < spec.pools && o.role !== 'boss') { o.feat = 'pool';
       const rx = (o.w >> 2), ry = (o.h >> 2);
       for (let y = o.cy - ry; y <= o.cy + ry; y++) for (let x = o.cx - rx; x <= o.cx + rx; x++) if (((x - o.cx) / rx) ** 2 + ((y - o.cy) / ry) ** 2 <= 1 && room[y * W + x] === o.id) kind[y * W + x] = K_WATER; }
   }
+  // ---------- ن۱۴۴: قطعه‌ی مرکزیِ ویژه‌ی طبقه (چاه/آتش/مجسمه/محراب/قفس/درخت/کریستال/سندان/تابوت) — ۲×۲ مسدود ----------
+  const cps = [], CP = spec.centre ? [].concat(spec.centre) : [];
+  if (CP.length) { let n = spec.centreN ?? 3;
+    for (const o of rooms) { if (n <= 0) break; if ((o.feat && o.feat !== 'court') || (o.role && o.role !== 'stairs') || o.w < 12 || o.h < 9) continue;
+      const x = o.cx - 1, y = o.cy - 1; let ok = true;
+      for (let j = -1; j <= 2 && ok; j++) for (let i = -1; i <= 2; i++) { const k = (y + j) * W + x + i; if (room[k] !== o.id || kind[k] !== K_FLOOR) { ok = false; break; } }
+      if (!ok) continue; o.feat = 'centre'; n--; const v = CP[Math.floor(R() * CP.length)];
+      for (let q = 0; q < 4; q++) { const k = (y + (q >> 1)) * W + x + (q & 1); kind[k] = K_PILLAR; cps.push({ x: x + (q & 1), y: y + (q >> 1), t: 'cp', v, q }); } } }
   const floorAt = (o, fx, fy) => { // نزدیک‌ترین کفِ آزادِ اتاق به نقطه‌ی کسری
     const tx = Math.round(o.x + 1 + fx * (o.w - 3)), ty = Math.round(o.y + 1 + fy * (o.h - 3));
     for (let r = 0; r < 6; r++) for (let dy = -r; dy <= r; dy++) for (let dx = -r; dx <= r; dx++) { const x = tx + dx, y = ty + dy; if (room[y * W + x] === o.id && kind[y * W + x] === K_FLOOR) return { x, y }; }
@@ -172,6 +182,7 @@ export function generate(spec, seed) {
   const banners = (o, every) => { for (let x = o.x; x < o.x + o.w; x++) { const y = topY(o, x); if (y > 0 && kind[(y - 1) * W + x] === K_WALL && (x - o.x) % every === 2) dress.push({ x, y: y - 1, t: 'banner', v: o.id % 3 }); } };
   const topY = (o, x) => { for (let y = o.y; y < o.y + o.h; y++) if (rid(x, y) === o.id) return y; return -1; };
   const DR = spec.dress || ['rubble', 'bones', 'moss'];
+  for (const c of cps) dress.push(c);
   for (const o of rooms) {
     if (o.role === 'boss') { // فرشِ قرمز از ورودی تا تخت + پرچم + جمجمه‌ها
       for (let y = o.y; y < o.y + o.h; y++) for (let x = o.cx - 1; x <= o.cx + 1; x++) if (rid(x, y) === o.id) put(x, y, 'rug', x === o.cx ? 1 : 0);
@@ -181,6 +192,7 @@ export function generate(spec, seed) {
       for (let y = o.cy - 1; y <= o.cy + 1; y++) for (let x = o.cx - 3; x <= o.cx + 3; x++) if (rid(x, y) === o.id) put(x, y, 'rug', y === o.cy ? 1 : 0);
       banners(o, 4);
     } else if (o.role === 'shrine') {
+      for (let y = o.y; y < o.y + o.h; y++) for (let x = o.x; x < o.x + o.w; x++) if (rid(x, y) === o.id && kind[y * W + x] === K_PILLAR) kind[y * W + x] = K_FLOOR;
       for (let y = o.cy - 3; y <= o.cy + 3; y++) for (let x = o.cx - 4; x <= o.cx + 4; x++) { const d = Math.hypot((x - o.cx) / 4.2, (y - o.cy) / 3.2); if (d <= 1 && rid(x, y) === o.id) put(x, y, 'mosaic', d < 0.45 ? 1 : 0); }
     } else if (o.role !== 'start' || R() < 0.5) {
       const t = DR[Math.floor(R() * DR.length)], n = Math.round(o.w * o.h * (spec.dressN ?? 0.1));
