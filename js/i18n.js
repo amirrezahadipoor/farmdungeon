@@ -82,7 +82,7 @@ const STR = {
   q_kill:   { fa: 'شکار {n} هیولا', en: 'Slay {n} monsters' },
   q_floor:  { fa: 'رسیدن به طبقه‌ی {n}', en: 'Reach floor {n}' },
   q_elite:  { fa: 'شکار {n} هیولای نخبه', en: 'Slay {n} elites' },
-  q_combo:  { fa: 'دست‌یافتن به کمبوی x{n}', en: 'Reach a x{n} combo' },
+  q_combo:  { fa: 'رسیدن به کمبوی ×{n}', en: 'Reach a x{n} combo' },
   q_sell:   { fa: 'فروش {n} محصول', en: 'Sell {n} crops' },
   shrineTitle: { fa: 'محراب باستانی — یک برکت انتخاب کن', en: 'Ancient shrine — choose one boon' },
   golden:  { fa: 'محصول طلایی!', en: 'Golden crop!' },

@@ -1,5 +1,5 @@
 // quests.js — مأموریت‌های چرخان: سه هدف همیشگی با پیشرفت و پاداش؛ با تکمیل، جایگزین می‌شود
-import { t } from './i18n.js';
+import { t, faNum } from './i18n.js';
 
 const ri = (a, b) => a + Math.floor(Math.random() * (b - a + 1));
 
@@ -47,5 +47,5 @@ export function trackQuests(app, kind, n = 1) {
 }
 
 export function questLabel(q) {
-  return t('q_' + q.kind).replace('{n}', q.n);
+  return t('q_' + q.kind).replace('{n}', faNum(q.n));
 }
