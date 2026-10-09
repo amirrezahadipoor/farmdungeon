@@ -1,6 +1,7 @@
 // monster.js — کلاس Monster: ماشین حالت (idle/move/attack/die) + آمار هر هیولا + کش اسپرایت
 import { drawMonsterFrame } from './art/monsters.js';
-import { AI_EXT } from './mobs_new.js'; // ن۴۴: رفتارهای ویژه (تیرانداز/یورش/دزدی/جهش)
+import { AI_EXT } from './mobs_new.js';
+import { BOSS_AI } from './boss_ai.js'; // ن۱۴۸: حمله‌ی ویژه + فاز ۲ باس // ن۴۴: رفتارهای ویژه (تیرانداز/یورش/دزدی/جهش)
 import { MONSTER_KINDS } from './art/monster_parts.js';
 import { drawBossFrame } from './art/boss.js';
 import { makeSpriteCache } from './art/bake.js'; // S6.1: کشِ سقف‌دارِ خط لوله (snap حالا داخل bake)
@@ -93,6 +94,7 @@ export class Monster {
       return;
     }
     // ن۴۴: رفتار ویژه‌ی هیولاهای جدید — اگر مدیریت کرد، ماشین پایه رد می‌شود
+    if (this.lord && BOSS_AI(this, dt, target, hooks, spd)) return;
     const ext = AI_EXT[this.kind];
     if (ext && ext(this, dt, target, hooks, s, spd)) return;
     if (this.state === 'idle') {

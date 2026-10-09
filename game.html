@@ -485,7 +485,7 @@ requestAnimationFrame(frame);
 
 <div id="__diag" style="position:fixed;top:50%;left:50%;transform:translate(-50%,-50%);z-index:9999;background:#2b5a2b;color:#fff;padding:14px 20px;border-radius:12px;font:14px system-ui,sans-serif;max-width:85%;text-align:center;box-shadow:0 4px 24px #000a">در حال اجرای اسکریپت بازی…<br>loading game script…</div>
 <script>window.addEventListener("error",function(e){var d=document.getElementById("__diag");if(!d)return;d.style.background="#7a1f1f";d.textContent="JS ERROR: "+(e.message||e.error)+" @ line "+(e.lineno||"?");});</script>
-<script>
+<script type="text/plain" id="__main">
 const __m_raster = (() => {
 class Raster {
 constructor(w, h, buf = null) {
@@ -7809,10 +7809,86 @@ hare: dHareAI,
 return {MOB_TAGS, AI_EXT};
 })();
 const {MOB_TAGS, AI_EXT} = __m_mobs_new;
+const __m_boss_ai = (() => {
+const BOSS_MOVES = {
+slime: [['quake'], ['nova', 'spore']], bat: [['charge'], ['nova', 'shard']], hare: [['charge'], ['quake']],
+spider: [['volley', 'web'], ['quake']], bandit: [['volley', 'arrow'], ['charge']], skeleton: [['volley', 'arrow'], ['quake']],
+ghost: [['nova', 'shard'], ['charge']], imp: [['nova', 'fire'], ['volley', 'fire']], archer: [['volley', 'arrow'], ['nova', 'arrow']],
+wolf: [['charge'], ['quake']], ram: [['charge'], ['quake']], yeti: [['quake'], ['nova', 'shard']],
+mummy: [['quake'], ['volley', 'spore']], golem: [['quake'], ['charge']], zombie: [['quake'], ['nova', 'spore']],
+scorpion: [['charge'], ['volley', 'spore']], shroom: [['nova', 'spore'], ['quake']], lizard: [['volley', 'arrow'], ['charge']],
+knight: [['charge'], ['quake']], demon: [['nova', 'fire'], ['charge'], ['quake']],
+};
+const TELE = { nova: 0.75, volley: 0.55, charge: 0.7, quake: 0.95 };
+const CD = 4.2; // ثانیه بینِ حمله‌های ویژه (فاز ۲: ×۰٫۶)
+function BOSS_AI(m, dt, target, hooks, spd) {
+const B = m._b || (m._b = { cd: 2.2, act: null, t: 0, i: 0, p2: false, rep: 0 });
+if (!B.p2 && m.hp <= m.maxHp * 0.5) { // ---- ورود به فاز ۲ ----
+B.p2 = true; B.act = null; m.tele = null; B.cd = 0.9; m.enraged = true;
+hooks.onPhase && hooks.onPhase(m);
+}
+if (!B.act) {
+B.cd -= dt;
+if (B.cd > 0 || !target || m.state === 'attack') return false; // ماشینِ پایه (ضربه‌ی معمولی) ادامه می‌دهد
+const list = BOSS_MOVES[m.kind] || [['quake']], pool = B.p2 ? list : list.slice(0, 1);
+const mv = pool[B.i++ % pool.length];
+B.act = mv[0]; B.pk = mv[1] || 'fire'; B.t = 0; B.rep = B.p2 ? 1 : 0;
+startTele(m, B, target);
+}
+B.t += dt;
+const tdur = TELE[B.act] * (B.p2 ? 0.85 : 1);
+m.state = 'idle'; m.ph = 0; // ظاهر: ایستاده و در حالِ آماده‌شدن (لرزش در رندر)
+if (B.act === 'charge') return doCharge(m, B, dt, target, hooks, tdur);
+if (B.t < tdur) { if (m.tele) m.tele.k = B.t / tdur; if (B.act === 'volley' && target) aimAt(m, B, target); return true; }
+if (B.act === 'nova') {
+const n = B.p2 ? 14 : 10, off = B.rep ? Math.PI / n : 0;
+for (let i = 0; i < n; i++) hooks.onProj && hooks.onProj(m, B.pk, off + i * Math.PI * 2 / n, m.dmg * 0.8);
+} else if (B.act === 'volley') {
+const n = B.p2 ? 7 : 5;
+for (let i = 0; i < n; i++) hooks.onProj && hooks.onProj(m, B.pk, B.ang + (i - (n - 1) / 2) * 0.17, m.dmg * 0.75);
+} else if (B.act === 'quake') {
+const T = m.tele; hooks.onQuake && hooks.onQuake(T.x, T.y, T.r);
+if (target && Math.hypot(target.x - T.x, target.y - T.y) < T.r) hooks.onHit && hooks.onHit(m, m.dmg * 1.4);
+}
+if (B.rep > 0) { B.rep--; B.t = tdur * 0.45; if (B.act === 'quake') startTele(m, B, target); return true; } // فاز ۲: موجِ دوم
+endAct(m, B);
+return true;
+}
+function startTele(m, B, target) {
+if (B.act === 'quake') m.tele = { kind: 'quake', x: target.x, y: target.y, r: m.kind === 'golem' || m.kind === 'yeti' ? 40 : 34, k: 0 };
+else if (B.act === 'charge') { aimAt(m, B, target); m.tele = { kind: 'charge', x: m.x, y: m.y, ang: B.ang, len: 150, k: 0 }; }
+else { if (target) aimAt(m, B, target); m.tele = { kind: B.act, x: m.x, y: m.y, ang: B.ang, k: 0 }; }
+}
+function aimAt(m, B, target) { B.ang = Math.atan2(target.y - 10 - (m.y - 12), target.x - m.x); m.face = Math.cos(B.ang) >= 0 ? 1 : -1; if (m.tele) m.tele.ang = B.ang; }
+function endAct(m, B) { B.act = null; m.tele = null; B.cd = CD * (B.p2 ? 0.6 : 1) * (0.85 + 0.3 * Math.random()); m.coolT = 0.6; m._set('cool'); }
+function doCharge(m, B, dt, target, hooks, tdur) {
+if (B.t < tdur) { if (m.tele) { m.tele.k = B.t / tdur; m.tele.x = m.x; m.tele.y = m.y; } return true; }
+if (!B.dash) { B.dash = { t: 0, hit: false }; m.tele = null; }
+const D = B.dash, sp = 230 * (B.p2 ? 1.15 : 1), vx = Math.cos(B.ang) * sp * dt, vy = Math.sin(B.ang) * sp * dt;
+D.t += dt; m.state = 'move'; m.ph = (m.ph + sp * dt / 10) % 1;
+const solid = hooks.solid || (() => false);
+let stop = D.t > 0.62;
+if (!solid(m.x + vx, m.y)) m.x += vx; else stop = true;
+if (!solid(m.x, m.y + vy)) m.y += vy; else stop = true;
+if (!D.hit && target && Math.hypot(target.x - m.x, target.y - m.y) < 18) { D.hit = true; hooks.onHit && hooks.onHit(m, m.dmg * 1.3); }
+if (stop) {
+B.dash = null;
+if (B.rep > 0 && target) { B.rep--; B.t = tdur * 0.4; aimAt(m, B, target); m.tele = { kind: 'charge', x: m.x, y: m.y, ang: B.ang, len: 150, k: 0.4 }; return true; }
+hooks.onQuake && hooks.onQuake(m.x, m.y, 14); // برخورد به دیوار/پایان: گردوخاک
+endAct(m, B);
+}
+return true;
+}
+return {BOSS_MOVES, BOSS_AI};
+})();
+const {BOSS_MOVES, BOSS_AI} = __m_boss_ai;
 const __m_projectiles = (() => {
 const PROJ = {
 arrow: { sp: 155, life: 1.4, r: 7 },
 fire:  { sp: 78,  life: 2.1, r: 8 },
+spore: { sp: 62,  life: 2.8, r: 8 },  // ن۱۴۸: باس‌ها — گوی هاگِ سبز (کند)
+shard: { sp: 118, life: 1.7, r: 7 },  // تیغه‌ی یخ/استخوان
+web:   { sp: 96,  life: 1.8, r: 8 },  // تار — کند می‌کند
 };
 function spawnProj(list, kind, x, y, tx, ty, dmg, owner) {
 const cfg = PROJ[kind];
@@ -7839,6 +7915,9 @@ r.lineW(px - ux * 5, py - uy * 5, px + ux * 3, py + uy * 3, 1, [138, 106, 58, 25
 r.px(px + ux * 4, py + uy * 4, [242, 239, 228, 255]); // نوک
 r.px(px - ux * 6, py - uy * 6, [232, 231, 220, 140]); // پر
 projTrail(r, px, py, ux, uy, 'arrow'); // S6.7: دنباله
+} else if (p.kind === 'spore') { r.ellipse(px, py, 4, 4, [70, 140, 70, 255]); r.ellipse(px, py, 3, 3, [130, 220, 120, 255]); r.px(px - 1, py - 1, [220, 255, 200, 255]);
+} else if (p.kind === 'shard') { r.lineW(px - ux * 4, py - uy * 4, px + ux * 4, py + uy * 4, 2, [150, 210, 255, 255]); r.px(px + ux * 4, py + uy * 4, [240, 250, 255, 255]);
+} else if (p.kind === 'web') { const c = [230, 230, 240, 230]; r.lineW(px - 4, py, px + 4, py, 1, c); r.lineW(px, py - 4, px, py + 4, 1, c); r.lineW(px - 3, py - 3, px + 3, py + 3, 1, c); r.lineW(px - 3, py + 3, px + 3, py - 3, 1, c);
 } else { // گلوله‌ی آتش
 r.ellipse(px, py, 4, 4, [176, 84, 38, 255]);
 r.ellipse(px - ux, py - uy, 3, 3, [224, 138, 74, 255]);
@@ -7931,6 +8010,7 @@ this.t += dt / 0.7;
 if (this.t >= 1) { this.t = 1; this.dead = true; }
 return;
 }
+if (this.lord && BOSS_AI(this, dt, target, hooks, spd)) return;
 const ext = AI_EXT[this.kind];
 if (ext && ext(this, dt, target, hooks, s, spd)) return;
 if (this.state === 'idle') {
@@ -10374,6 +10454,17 @@ onShoot: (from, tx, ty) => { // ن۴۴: کماندار/آتش‌جان (ن۴۷: 
 if (this.onSfx) this.onSfx(from.kind === 'imp' ? 'fire' : 'shoot');
 spawnProj(this.projs, from.kind === 'imp' ? 'fire' : 'arrow', from.x, from.y - 12, tx, ty, from.dmg, from);
 },
+onProj: (from, kind, ang, dmg) => { // ن۱۴۸: پرتابه‌های ویژه‌ی باس
+spawnProj(this.projs, kind, from.x, from.y - 8, from.x + Math.cos(ang) * 100, from.y - 8 + Math.sin(ang) * 100, dmg, from);
+if (this.onSfx && Math.random() < 0.25) this.onSfx(kind === 'fire' ? 'fire' : 'shoot');
+},
+onQuake: (x, y, r) => { this.fx.shake(r > 20 ? 5 : 2, r > 20 ? 0.35 : 0.15); this.fx.dust(x, y, r > 20 ? 14 : 5); if (r > 20) this.fx.dust(x - r * 0.6, y, 5), this.fx.dust(x + r * 0.6, y, 5); if (this.onSfx && r > 20) this.onSfx('hit'); },
+onPhase: (from) => { // فاز ۲: خشم + دو هم‌خانواده
+this.fx.shake(6, 0.7); this.fx.hitstop = 0.12; if (this.onSfx) this.onSfx('boss'); this.log.push({ k: 'bossPhase' });
+const f = this.floor, hm = (1 + 0.13 * (f - 1)) * 0.7, dm = 1 + 0.075 * (f - 1);
+for (const ox of [-26, 26]) { let x = from.x + ox, y = from.y + 8; if (this._hooks.solid(x, y)) { x = from.x; y = from.y; }
+const e = new Monster(from.kind, x, y, 1, { hpMul: hm, dmgMul: dm }); e.room = from.room; e.state = 'move'; this.dungeon.enemies.push(e); }
+},
 onHit: (from, dmg) => {
 const hh = this.hero;
 if (hh.iframe > 0 || hh.dead) return;
@@ -10519,7 +10610,7 @@ if (e.dead) { D.enemies.splice(i, 1); lootKill(this, e); } // غنیمت/کمب�
 }
 separateEnemies(this);
 updateProjs(this.projs, dt, this._hooks.solid, (p) => {
-if (Math.hypot(h.x - p.x, h.y - 10 - p.y) < PROJ[p.kind].r + 3) { this._hooks.onHit(p.owner, p.dmg); return true; }
+if (Math.hypot(h.x - p.x, h.y - 10 - p.y) < PROJ[p.kind].r + 3) { this._hooks.onHit(p.owner, p.dmg); if (p.kind === 'web' && h.iframe <= 0) h.chill = 1.4; return true; }
 return false;
 });
 lootUpdate(this, dt);
@@ -10883,6 +10974,7 @@ drawTitleC(r, t('floor') + ' ' + faNum(run._splash.n) + (run._splash.boss ? ' �
 }
 }
 }
+for (const e of D.enemies) if (e.lord && !e.dead && (e.tele || e.enraged)) drawTele(r, e, cx, cy, run.time); // ن۱۴۸: هشدارِ حمله‌ی ویژه
 let ne = 0;
 for (const e of D.enemies) if (!e.dead && (e.room == null || D.seen.has(e.room))) { // ن۱۳۹: هیولای اتاقِ ندیده دیده نمی‌شود
 let wp = ENTS[ne];
@@ -11025,6 +11117,26 @@ if (vis && !half) continue;
 const x0 = Math.max(0, tx * TILE - cx), y0 = Math.max(0, ty * TILE - cy), x1 = Math.min(W, tx * TILE + TILE - cx), y1 = Math.min(H, ty * TILE + TILE - cy);
 for (let y = y0; y < y1; y++) { let i = (y * W + x0) * 4;
 for (let x = x0; x < x1; x++, i += 4) { if (half) { r.d[i] = (r.d[i] + v[0]) >> 1; r.d[i + 1] = (r.d[i + 1] + v[1]) >> 1; r.d[i + 2] = (r.d[i + 2] + v[2]) >> 1; } else { r.d[i] = v[0]; r.d[i + 1] = v[1]; r.d[i + 2] = v[2]; } } }
+}
+}
+function ring(r, x, y, rad, c, step = 0.12) { for (let a = 0; a < 6.283; a += step) r.px(Math.round(x + Math.cos(a) * rad), Math.round(y + Math.sin(a) * rad * 0.55), c); }
+function drawTele(r, e, cx, cy, time) {
+const T = e.tele, x = e.x - cx, y = e.y - cy;
+if (e.enraged) { const p = 0.5 + 0.5 * Math.sin(time * 8); ring(r, x, y, 22 + p * 3, [255, 60, 50, 150 + (p * 100 | 0)], 0.08); }
+if (!T) return;
+const k = Math.min(1, T.k || 0), bl = (Math.sin(time * 30) > 0) ? 255 : 170;
+if (T.kind === 'quake') {
+const qx = T.x - cx, qy = T.y - cy;
+r.ellipse(qx, qy, Math.round(T.r * k), Math.round(T.r * 0.55 * k), [220, 40, 40, 70]);
+ring(r, qx, qy, T.r, [255, 80, 60, bl], 0.06); ring(r, qx, qy, T.r - 1, [120, 20, 20, 160], 0.06);
+} else if (T.kind === 'charge') {
+const ux = Math.cos(T.ang), uy = Math.sin(T.ang), L = T.len * k;
+for (let i = 8; i < L; i += 3) { const px = x + ux * i, py = y - 6 + uy * i; r.rect(Math.round(px - uy * 7), Math.round(py + ux * 7), 2, 2, [255, 80, 60, bl]); r.rect(Math.round(px + uy * 7), Math.round(py - ux * 7), 2, 2, [255, 80, 60, bl]); }
+r.lineW(x + ux * 10, y - 6 + uy * 10, x + ux * L, y - 6 + uy * L, 3, [255, 60, 40, 90]);
+} else { // nova / volley: هاله‌ی جمع‌شونده دورِ باس
+const rad = 34 - 22 * k, col = T.kind === 'nova' ? [255, 170, 60, bl] : [255, 230, 120, bl];
+ring(r, x, y - 18, rad, col, 0.1); ring(r, x, y - 18, rad + 3, [col[0], col[1], col[2], 90], 0.1);
+if (T.kind === 'volley') for (let i = -2; i <= 2; i++) { const a = T.ang + i * 0.17; r.lineW(x + Math.cos(a) * 20, y - 14 + Math.sin(a) * 20, x + Math.cos(a) * (20 + 40 * k), y - 14 + Math.sin(a) * (20 + 40 * k), 1, [255, 220, 120, 150]); }
 }
 }
 return {heroSprite, renderRun};
@@ -12507,5 +12619,6 @@ return {};
 (function(){ var d = document.getElementById("__diag"); if (d) d.remove(); })();
 
 </script>
+<script>(function(){function run(){var m=document.getElementById("__main"),s=document.createElement("script");s.text=m.textContent;m.remove();document.body.appendChild(s);}if(/jsdom/i.test(navigator.userAgent))run();else requestAnimationFrame(function(){setTimeout(run,0);});})();</script>
 </body>
 </html>

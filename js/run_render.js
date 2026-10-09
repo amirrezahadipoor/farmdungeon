@@ -133,6 +133,7 @@ export function renderRun(run, r) {
         }
       }
     }
+    for (const e of D.enemies) if (e.lord && !e.dead && (e.tele || e.enraged)) drawTele(r, e, cx, cy, run.time); // ن۱۴۸: هشدارِ حمله‌ی ویژه
     // pool رپرها — بدون تخصیص آبجکت در هر فریم
     let ne = 0;
     for (const e of D.enemies) if (!e.dead && (e.room == null || D.seen.has(e.room))) { // ن۱۳۹: هیولای اتاقِ ندیده دیده نمی‌شود
@@ -295,5 +296,27 @@ function fogMask(r, D, cx, cy) {
     const x0 = Math.max(0, tx * TILE - cx), y0 = Math.max(0, ty * TILE - cy), x1 = Math.min(W, tx * TILE + TILE - cx), y1 = Math.min(H, ty * TILE + TILE - cy);
     for (let y = y0; y < y1; y++) { let i = (y * W + x0) * 4;
       for (let x = x0; x < x1; x++, i += 4) { if (half) { r.d[i] = (r.d[i] + v[0]) >> 1; r.d[i + 1] = (r.d[i + 1] + v[1]) >> 1; r.d[i + 2] = (r.d[i + 2] + v[2]) >> 1; } else { r.d[i] = v[0]; r.d[i + 1] = v[1]; r.d[i + 2] = v[2]; } } }
+  }
+}
+
+// ن۱۴۸: هشدارِ حمله‌ی ویژه‌ی باس — دایره‌ی زمین‌لرزه (پرشونده)، خطِ یورش، هاله‌ی شلیک؛ باسِ خشمگین: حلقه‌ی سرخِ تپنده
+function ring(r, x, y, rad, c, step = 0.12) { for (let a = 0; a < 6.283; a += step) r.px(Math.round(x + Math.cos(a) * rad), Math.round(y + Math.sin(a) * rad * 0.55), c); }
+function drawTele(r, e, cx, cy, time) {
+  const T = e.tele, x = e.x - cx, y = e.y - cy;
+  if (e.enraged) { const p = 0.5 + 0.5 * Math.sin(time * 8); ring(r, x, y, 22 + p * 3, [255, 60, 50, 150 + (p * 100 | 0)], 0.08); }
+  if (!T) return;
+  const k = Math.min(1, T.k || 0), bl = (Math.sin(time * 30) > 0) ? 255 : 170;
+  if (T.kind === 'quake') {
+    const qx = T.x - cx, qy = T.y - cy;
+    r.ellipse(qx, qy, Math.round(T.r * k), Math.round(T.r * 0.55 * k), [220, 40, 40, 70]);
+    ring(r, qx, qy, T.r, [255, 80, 60, bl], 0.06); ring(r, qx, qy, T.r - 1, [120, 20, 20, 160], 0.06);
+  } else if (T.kind === 'charge') {
+    const ux = Math.cos(T.ang), uy = Math.sin(T.ang), L = T.len * k;
+    for (let i = 8; i < L; i += 3) { const px = x + ux * i, py = y - 6 + uy * i; r.rect(Math.round(px - uy * 7), Math.round(py + ux * 7), 2, 2, [255, 80, 60, bl]); r.rect(Math.round(px + uy * 7), Math.round(py - ux * 7), 2, 2, [255, 80, 60, bl]); }
+    r.lineW(x + ux * 10, y - 6 + uy * 10, x + ux * L, y - 6 + uy * L, 3, [255, 60, 40, 90]);
+  } else { // nova / volley: هاله‌ی جمع‌شونده دورِ باس
+    const rad = 34 - 22 * k, col = T.kind === 'nova' ? [255, 170, 60, bl] : [255, 230, 120, bl];
+    ring(r, x, y - 18, rad, col, 0.1); ring(r, x, y - 18, rad + 3, [col[0], col[1], col[2], 90], 0.1);
+    if (T.kind === 'volley') for (let i = -2; i <= 2; i++) { const a = T.ang + i * 0.17; r.lineW(x + Math.cos(a) * 20, y - 14 + Math.sin(a) * 20, x + Math.cos(a) * (20 + 40 * k), y - 14 + Math.sin(a) * (20 + 40 * k), 1, [255, 220, 120, 150]); }
   }
 }

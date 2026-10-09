@@ -14,6 +14,7 @@ import { renderRun, heroSprite } from './run_render.js';
 import { lootKill, lootUpdate, lootChests } from './run_loot.js';
 import { runAttack, runSkillSpin, separateEnemies } from './run_combat.js';
 import { equipStats, equipSig } from './items.js';
+import { Monster } from './monster.js';
 
 export class Run {
   constructor(seed, opts = {}) {
@@ -44,6 +45,17 @@ export class Run {
       onShoot: (from, tx, ty) => { // ن۴۴: کماندار/آتش‌جان (ن۴۷: صدا هم دارد)
         if (this.onSfx) this.onSfx(from.kind === 'imp' ? 'fire' : 'shoot');
         spawnProj(this.projs, from.kind === 'imp' ? 'fire' : 'arrow', from.x, from.y - 12, tx, ty, from.dmg, from);
+      },
+      onProj: (from, kind, ang, dmg) => { // ن۱۴۸: پرتابه‌های ویژه‌ی باس
+        spawnProj(this.projs, kind, from.x, from.y - 8, from.x + Math.cos(ang) * 100, from.y - 8 + Math.sin(ang) * 100, dmg, from);
+        if (this.onSfx && Math.random() < 0.25) this.onSfx(kind === 'fire' ? 'fire' : 'shoot');
+      },
+      onQuake: (x, y, r) => { this.fx.shake(r > 20 ? 5 : 2, r > 20 ? 0.35 : 0.15); this.fx.dust(x, y, r > 20 ? 14 : 5); if (r > 20) this.fx.dust(x - r * 0.6, y, 5), this.fx.dust(x + r * 0.6, y, 5); if (this.onSfx && r > 20) this.onSfx('hit'); },
+      onPhase: (from) => { // فاز ۲: خشم + دو هم‌خانواده
+        this.fx.shake(6, 0.7); this.fx.hitstop = 0.12; if (this.onSfx) this.onSfx('boss'); this.log.push({ k: 'bossPhase' });
+        const f = this.floor, hm = (1 + 0.13 * (f - 1)) * 0.7, dm = 1 + 0.075 * (f - 1);
+        for (const ox of [-26, 26]) { let x = from.x + ox, y = from.y + 8; if (this._hooks.solid(x, y)) { x = from.x; y = from.y; }
+          const e = new Monster(from.kind, x, y, 1, { hpMul: hm, dmgMul: dm }); e.room = from.room; e.state = 'move'; this.dungeon.enemies.push(e); }
       },
       onHit: (from, dmg) => {
         const hh = this.hero;
@@ -206,7 +218,7 @@ export class Run {
 
     // ---- پرتابه‌های دشمن (ن۴۴): تیر/گلوله‌ی آتش ----
     updateProjs(this.projs, dt, this._hooks.solid, (p) => {
-      if (Math.hypot(h.x - p.x, h.y - 10 - p.y) < PROJ[p.kind].r + 3) { this._hooks.onHit(p.owner, p.dmg); return true; }
+      if (Math.hypot(h.x - p.x, h.y - 10 - p.y) < PROJ[p.kind].r + 3) { this._hooks.onHit(p.owner, p.dmg); if (p.kind === 'web' && h.iframe <= 0) h.chill = 1.4; return true; }
       return false;
     });
 
