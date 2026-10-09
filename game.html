@@ -8054,8 +8054,100 @@ shapes: ['oval', 'ring'], dress: ['crack', 'ember'], dressN: 0.15, banners: 0.6,
 return {F021_040};
 })();
 const {F021_040} = __m_floors_f021_040;
+const __m_floors_f041_060 = (() => {
+const F041_060 = {
+41: { name: { fa: 'برج‌های دیده‌بانی', en: "Watchtowers" }, layout: 'twin', cols: 136, rows: 96, rooms: 15, rw: [12, 17], rh: [10, 13],
+shapes: ['rect', 'L'], dress: ['arrows', 'rubble'], dressN: 0.12, banners: 0.3, treasure: 2, empty: 0.2, dens: 1.43, startAt: 'left' },
+42: { name: { fa: 'باروی شکسته', en: "Broken Ramparts" }, layout: 'chain', cols: 136, rows: 96, rooms: 16, rw: [12, 18], rh: [10, 14], chainCols: 5, winding: true, cross: 0.35,
+shapes: ['rect', 'ring'], dress: ['arrows', 'arrows', 'bones'], dressN: 0.13, banners: 0.3, treasure: 2, empty: 0.2, dens: 1.46 },
+43: { name: { fa: 'اسلحه‌خانه', en: "The Armory" }, layout: 'grid', cols: 136, rows: 96, rooms: 17, rw: [12, 19], rh: [10, 13], gridCols: 5, gridRows: 4, holes: 0.15, pillars: 0.5, pools: 0.5,
+shapes: ['rect', 'L'], dress: ['arrows', 'rubble'], dressN: 0.14, banners: 0.3, treasure: 2, empty: 0.2, dens: 1.49 },
+44: { name: { fa: 'حیاط تمرین', en: "Training Yard" }, layout: 'hub', cols: 136, rows: 96, rooms: 15, rw: [12, 17], rh: [10, 14], pillars: 0.5,
+shapes: ['rect', 'ring'], dress: ['arrows', 'arrows', 'bones'], dressN: 0.15, banners: 0.3, treasure: 3, empty: 0.2, dens: 1.52 },
+45: { name: { fa: 'تخت فرمانده‌ی کمان', en: "Bowmaster Throne" }, layout: 'ring', cols: 136, rows: 96, rooms: 14, rw: [12, 18], rh: [10, 13], spokes: 4, round: 3,
+shapes: ['rect', 'L'], dress: ['arrows', 'rubble'], dressN: 0.16, banners: 0.6, treasure: 2, empty: 0.1, dens: 1.55, boss: true },
+46: { name: { fa: 'ردپای گرگ', en: "Wolf Tracks" }, layout: 'grid', cols: 136, rows: 96, rooms: 15, rw: [12, 17], rh: [10, 13], gridCols: 5, gridRows: 4, holes: 0.15, pillars: 0.5,
+shapes: ['oval', 'L'], dress: ['claw', 'bones', 'moss'], dressN: 0.12, banners: 0.3, treasure: 2, empty: 0.2, dens: 1.58, startAt: 'left' },
+47: { name: { fa: 'جنگل زیرزمینی', en: "Under Forest" }, layout: 'hub', cols: 136, rows: 96, rooms: 16, rw: [12, 18], rh: [10, 14], pillars: 0.5, cross: 0.35,
+shapes: ['oval'], dress: ['vine', 'claw'], dressN: 0.13, banners: 0.3, treasure: 2, empty: 0.2, dens: 1.61 },
+48: { name: { fa: 'آبشخور', en: "Watering Hole" }, layout: 'scatter', cols: 136, rows: 96, rooms: 17, rw: [12, 19], rh: [10, 13], loops: 0.1, pools: 0.5,
+shapes: ['oval', 'L'], dress: ['claw', 'bones', 'moss'], dressN: 0.14, banners: 0.3, treasure: 2, empty: 0.2, dens: 1.64 },
+49: { name: { fa: 'غار زوزه', en: "Howling Cave" }, layout: 'twin', cols: 136, rows: 96, rooms: 15, rw: [12, 17], rh: [10, 14],
+shapes: ['oval'], dress: ['vine', 'claw'], dressN: 0.15, banners: 0.3, treasure: 3, empty: 0.2, dens: 1.67 },
+50: { name: { fa: 'کنام گرگ آلفا', en: "Alpha Den" }, layout: 'ring', cols: 136, rows: 96, rooms: 14, rw: [12, 18], rh: [10, 13], spokes: 4, round: 3,
+shapes: ['oval', 'L'], dress: ['claw', 'bones', 'moss'], dressN: 0.16, banners: 0.6, treasure: 2, empty: 0.1, dens: 1.7, boss: true },
+51: { name: { fa: 'تونل‌های شاخ', en: "Horn Tunnels" }, layout: 'scatter', cols: 136, rows: 96, rooms: 15, rw: [12, 17], rh: [10, 13], loops: 0.1,
+shapes: ['L', 'rect'], dress: ['rubble', 'rubble', 'claw'], dressN: 0.12, banners: 0.3, treasure: 2, empty: 0.2, dens: 1.73, startAt: 'left' },
+52: { name: { fa: 'صخره‌های تیز', en: "Jagged Rocks" }, layout: 'twin', cols: 136, rows: 96, rooms: 16, rw: [12, 18], rh: [10, 14], cross: 0.35,
+shapes: ['oval', 'ring'], dress: ['rails', 'rubble'], dressN: 0.13, banners: 0.3, treasure: 2, empty: 0.2, dens: 1.76 },
+53: { name: { fa: 'چشمه‌ی سنگی', en: "Stone Spring" }, layout: 'chain', cols: 136, rows: 96, rooms: 17, rw: [12, 19], rh: [10, 13], chainCols: 4, winding: true, pools: 0.5,
+shapes: ['L', 'rect'], dress: ['rubble', 'rubble', 'claw'], dressN: 0.14, banners: 0.3, treasure: 2, empty: 0.2, dens: 1.79 },
+54: { name: { fa: 'گذرگاه کوبنده', en: "Ramming Pass" }, layout: 'grid', cols: 136, rows: 96, rooms: 15, rw: [12, 17], rh: [10, 14], gridCols: 5, gridRows: 4, holes: 0.15, pillars: 0.5,
+shapes: ['oval', 'ring'], dress: ['rails', 'rubble'], dressN: 0.15, banners: 0.3, treasure: 3, empty: 0.2, dens: 1.82 },
+55: { name: { fa: 'تخت قوچ سنگی', en: "Stone Ram Throne" }, layout: 'ring', cols: 136, rows: 96, rooms: 14, rw: [12, 18], rh: [10, 13], spokes: 4, round: 3,
+shapes: ['L', 'rect'], dress: ['rubble', 'rubble', 'claw'], dressN: 0.16, banners: 0.6, treasure: 2, empty: 0.1, dens: 1.85, boss: true },
+56: { name: { fa: 'برف‌روب', en: "Snowdrift" }, layout: 'chain', cols: 136, rows: 96, rooms: 15, rw: [12, 17], rh: [10, 13], chainCols: 4, winding: true,
+shapes: ['oval', 'ring'], dress: ['snow', 'ice', 'crystal'], dressN: 0.12, banners: 0.3, treasure: 2, empty: 0.2, dens: 1.88, startAt: 'left' },
+57: { name: { fa: 'تالار یخ‌سنگ', en: "Icestone Hall" }, layout: 'grid', cols: 136, rows: 96, rooms: 16, rw: [12, 18], rh: [10, 14], gridCols: 5, gridRows: 4, holes: 0.15, pillars: 0.5, cross: 0.35,
+shapes: ['oval', 'L'], dress: ['snow', 'snow', 'bones'], dressN: 0.13, banners: 0.3, treasure: 2, empty: 0.2, dens: 1.91 },
+58: { name: { fa: 'دریاچه‌ی یخ', en: "Ice Lake" }, layout: 'hub', cols: 136, rows: 96, rooms: 17, rw: [12, 19], rh: [10, 13], pillars: 0.5, pools: 0.5,
+shapes: ['oval', 'ring'], dress: ['snow', 'ice', 'crystal'], dressN: 0.14, banners: 0.3, treasure: 2, empty: 0.2, dens: 1.94 },
+59: { name: { fa: 'غار بهمن', en: "Avalanche Cave" }, layout: 'scatter', cols: 136, rows: 96, rooms: 15, rw: [12, 17], rh: [10, 14], loops: 0.1,
+shapes: ['oval', 'L'], dress: ['snow', 'snow', 'bones'], dressN: 0.15, banners: 0.3, treasure: 3, empty: 0.2, dens: 1.97 },
+60: { name: { fa: 'تخت یتی کهن', en: "Elder Yeti Throne" }, layout: 'ring', cols: 144, rows: 102, rooms: 14, rw: [12, 18], rh: [10, 13], spokes: 4, round: 3,
+shapes: ['oval', 'ring'], dress: ['snow', 'ice', 'crystal'], dressN: 0.16, banners: 0.6, treasure: 2, empty: 0.1, dens: 2.0, boss: true },
+};
+return {F041_060};
+})();
+const {F041_060} = __m_floors_f041_060;
+const __m_floors_f061_080 = (() => {
+const F061_080 = {
+61: { name: { fa: 'مقبره‌ی غرق', en: "Drowned Tomb" }, layout: 'twin', cols: 144, rows: 102, rooms: 16, rw: [12, 17], rh: [10, 13],
+shapes: ['rect', 'ring'], dress: ['sand', 'puddle', 'bones'], dressN: 0.12, banners: 0.3, treasure: 2, empty: 0.2, dens: 2.03, startAt: 'left' },
+62: { name: { fa: 'دالان کتیبه', en: "Glyph Corridor" }, layout: 'chain', cols: 144, rows: 102, rooms: 17, rw: [12, 18], rh: [10, 14], chainCols: 5, winding: true, cross: 0.35,
+shapes: ['rect', 'L'], dress: ['sand', 'candle'], dressN: 0.13, banners: 0.3, treasure: 2, empty: 0.2, dens: 2.06 },
+63: { name: { fa: 'حوض مقدس', en: "Sacred Pool" }, layout: 'grid', cols: 144, rows: 102, rooms: 18, rw: [12, 19], rh: [10, 13], gridCols: 5, gridRows: 4, holes: 0.15, pillars: 0.5, pools: 0.5,
+shapes: ['rect', 'ring'], dress: ['sand', 'puddle', 'bones'], dressN: 0.14, banners: 0.3, treasure: 2, empty: 0.2, dens: 2.09 },
+64: { name: { fa: 'خزانه‌ی فرعون', en: "Pharaoh Vault" }, layout: 'hub', cols: 144, rows: 102, rooms: 16, rw: [12, 17], rh: [10, 14], pillars: 0.5,
+shapes: ['rect', 'L'], dress: ['sand', 'candle'], dressN: 0.15, banners: 0.3, treasure: 3, empty: 0.2, dens: 2.12 },
+65: { name: { fa: 'تخت مومیایی شاه', en: "Mummy King Throne" }, layout: 'ring', cols: 144, rows: 102, rooms: 14, rw: [12, 18], rh: [10, 13], spokes: 4, round: 3,
+shapes: ['rect', 'ring'], dress: ['sand', 'puddle', 'bones'], dressN: 0.16, banners: 0.6, treasure: 2, empty: 0.1, dens: 2.15, boss: true },
+66: { name: { fa: 'قلب مذاب', en: "Molten Heart" }, layout: 'grid', cols: 144, rows: 102, rooms: 16, rw: [12, 17], rh: [10, 13], gridCols: 5, gridRows: 4, holes: 0.15, pillars: 0.5,
+shapes: ['rect', 'oval'], dress: ['crack', 'ember', 'rubble'], dressN: 0.12, banners: 0.3, treasure: 2, empty: 0.2, dens: 2.18, startAt: 'left' },
+67: { name: { fa: 'رودخانه‌ی آتش', en: "Fire River" }, layout: 'hub', cols: 144, rows: 102, rooms: 17, rw: [12, 18], rh: [10, 14], pillars: 0.5, cross: 0.35,
+shapes: ['ring', 'L'], dress: ['crack', 'crack', 'ember'], dressN: 0.13, banners: 0.3, treasure: 2, empty: 0.2, dens: 2.21 },
+68: { name: { fa: 'کارگاه غول', en: "Golem Works" }, layout: 'scatter', cols: 144, rows: 102, rooms: 18, rw: [12, 19], rh: [10, 13], loops: 0.1, pools: 0.5,
+shapes: ['rect', 'oval'], dress: ['crack', 'ember', 'rubble'], dressN: 0.14, banners: 0.3, treasure: 2, empty: 0.2, dens: 2.24 },
+69: { name: { fa: 'دره‌ی گدازه', en: "Lava Gorge" }, layout: 'twin', cols: 144, rows: 102, rooms: 16, rw: [12, 17], rh: [10, 14],
+shapes: ['ring', 'L'], dress: ['crack', 'crack', 'ember'], dressN: 0.15, banners: 0.3, treasure: 3, empty: 0.2, dens: 2.27 },
+70: { name: { fa: 'تخت غول سنگی', en: "Titan Golem Throne" }, layout: 'ring', cols: 144, rows: 102, rooms: 14, rw: [12, 18], rh: [10, 13], spokes: 4, round: 3,
+shapes: ['rect', 'oval'], dress: ['crack', 'ember', 'rubble'], dressN: 0.16, banners: 0.6, treasure: 2, empty: 0.1, dens: 2.3, boss: true },
+71: { name: { fa: 'گورهای بیدار', en: "Restless Graves" }, layout: 'scatter', cols: 144, rows: 102, rooms: 16, rw: [12, 17], rh: [10, 13], loops: 0.1,
+shapes: ['L', 'oval'], dress: ['grave', 'puddle', 'moss'], dressN: 0.12, banners: 0.3, treasure: 2, empty: 0.2, dens: 2.33, startAt: 'left' },
+72: { name: { fa: 'باتلاق مرده', en: "Dead Bog" }, layout: 'twin', cols: 144, rows: 102, rooms: 17, rw: [12, 18], rh: [10, 14], cross: 0.35,
+shapes: ['rect', 'L'], dress: ['bones', 'grave', 'vine'], dressN: 0.13, banners: 0.3, treasure: 2, empty: 0.2, dens: 2.36 },
+73: { name: { fa: 'چاه طاعون', en: "Plague Well" }, layout: 'chain', cols: 144, rows: 102, rooms: 18, rw: [12, 19], rh: [10, 13], chainCols: 4, winding: true, pools: 0.5,
+shapes: ['L', 'oval'], dress: ['grave', 'puddle', 'moss'], dressN: 0.14, banners: 0.3, treasure: 2, empty: 0.2, dens: 2.39 },
+74: { name: { fa: 'شهر متروک', en: "Forsaken Town" }, layout: 'grid', cols: 144, rows: 102, rooms: 16, rw: [12, 17], rh: [10, 14], gridCols: 5, gridRows: 4, holes: 0.15, pillars: 0.5,
+shapes: ['rect', 'L'], dress: ['bones', 'grave', 'vine'], dressN: 0.15, banners: 0.3, treasure: 3, empty: 0.2, dens: 2.42 },
+75: { name: { fa: 'تخت زامبی سلطان', en: "Zombie Sultan Throne" }, layout: 'ring', cols: 144, rows: 102, rooms: 14, rw: [12, 18], rh: [10, 13], spokes: 4, round: 3,
+shapes: ['L', 'oval'], dress: ['grave', 'puddle', 'moss'], dressN: 0.16, banners: 0.6, treasure: 2, empty: 0.1, dens: 2.45, boss: true },
+76: { name: { fa: 'تونل‌های نیش', en: "Sting Tunnels" }, layout: 'chain', cols: 144, rows: 102, rooms: 16, rw: [12, 17], rh: [10, 13], chainCols: 4, winding: true,
+shapes: ['oval', 'L'], dress: ['sand', 'sand', 'bones'], dressN: 0.12, banners: 0.3, treasure: 2, empty: 0.2, dens: 2.48, startAt: 'left' },
+77: { name: { fa: 'تپه‌های شن', en: "Sand Dunes" }, layout: 'grid', cols: 144, rows: 102, rooms: 17, rw: [12, 18], rh: [10, 14], gridCols: 5, gridRows: 4, holes: 0.15, pillars: 0.5, cross: 0.35,
+shapes: ['oval', 'ring'], dress: ['sand', 'rubble'], dressN: 0.13, banners: 0.3, treasure: 2, empty: 0.2, dens: 2.51 },
+78: { name: { fa: 'واحه‌ی پنهان', en: "Hidden Oasis" }, layout: 'hub', cols: 144, rows: 102, rooms: 18, rw: [12, 19], rh: [10, 13], pillars: 0.5, pools: 0.5,
+shapes: ['oval', 'L'], dress: ['sand', 'sand', 'bones'], dressN: 0.14, banners: 0.3, treasure: 2, empty: 0.2, dens: 2.54 },
+79: { name: { fa: 'لانه‌ی تخم', en: "Egg Nest" }, layout: 'scatter', cols: 144, rows: 102, rooms: 16, rw: [12, 17], rh: [10, 14], loops: 0.1,
+shapes: ['oval', 'ring'], dress: ['sand', 'rubble'], dressN: 0.15, banners: 0.3, treasure: 3, empty: 0.2, dens: 2.57 },
+80: { name: { fa: 'تخت عقرب امپراتور', en: "Emperor Scorpion Throne" }, layout: 'ring', cols: 144, rows: 102, rooms: 14, rw: [12, 18], rh: [10, 13], spokes: 4, round: 3,
+shapes: ['oval', 'L'], dress: ['sand', 'sand', 'bones'], dressN: 0.16, banners: 0.6, treasure: 2, empty: 0.1, dens: 2.6, boss: true },
+};
+return {F061_080};
+})();
+const {F061_080} = __m_floors_f061_080;
 const __m_floors_index = (() => {
-const DESIGNED = { ...F001_010, ...F011_020, ...F021_040 };
+const DESIGNED = { ...F001_010, ...F011_020, ...F021_040, ...F041_060, ...F061_080 };
 const MAX_FLOOR = 100;
 const LAYOUTS = ['scatter', 'chain', 'hub', 'grid', 'twin', 'ring'];
 function specFor(f) {
@@ -8350,6 +8442,11 @@ else if (d.t === 'grave') { r.rect(ox + 4, oy + 9, 8, 6, c4([70, 60, 50], 150));
 else if (d.t === 'candle') { r.rect(ox + 6, oy + 8, 2, 4, c4([236, 228, 200])); r.rect(ox + 6, oy + 6, 2, 2, c4([255, 200, 90])); r.rect(ox + 10, oy + 10, 2, 3, c4([236, 228, 200])); r.rect(ox + 10, oy + 9, 1, 1, c4([255, 220, 120])); r.rect(ox + 5, oy + 12, 8, 1, c4([180, 170, 140], 160)); }
 else if (d.t === 'crystal') { const c = [140, 210, 255]; r.rect(ox + 6, oy + 4, 3, 9, c4(c)); r.rect(ox + 7, oy + 2, 1, 2, c4(c)); r.rect(ox + 6, oy + 4, 1, 9, c4([230, 250, 255])); r.rect(ox + 10, oy + 8, 2, 5, c4([90, 160, 220])); r.rect(ox + 4, oy + 9, 2, 4, c4([90, 160, 220])); }
 else if (d.t === 'crack') { const c = c4([255, 110, 40], 230); r.rect(ox + 2, oy + 7, 5, 1, c); r.rect(ox + 6, oy + 8, 4, 1, c); r.rect(ox + 9, oy + 9, 5, 1, c); r.rect(ox + 7, oy + 4, 1, 4, c); r.rect(ox + 7, oy + 5, 1, 1, c4([255, 220, 120])); } // شکافِ گدازه
+else if (d.t === 'arrows') { const w = c4([120, 90, 60]), t = c4([200, 200, 210]); for (let i = 0; i < 3; i++) { const ax = ox + 3 + i * 4, ay = oy + 3 + ((d.v + i) % 3) * 2; r.rect(ax, ay + 2, 1, 8, w); r.rect(ax, ay, 1, 2, t); r.rect(ax - 1, ay + 9, 3, 1, c4([220, 220, 220])); } } // تیرهای فرورفته
+else if (d.t === 'claw') { const c = c4([30, 24, 30], 170); for (let i = 0; i < 3; i++) for (let k = 0; k < 7; k++) r.rect(ox + 3 + i * 3 + (k >> 1), oy + 4 + k, 1, 1, c); }
+else if (d.t === 'snow') { r.ellipse(ox + 8, oy + 9, 7, 4, c4([232, 240, 250], 210)); r.rect(ox + 4, oy + 7, 5, 1, c4([255, 255, 255])); }
+else if (d.t === 'sand') { r.ellipse(ox + 8, oy + 9, 7, 4, c4([196, 164, 104], 170)); for (let i = 0; i < 4; i++) r.rect(ox + 3 + i * 3, oy + 8 + (i & 1), 2, 1, c4([226, 196, 130])); }
+else if (d.t === 'vine') { const g = c4([70, 130, 60]), l = c4([110, 170, 80]); for (let k = 0; k < 14; k++) r.rect(ox + 2 + k, oy + 8 + Math.round(2 * Math.sin((k + d.v * 3) * 0.7)), 1, 1, g); r.rect(ox + 5, oy + 6, 2, 2, l); r.rect(ox + 11, oy + 9, 2, 2, l); }
 else if (d.t === 'ice') { r.rect(ox + 1, oy + 1, 14, 14, c4([190, 230, 255], 60)); r.rect(ox + 3, oy + 4, 5, 1, c4([240, 250, 255], 150)); }
 }
 function paintBanner(r, ox, oy, v, theme) { // پرچمِ آویخته روی نمای آجری

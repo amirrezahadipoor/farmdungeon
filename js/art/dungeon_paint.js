@@ -99,6 +99,11 @@ function paintDress(r, ox, oy, d, P, x, y, DM, W) {
   else if (d.t === 'candle') { r.rect(ox + 6, oy + 8, 2, 4, c4([236, 228, 200])); r.rect(ox + 6, oy + 6, 2, 2, c4([255, 200, 90])); r.rect(ox + 10, oy + 10, 2, 3, c4([236, 228, 200])); r.rect(ox + 10, oy + 9, 1, 1, c4([255, 220, 120])); r.rect(ox + 5, oy + 12, 8, 1, c4([180, 170, 140], 160)); }
   else if (d.t === 'crystal') { const c = [140, 210, 255]; r.rect(ox + 6, oy + 4, 3, 9, c4(c)); r.rect(ox + 7, oy + 2, 1, 2, c4(c)); r.rect(ox + 6, oy + 4, 1, 9, c4([230, 250, 255])); r.rect(ox + 10, oy + 8, 2, 5, c4([90, 160, 220])); r.rect(ox + 4, oy + 9, 2, 4, c4([90, 160, 220])); }
   else if (d.t === 'crack') { const c = c4([255, 110, 40], 230); r.rect(ox + 2, oy + 7, 5, 1, c); r.rect(ox + 6, oy + 8, 4, 1, c); r.rect(ox + 9, oy + 9, 5, 1, c); r.rect(ox + 7, oy + 4, 1, 4, c); r.rect(ox + 7, oy + 5, 1, 1, c4([255, 220, 120])); } // شکافِ گدازه
+  else if (d.t === 'arrows') { const w = c4([120, 90, 60]), t = c4([200, 200, 210]); for (let i = 0; i < 3; i++) { const ax = ox + 3 + i * 4, ay = oy + 3 + ((d.v + i) % 3) * 2; r.rect(ax, ay + 2, 1, 8, w); r.rect(ax, ay, 1, 2, t); r.rect(ax - 1, ay + 9, 3, 1, c4([220, 220, 220])); } } // تیرهای فرورفته
+  else if (d.t === 'claw') { const c = c4([30, 24, 30], 170); for (let i = 0; i < 3; i++) for (let k = 0; k < 7; k++) r.rect(ox + 3 + i * 3 + (k >> 1), oy + 4 + k, 1, 1, c); }
+  else if (d.t === 'snow') { r.ellipse(ox + 8, oy + 9, 7, 4, c4([232, 240, 250], 210)); r.rect(ox + 4, oy + 7, 5, 1, c4([255, 255, 255])); }
+  else if (d.t === 'sand') { r.ellipse(ox + 8, oy + 9, 7, 4, c4([196, 164, 104], 170)); for (let i = 0; i < 4; i++) r.rect(ox + 3 + i * 3, oy + 8 + (i & 1), 2, 1, c4([226, 196, 130])); }
+  else if (d.t === 'vine') { const g = c4([70, 130, 60]), l = c4([110, 170, 80]); for (let k = 0; k < 14; k++) r.rect(ox + 2 + k, oy + 8 + Math.round(2 * Math.sin((k + d.v * 3) * 0.7)), 1, 1, g); r.rect(ox + 5, oy + 6, 2, 2, l); r.rect(ox + 11, oy + 9, 2, 2, l); }
   else if (d.t === 'ice') { r.rect(ox + 1, oy + 1, 14, 14, c4([190, 230, 255], 60)); r.rect(ox + 3, oy + 4, 5, 1, c4([240, 250, 255], 150)); }
 }
 function paintBanner(r, ox, oy, v, theme) { // پرچمِ آویخته روی نمای آجری
