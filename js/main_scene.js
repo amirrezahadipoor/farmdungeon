@@ -31,7 +31,7 @@ export function initScenes(env) {
       saveNow();
       app.s.stats.runs++;
       const meal = app.s.buff ? MEALS[app.s.buff] : null; // غذا هنگام ورود مصرف می‌شود
-      run = new Run((Date.now() % 100000) | 0, { swordLvl: app.s.upgrades.sword, armorLvl: app.s.upgrades.armor, bootsLvl: app.s.upgrades.boots, meal: meal ? meal.buff : null, equip: app.s.equipped });
+      run = new Run((Date.now() % 100000) | 0, { swordLvl: app.s.upgrades.sword, armorLvl: app.s.upgrades.armor, bootsLvl: app.s.upgrades.boots, meal: meal ? meal.buff : null, equip: app.s.equipped, startFloor: app.s.stats.bestFloor || 1 });
       applyRunStats(run, app.s); // RPG: قدرت/بنیه/چابکی/مهلک/بذریابی
       if (meal) { app.s.buff = null; toast(t('buffOn') + ' ' + meal.name[getLang()]); }
       run.view = env.getView();
@@ -39,7 +39,7 @@ export function initScenes(env) {
       playSfx('gate'); // گذر از دروازه
       scene = 'dungeon';
       document.body.classList.add('inDungeon');
-      toast(t('floor') + ' ' + faNum(1));
+      toast(t('floor') + ' ' + faNum(run.floor));
     });
   }
 

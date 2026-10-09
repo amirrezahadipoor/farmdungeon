@@ -68,7 +68,8 @@ export class Run {
     this.fx = new FX();
     this.standT = 0;
     this.projs = []; // ن۴۴
-    this.loadFloor(1);
+    this.startFloor = Math.max(1, Math.min(100, opts.startFloor | 0 || 1)); // ن۱۴۵: ادامه از بالاترین طبقه‌ی رسیده — طبقه‌های ضعیف‌ترِ قبلی بسته‌اند
+    this.loadFloor(this.startFloor);
   }
   loadFloor(f) {
     if (f > 1 && this.onSfx) this.onSfx('floor'); // موج پایین‌روی طبقه‌ی جدید
@@ -254,7 +255,8 @@ export class Run {
     const h = this.hero;
     h.hp = this.maxHp; h.dead = false; h.deadT = 0;
     this.seed = (Date.now() % 100000) | 0;
-    this.loadFloor(1);
+    this.startFloor = this.floor; // تلاشِ دوباره: همان طبقه‌ای که در آن مرد
+    this.loadFloor(this.floor);
   }
   float(x, y, txt, col) { this.fx.float(x, y, txt, col); }
 

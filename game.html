@@ -4623,7 +4623,7 @@ s.coins -= c; r.bought++; r.pts++; return true;
 }
 const XP = { harvest: 2, kill: 4, elite: 10, floor: 8, boss: 60 };
 function runXp(run) {
-return run.kills * XP.kill + (run.eliteKills || 0) * XP.elite + Math.max(0, run.floor - 1) * XP.floor + (run._bossKills || 0) * XP.boss;
+return run.kills * XP.kill + (run.eliteKills || 0) * XP.elite + Math.max(0, run.floor - (run.startFloor || 1)) * XP.floor + (run._bossKills || 0) * XP.boss;
 }
 function applyRunStats(run, s) {
 const k = 1 + statVal(s, 'str');
@@ -8343,10 +8343,10 @@ for (let y = o.cy - ry; y <= o.cy + ry; y++) for (let x = o.cx - rx; x <= o.cx +
 const cps = [], CP = spec.centre ? [].concat(spec.centre) : [];
 if (CP.length) { let n = spec.centreN ?? 3;
 for (const o of rooms) { if (n <= 0) break; if ((o.feat && o.feat !== 'court') || (o.role && o.role !== 'stairs') || o.w < 12 || o.h < 9) continue;
-const x = o.cx - 1, y = o.cy - 1; let ok = true;
-for (let j = -1; j <= 2 && ok; j++) for (let i = -1; i <= 2; i++) { const k = (y + j) * W + x + i; if (room[k] !== o.id || kind[k] !== K_FLOOR) { ok = false; break; } }
+const N = o.w >= 16 && o.h >= 12 ? 3 : 2, x = o.cx - 1, y = o.cy - 1; let ok = true; // ن۱۴۵: اتاقِ بزرگ ⇒ قطعه‌ی ۳×۳ (۴۸px)
+for (let j = -1; j <= N && ok; j++) for (let i = -1; i <= N; i++) { const k = (y + j) * W + x + i; if (room[k] !== o.id || kind[k] !== K_FLOOR) { ok = false; break; } }
 if (!ok) continue; o.feat = 'centre'; n--; const v = CP[Math.floor(R() * CP.length)];
-for (let q = 0; q < 4; q++) { const k = (y + (q >> 1)) * W + x + (q & 1); kind[k] = K_PILLAR; cps.push({ x: x + (q & 1), y: y + (q >> 1), t: 'cp', v, q }); } } }
+for (let q = 0; q < N * N; q++) { const qx = q % N, qy = (q / N) | 0, k = (y + qy) * W + x + qx; kind[k] = K_PILLAR; cps.push({ x: x + qx, y: y + qy, t: 'cp', v, q, n: N }); } } }
 { let s0 = start.cy * W + start.cx; if (kind[s0] !== K_FLOOR) for (let k = 0; k < W * H; k++) if (room[k] === start.id && kind[k] === K_FLOOR) { s0 = k; break; }
 const ok = bfs(kind, W, H, s0); let bad = 0; for (let k = 0; k < W * H; k++) if (kind[k] === K_FLOOR && ok[k] < 0) bad++; // ن۱۴۵: جیب‌های محصور قبل از جاگذاریِ اشیا/هیولا → ستون (باگِ هیولا در ستون)
 if (bad) { for (let k = 0; k < W * H; k++) if (kind[k] === K_FLOOR && ok[k] < 0) kind[k] = K_PILLAR; } }
@@ -8448,7 +8448,7 @@ if (x % 2 === 0) r.rect(ox, oy, 1, TILE, FMOR); if (y % 2 === 0) r.rect(ox, oy, 
 if (hash(x, y, 3) < 0.1) { let cx = ox + 3 + Math.floor(hash(x, y, 4) * 8), cy = oy + 3; for (let k = 0; k < 8; k++) { r.rect(cx, cy, 1, 1, FMOR); cx += hash(x, y, k) < 0.5 ? 1 : 0; cy++; } }
 if (!fl(x, y - 1)) r.rect(ox, oy, TILE, 3, FSH); if (!fl(x - 1, y)) r.rect(ox, oy, 2, TILE, FSH);
 const dd = DM.get(y * W + x);
-if (dd && dd.t === 'cp') { if (dd.q === 3) paintCentre(r, ox - TILE, oy - TILE, dd.v, P); continue; }
+if (dd && dd.t === 'cp') { const n = dd.n || 2; if (dd.q === n * n - 1) { if (n === 2) paintCentre(r, ox - TILE, oy - TILE, dd.v, P); else paintCentreBig(r, ox - 2 * TILE, oy - 2 * TILE, dd.v, P); } continue; }
 if (dd) paintDress(r, ox, oy, dd, P, x, y, DM, W);
 if (c.kind === 'decor') paintDecor(r, ox, oy, c.v | 0, ACC, FMOR, CAPHI, x, y);
 else if (c.kind === 'stairs') for (let i = 0; i < 4; i++) { r.rect(ox + 1, oy + 1 + i * 4, TILE - 2, 4, [CAPHI, CAP, CAPSH, OUT][i]); r.rect(ox + 1, oy + 1 + i * 4, TILE - 2, 1, i ? CAPSH : CAPHI); }
@@ -8546,6 +8546,12 @@ else if (v === 'coffin') { R(9, 2, 14, 25, S.stD); R(8, 4, 16, 21, S.st); R(10, 
 else if (v === 'fountain') { r.ellipse(x + 16, y + 19, 14, 8, c4(S.stD)); r.ellipse(x + 16, y + 18, 14, 8, c4(S.st)); r.ellipse(x + 16, y + 18, 11, 6, c4([50, 110, 160])); R(14, 6, 4, 13, S.stH); R(12, 5, 8, 2, S.st);
 for (const [a, b] of [[10, 3], [21, 3], [8, 8], [23, 8]]) R(a, b, 2, 2, [180, 220, 250], 200); R(15, 1, 2, 4, [200, 235, 255], 220); r.ellipse(x + 11, y + 18, 2, 1, c4([170, 220, 250], 200)); }
 else if (v === 'bones') { r.ellipse(x + 16, y + 20, 13, 7, c4([170, 160, 140])); for (let i = 0; i < 7; i++) R(5 + i * 3, 14 + (i % 3) * 3, 7, 2, [222, 214, 192]); for (const [a, b] of [[10, 10], [17, 8], [21, 13]]) { R(a, b, 6, 5, [230, 222, 200]); R(a + 1, b + 2, 1, 1, [30, 24, 34]); R(a + 4, b + 2, 1, 1, [30, 24, 34]); } }
+}
+function paintCentreBig(r, x, y, v, P) {
+const T = new Raster(32, 32); paintCentre(T, 0, 0, v, P);
+for (let j = 0; j < 48; j++) for (let i = 0; i < 48; i++) { const s = ((j * 2 / 3 | 0) * 32 + (i * 2 / 3 | 0)) * 4, a = T.d[s + 3]; if (!a) continue;
+const X = x + i, Y = y + j; if (X < 0 || Y < 0 || X >= r.w || Y >= r.h) continue; const o = (Y * r.w + X) * 4, k = a / 255;
+r.d[o] = r.d[o] * (1 - k) + T.d[s] * k; r.d[o + 1] = r.d[o + 1] * (1 - k) + T.d[s + 1] * k; r.d[o + 2] = r.d[o + 2] * (1 - k) + T.d[s + 2] * k; }
 }
 return {voidCol, newCache, paintRows};
 })();
@@ -10319,7 +10325,8 @@ this.log = [];
 this.fx = new FX();
 this.standT = 0;
 this.projs = []; // ن۴۴
-this.loadFloor(1);
+this.startFloor = Math.max(1, Math.min(100, opts.startFloor | 0 || 1)); // ن۱۴۵: ادامه از بالاترین طبقه‌ی رسیده — طبقه‌های ضعیف‌ترِ قبلی بسته‌اند
+this.loadFloor(this.startFloor);
 }
 loadFloor(f) {
 if (f > 1 && this.onSfx) this.onSfx('floor'); // موج پایین‌روی طبقه‌ی جدید
@@ -10483,7 +10490,8 @@ this._banked = false; this.comboN = 0; this.comboT = 0; // دورِ نو: پای
 const h = this.hero;
 h.hp = this.maxHp; h.dead = false; h.deadT = 0;
 this.seed = (Date.now() % 100000) | 0;
-this.loadFloor(1);
+this.startFloor = this.floor; // تلاشِ دوباره: همان طبقه‌ای که در آن مرد
+this.loadFloor(this.floor);
 }
 float(x, y, txt, col) { this.fx.float(x, y, txt, col); }
 render(r) { renderRun(this, r); }
@@ -12173,7 +12181,7 @@ transition(() => {
 saveNow();
 app.s.stats.runs++;
 const meal = app.s.buff ? MEALS[app.s.buff] : null; // غذا هنگام ورود مصرف می‌شود
-run = new Run((Date.now() % 100000) | 0, { swordLvl: app.s.upgrades.sword, armorLvl: app.s.upgrades.armor, bootsLvl: app.s.upgrades.boots, meal: meal ? meal.buff : null, equip: app.s.equipped });
+run = new Run((Date.now() % 100000) | 0, { swordLvl: app.s.upgrades.sword, armorLvl: app.s.upgrades.armor, bootsLvl: app.s.upgrades.boots, meal: meal ? meal.buff : null, equip: app.s.equipped, startFloor: app.s.stats.bestFloor || 1 });
 applyRunStats(run, app.s); // RPG: قدرت/بنیه/چابکی/مهلک/بذریابی
 if (meal) { app.s.buff = null; toast(t('buffOn') + ' ' + meal.name[getLang()]); }
 run.view = env.getView();
@@ -12181,7 +12189,7 @@ run.onSfx = (n) => playSfx(n);
 playSfx('gate'); // گذر از دروازه
 scene = 'dungeon';
 document.body.classList.add('inDungeon');
-toast(t('floor') + ' ' + faNum(1));
+toast(t('floor') + ' ' + faNum(run.floor));
 });
 }
 function bankRun() {

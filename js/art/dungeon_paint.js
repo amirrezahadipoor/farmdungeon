@@ -38,7 +38,7 @@ export function paintRows(r, D, y0, y1) {
       if (hash(x, y, 3) < 0.1) { let cx = ox + 3 + Math.floor(hash(x, y, 4) * 8), cy = oy + 3; for (let k = 0; k < 8; k++) { r.rect(cx, cy, 1, 1, FMOR); cx += hash(x, y, k) < 0.5 ? 1 : 0; cy++; } }
       if (!fl(x, y - 1)) r.rect(ox, oy, TILE, 3, FSH); if (!fl(x - 1, y)) r.rect(ox, oy, 2, TILE, FSH);
       const dd = DM.get(y * W + x);
-      if (dd && dd.t === 'cp') { if (dd.q === 3) paintCentre(r, ox - TILE, oy - TILE, dd.v, P); continue; }
+      if (dd && dd.t === 'cp') { const n = dd.n || 2; if (dd.q === n * n - 1) { if (n === 2) paintCentre(r, ox - TILE, oy - TILE, dd.v, P); else paintCentreBig(r, ox - 2 * TILE, oy - 2 * TILE, dd.v, P); } continue; }
       if (dd) paintDress(r, ox, oy, dd, P, x, y, DM, W);
       if (c.kind === 'decor') paintDecor(r, ox, oy, c.v | 0, ACC, FMOR, CAPHI, x, y);
       else if (c.kind === 'stairs') for (let i = 0; i < 4; i++) { r.rect(ox + 1, oy + 1 + i * 4, TILE - 2, 4, [CAPHI, CAP, CAPSH, OUT][i]); r.rect(ox + 1, oy + 1 + i * 4, TILE - 2, 1, i ? CAPSH : CAPHI); }
@@ -141,4 +141,12 @@ function paintCentre(r, x, y, v, P) {
   else if (v === 'fountain') { r.ellipse(x + 16, y + 19, 14, 8, c4(S.stD)); r.ellipse(x + 16, y + 18, 14, 8, c4(S.st)); r.ellipse(x + 16, y + 18, 11, 6, c4([50, 110, 160])); R(14, 6, 4, 13, S.stH); R(12, 5, 8, 2, S.st);
     for (const [a, b] of [[10, 3], [21, 3], [8, 8], [23, 8]]) R(a, b, 2, 2, [180, 220, 250], 200); R(15, 1, 2, 4, [200, 235, 255], 220); r.ellipse(x + 11, y + 18, 2, 1, c4([170, 220, 250], 200)); }
   else if (v === 'bones') { r.ellipse(x + 16, y + 20, 13, 7, c4([170, 160, 140])); for (let i = 0; i < 7; i++) R(5 + i * 3, 14 + (i % 3) * 3, 7, 2, [222, 214, 192]); for (const [a, b] of [[10, 10], [17, 8], [21, 13]]) { R(a, b, 6, 5, [230, 222, 200]); R(a + 1, b + 2, 1, 1, [30, 24, 34]); R(a + 4, b + 2, 1, 1, [30, 24, 34]); } }
+}
+
+// قطعه‌ی ۳×۳: همان طرح در بومِ موقتِ ۳۲px، با بزرگ‌نماییِ ۱٫۵ (نزدیک‌ترین پیکسل) روی ۴۸px — فقط پیکسل‌های پر
+function paintCentreBig(r, x, y, v, P) {
+  const T = new Raster(32, 32); paintCentre(T, 0, 0, v, P);
+  for (let j = 0; j < 48; j++) for (let i = 0; i < 48; i++) { const s = ((j * 2 / 3 | 0) * 32 + (i * 2 / 3 | 0)) * 4, a = T.d[s + 3]; if (!a) continue;
+    const X = x + i, Y = y + j; if (X < 0 || Y < 0 || X >= r.w || Y >= r.h) continue; const o = (Y * r.w + X) * 4, k = a / 255;
+    r.d[o] = r.d[o] * (1 - k) + T.d[s] * k; r.d[o + 1] = r.d[o + 1] * (1 - k) + T.d[s + 1] * k; r.d[o + 2] = r.d[o + 2] * (1 - k) + T.d[s + 2] * k; }
 }

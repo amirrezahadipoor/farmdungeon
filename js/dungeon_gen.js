@@ -146,10 +146,10 @@ export function generate(spec, seed) {
   const cps = [], CP = spec.centre ? [].concat(spec.centre) : [];
   if (CP.length) { let n = spec.centreN ?? 3;
     for (const o of rooms) { if (n <= 0) break; if ((o.feat && o.feat !== 'court') || (o.role && o.role !== 'stairs') || o.w < 12 || o.h < 9) continue;
-      const x = o.cx - 1, y = o.cy - 1; let ok = true;
-      for (let j = -1; j <= 2 && ok; j++) for (let i = -1; i <= 2; i++) { const k = (y + j) * W + x + i; if (room[k] !== o.id || kind[k] !== K_FLOOR) { ok = false; break; } }
+      const N = o.w >= 16 && o.h >= 12 ? 3 : 2, x = o.cx - 1, y = o.cy - 1; let ok = true; // ن۱۴۵: اتاقِ بزرگ ⇒ قطعه‌ی ۳×۳ (۴۸px)
+      for (let j = -1; j <= N && ok; j++) for (let i = -1; i <= N; i++) { const k = (y + j) * W + x + i; if (room[k] !== o.id || kind[k] !== K_FLOOR) { ok = false; break; } }
       if (!ok) continue; o.feat = 'centre'; n--; const v = CP[Math.floor(R() * CP.length)];
-      for (let q = 0; q < 4; q++) { const k = (y + (q >> 1)) * W + x + (q & 1); kind[k] = K_PILLAR; cps.push({ x: x + (q & 1), y: y + (q >> 1), t: 'cp', v, q }); } } }
+      for (let q = 0; q < N * N; q++) { const qx = q % N, qy = (q / N) | 0, k = (y + qy) * W + x + qx; kind[k] = K_PILLAR; cps.push({ x: x + qx, y: y + qy, t: 'cp', v, q, n: N }); } } }
   { let s0 = start.cy * W + start.cx; if (kind[s0] !== K_FLOOR) for (let k = 0; k < W * H; k++) if (room[k] === start.id && kind[k] === K_FLOOR) { s0 = k; break; }
     const ok = bfs(kind, W, H, s0); let bad = 0; for (let k = 0; k < W * H; k++) if (kind[k] === K_FLOOR && ok[k] < 0) bad++; // ن۱۴۵: جیب‌های محصور قبل از جاگذاریِ اشیا/هیولا → ستون (باگِ هیولا در ستون)
     if (bad) { for (let k = 0; k < W * H; k++) if (kind[k] === K_FLOOR && ok[k] < 0) kind[k] = K_PILLAR; } }

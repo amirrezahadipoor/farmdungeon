@@ -52,7 +52,7 @@ export function buyPoint(s) {
 // XP‌های بازی (ثابت‌ها اینجا تا تنظیم یک‌جا باشد)
 export const XP = { harvest: 2, kill: 4, elite: 10, floor: 8, boss: 60 };
 export function runXp(run) {
-  return run.kills * XP.kill + (run.eliteKills || 0) * XP.elite + Math.max(0, run.floor - 1) * XP.floor + (run._bossKills || 0) * XP.boss;
+  return run.kills * XP.kill + (run.eliteKills || 0) * XP.elite + Math.max(0, run.floor - (run.startFloor || 1)) * XP.floor + (run._bossKills || 0) * XP.boss;
 }
 
 // اعمال استات‌های نبرد روی یک Run تازه (بعد از new Run)
