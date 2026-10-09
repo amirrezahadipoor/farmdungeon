@@ -150,10 +150,15 @@ export function generate(spec, seed) {
       for (let j = -1; j <= 2 && ok; j++) for (let i = -1; i <= 2; i++) { const k = (y + j) * W + x + i; if (room[k] !== o.id || kind[k] !== K_FLOOR) { ok = false; break; } }
       if (!ok) continue; o.feat = 'centre'; n--; const v = CP[Math.floor(R() * CP.length)];
       for (let q = 0; q < 4; q++) { const k = (y + (q >> 1)) * W + x + (q & 1); kind[k] = K_PILLAR; cps.push({ x: x + (q & 1), y: y + (q >> 1), t: 'cp', v, q }); } } }
+  { let s0 = start.cy * W + start.cx; if (kind[s0] !== K_FLOOR) for (let k = 0; k < W * H; k++) if (room[k] === start.id && kind[k] === K_FLOOR) { s0 = k; break; }
+    const ok = bfs(kind, W, H, s0); let bad = 0; for (let k = 0; k < W * H; k++) if (kind[k] === K_FLOOR && ok[k] < 0) bad++; // ن۱۴۵: جیب‌های محصور قبل از جاگذاریِ اشیا/هیولا → ستون (باگِ هیولا در ستون)
+    if (bad) { for (let k = 0; k < W * H; k++) if (kind[k] === K_FLOOR && ok[k] < 0) kind[k] = K_PILLAR; } }
   const floorAt = (o, fx, fy) => { // نزدیک‌ترین کفِ آزادِ اتاق به نقطه‌ی کسری
     const tx = Math.round(o.x + 1 + fx * (o.w - 3)), ty = Math.round(o.y + 1 + fy * (o.h - 3));
-    for (let r = 0; r < 6; r++) for (let dy = -r; dy <= r; dy++) for (let dx = -r; dx <= r; dx++) { const x = tx + dx, y = ty + dy; if (room[y * W + x] === o.id && kind[y * W + x] === K_FLOOR) return { x, y }; }
-    return { x: o.cx, y: o.cy };
+    for (let r = 0; r < 14; r++) for (let dy = -r; dy <= r; dy++) for (let dx = -r; dx <= r; dx++) { const x = tx + dx, y = ty + dy; if (room[y * W + x] === o.id && kind[y * W + x] === K_FLOOR) return { x, y }; }
+    for (let k = 0; k < W * H; k++) if (room[k] === o.id && kind[k] === K_FLOOR) return { x: k % W, y: (k / W) | 0 }; // ن۱۴۵: اتاقِ پر از آب/ستون
+    let best = null, bd = 1e9; for (let k = 0; k < W * H; k++) if (kind[k] === K_FLOOR) { const d = Math.abs(k % W - tx) + Math.abs(((k / W) | 0) - ty); if (d < bd) { bd = d; best = { x: k % W, y: (k / W) | 0 }; } }
+    return best;
   };
   const spawn = floorAt(start, 0.5, 0.6), stairs = floorAt(end, 0.85, 0.85);
   const chests = [];
@@ -178,8 +183,10 @@ export function generate(spec, seed) {
   const bossAt = spec.boss ? floorAt(end, 0.5, 0.45) : null;
   // ---------- آرایشِ اتاق‌ها (فقط نقاشی، روی راه‌رفتن اثر ندارد): فرش، موزاییک، طلا، آوار، خزه، استخوان، چاله‌آب، پرچم ----------
   const dress = [], isF = (x, y) => kind[y * W + x] === K_FLOOR, rid = (x, y) => room[y * W + x];
-  const put = (x, y, t, v = 0) => { if (x > 0 && y > 0 && x < W && y < H && isF(x, y)) dress.push({ x, y, t, v }); };
-  const banners = (o, every) => { for (let x = o.x; x < o.x + o.w; x++) { const y = topY(o, x); if (y > 0 && kind[(y - 1) * W + x] === K_WALL && (x - o.x) % every === 2) dress.push({ x, y: y - 1, t: 'banner', v: o.id % 3 }); } };
+  const used = new Set([spawn, stairs, ...chests, shrine, bossAt].filter(Boolean).map((p) => p.y * W + p.x)); // ن۱۴۵: بدونِ هم‌پوشانی و نه زیرِ اشیا
+  for (const g of groups) for (const p of g.spots) used.add(p.y * W + p.x);
+  const put = (x, y, t, v = 0) => { const k = y * W + x; if (x > 0 && y > 0 && x < W && y < H && isF(x, y) && !used.has(k)) { used.add(k); dress.push({ x, y, t, v }); } };
+  const banners = (o, every) => { for (let x = o.x; x < o.x + o.w; x++) { const y = topY(o, x); if (y > 0 && kind[(y - 1) * W + x] === K_WALL && (x - o.x) % every === 2 && x % 4 !== (spec.torchMod ?? 0) && !used.has((y - 1) * W + x) && used.add((y - 1) * W + x)) dress.push({ x, y: y - 1, t: 'banner', v: o.id % 3 }); } };
   const topY = (o, x) => { for (let y = o.y; y < o.y + o.h; y++) if (rid(x, y) === o.id) return y; return -1; };
   const DR = spec.dress || ['rubble', 'bones', 'moss'];
   for (const c of cps) dress.push(c);
@@ -203,7 +210,7 @@ export function generate(spec, seed) {
       if (o.feat !== 'pool' && R() < (spec.banners ?? 0.25)) banners(o, 5);
     }
   }
-  { const ok = bfs(kind, W, H, spawn.y * W + spawn.x); for (let k = 0; k < W * H; k++) if (kind[k] === K_FLOOR && ok[k] < 0) kind[k] = K_PILLAR; } // جیبِ محصور میانِ ستون‌ها → ستون
+  for (let i = decor.length - 1; i >= 0; i--) if (used.has(decor[i].y * W + decor[i].x)) decor.splice(i, 1); // دکورِ ریز روی آرایش/اشیا نیفتد
   return { cols: W, rows: H, kind, room, rooms, links, lt, spawn, stairs, chests, shrine, torches, decor, groups, bossAt, dress, startId: start.id, endId: end.id, dist: dOf(end) };
 }
 

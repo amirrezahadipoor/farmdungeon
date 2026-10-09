@@ -91,7 +91,8 @@ export class Dungeon {
       const final = f >= 100, kind = T.mobs[0], n = norm(kind); // ن۱۴۰: همیشه باسِ غول‌پیکرِ همان خانواده (۱۰۰: سخت‌تر)
       const b = new Monster(kind, g.bossAt.x * TILE + 8, g.bossAt.y * TILE + 8, 1 + (final ? 1 : 0), { hpMul: hpMul * n.hp * (final ? 16 : 11), dmgMul: dmgMul * n.dmg * (final ? 2.3 : 1.9), lord: true });
       b.room = g.endId; this.enemies.push(b);
-      for (let i = 0; i < 2; i++) { const k = T.mobs[i % T.mobs.length], nn = norm(k); const e = new Monster(k, g.bossAt.x * TILE + 8 + (i ? 30 : -30), g.bossAt.y * TILE + 20, 1, { hpMul: hpMul * nn.hp, dmgMul: dmgMul * nn.dmg }); e.room = g.endId; this.enemies.push(e); }
+      for (let i = 0; i < 2; i++) { const k = T.mobs[i % T.mobs.length], nn = norm(k); const sp = (() => { const tx = g.bossAt.x + (i ? 2 : -2), ty = g.bossAt.y + 1; for (let r = 0; r < 8; r++) for (let dy = -r; dy <= r; dy++) for (let dx = -r; dx <= r; dx++) { const X = tx + dx, Y = ty + dy; if (g.kind[Y * g.cols + X] === 1 && g.room[Y * g.cols + X] === g.endId) return { x: X, y: Y }; } return g.bossAt; })(); // ن۱۴۵: نگهبان روی آب/ستون نیفتد
+        const e = new Monster(k, sp.x * TILE + 8, sp.y * TILE + 8, 1, { hpMul: hpMul * nn.hp, dmgMul: dmgMul * nn.dmg }); e.room = g.endId; this.enemies.push(e); }
     }
   }
 }
