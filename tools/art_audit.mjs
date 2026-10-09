@@ -16,6 +16,8 @@ import { MONSTER_KINDS, MOX, MOY } from '../js/art/monster_parts.js';
 import { HOY } from '../js/art/hero_pose.js'; // S1.6: خط پای قهرمان (بوم ۶۴px)
 import { drawText } from '../js/art/font2.js';
 import { PM_SIZE, PM_COVER, inPM } from '../js/art/palette_master.js';
+import { iconGrid, iconCellRGB } from '../js/art/icons.js'; // S7.1: سنجه‌ی آیکون‌های UI
+import { ICON_KINDS } from '../js/art/icon_lib.js';
 
 const ROOT = path.resolve(path.dirname(new URL(import.meta.url).pathname), '..');
 const SHOTS = path.join(ROOT, 'shots');
@@ -253,6 +255,30 @@ for (const t of CROPS) {
 }
 M.M10 = { min: Math.min(...Object.values(cropH)), max: Math.max(...Object.values(cropH)), stages: CROP_STAGES, per: cropH };
 
+// ---------- آیکون‌های UI (S7.1): پوششِ پالت · ΔL بدنه/پس‌زمینه · تعداد پله ----------
+const UI_BG = [[0x2b, 0x27, 0x42], [0x14, 0x11, 0x24], [0x1b, 0x18, 0x30]]; // دکمه · پنل · صفحه (css/style.css)
+const L2 = (c) => 0.299 * c[0] + 0.587 * c[1] + 0.114 * c[2];
+M.icons = { per: {} };
+for (const k of ICON_KINDS) {
+  const g = iconGrid(k);
+  let n = 0, inP = 0, body = 0, sum = 0, ink = 0; const steps = new Set();
+  for (let i = 0; i < g.step.length; i++) {
+    const st = g.step[i]; if (st < 0) continue;
+    const c = iconCellRGB(k, i); n++;
+    if (inPM(c[0], c[1], c[2])) inP++; // inPM(r,g,b) — سه عدد جدا
+    if (st === 7) { ink++; continue; }
+    body++; sum += L2(c); steps.add(g.mat[i] + ':' + st);
+  }
+  const avg = sum / body;
+  M.icons.per[k] = { cover: rnd(100 * inP / n), dL: rnd(Math.min(...UI_BG.map((b) => Math.abs(avg - L2(b))))), steps: steps.size, ink, px: n };
+}
+const icPer = Object.values(M.icons.per);
+M.icons.kinds = icPer.length;
+M.icons.cover = Math.min(...icPer.map((p) => p.cover));
+M.icons.dL = rnd(Math.min(...icPer.map((p) => p.dL)));
+M.icons.steps = Math.min(...icPer.map((p) => p.steps));
+M.icons.ok = M.icons.cover >= 97 && M.icons.dL >= 30 && M.icons.steps >= 4;
+
 // ---------- امتیاز (هدف‌های ROADMAP) ----------
 const goals = {
   M1: M.M1.min >= 25, M2: M.M2.sd <= 12, M3: M.M3.hero >= 10 && M.M3.hero <= 28 && M.M3.mobsMin >= 10 && M.M3.mobsMax <= 28,
@@ -323,6 +349,7 @@ for (const k of ['M1', 'M2', 'M3', 'M4', 'M5', 'M6', 'M7', 'M8', 'M9', 'M10']) {
 }
 console.log('M5 خارج‌ها (۵ رنگ پرتکرار هر گروه):');
 for (const [n, t] of M.M5.top) console.log('   ' + n + ': ' + (t.length ? t.join('  ') : '—'));
+console.log(`آیکون‌ها  ${M.icons.ok ? '✔' : '✘'}  پوشش ${M.icons.cover}٪ · کمینه ΔL بدنه/UI=${M.icons.dL} · کمینه پله=${M.icons.steps} · ${M.icons.kinds} آیکون   (هدف ≥۹۷٪ · ≥۳۰ · ≥۴)`);
 console.log(`M11 پرفورمنس: جدا در tools/bench.mjs (S0.4)`);
 console.log(`امتیاز سنجه‌محور: ${passed}/11 → ${score}/10   (${((Date.now() - t0) / 1000).toFixed(1)}s)`);
 const core = { bat_dL: M.M1.bat, outline_sd: M.M2.sd, hero_colors: M.M3.hero };

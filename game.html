@@ -4623,13 +4623,16 @@ function questLabel(q) {
 return {ensureQuests, trackQuests, questLabel};
 })();
 const {ensureQuests, trackQuests, questLabel} = __m_quests;
-const __m_art_icons = (() => {
-// icons.js — آیکون‌های پیکسلی UI (به‌جای ایموجی) — همه با کد ترسیم می‌شوند
-// هر آیکون = گرید کاراکتری + پالت رنگ؛ روی بوم مقیاس‌پذیر نقاشی می‌شود
+const __m_art_icon_lib = (() => {
+// icon_lib.js — S7.1: **داده‌ی** آیکون‌های UI روی رمپ (منبع واحد: art/ramps.js)
+// هر آیکون = ماده + نگاشتِ کاراکتر→پله (۰ تیره … ۶ روشن) + گریدِ هنر (از icons.js دست‌نخورده کپی شد)
+// پخت (نورِ بالا-چپ + outline جوهر) در icons.js است — این فایل فقط داده است تا زیرِ سقفِ ۲۸۰ خط بماند
+// پله‌ها عمداً روشن (۴..۶): رَمپ تا L۹۲ می‌رود و پس‌زمینه‌ی UI تا L۴۳ ⇒ میانگینِ بدنه باید ≥۷۳ بماند (ΔL ≥ ۳۰)
 
-const LIB = {
-  coin: {
-    pal: { o: '#8a5a1e', y: '#e6b34d', Y: '#ffe89a', d: '#c4922e' },
+const ICONS = {
+  coin: { ramp: 'gold',
+    map: {y: 5, Y: 6, d: 2},
+    mix: {o: ['ink', 7]},
     rows: [
       '................',
       '.....oooooo.....',
@@ -4649,8 +4652,9 @@ const LIB = {
       '................',
     ],
   },
-  gem: {
-    pal: { g: '#1f8a72', W: '#d8fff4', C: '#43d6b5', c: '#2aa98c' },
+  gem: { ramp: 'magicCyan',
+    map: {C: 5, c: 4, W: 6},
+    mix: {g: ['ink', 7]},
     rows: [
       '................',
       '.....gggggg.....',
@@ -4670,8 +4674,9 @@ const LIB = {
       '................',
     ],
   },
-  snd: {
-    pal: { x: '#b9c2d4', W: '#e8edf7', y: '#43d6b5' },
+  snd: { ramp: 'metal',
+    map: {x: 5, W: 6},
+    mix: {y: ['magicCyan', 5]},
     rows: [
       '................',
       '.......xx.......',
@@ -4691,8 +4696,9 @@ const LIB = {
       '................',
     ],
   },
-  sndOff: {
-    pal: { x: '#b9c2d4', W: '#e8edf7', r: '#d4506a' },
+  sndOff: { ramp: 'metal',
+    map: {x: 5, W: 6},
+    mix: {r: ['clothRed', 5]},
     rows: [
       '................',
       '.......xx.......',
@@ -4712,8 +4718,8 @@ const LIB = {
       '................',
     ],
   },
-  gear: {
-    pal: { x: '#7c8698', y: '#b9c2d4', Y: '#e8edf7', d: '#5a6375' },
+  gear: { ramp: 'metal',
+    map: {y: 5, Y: 6, x: 4},
     rows: [
       '................',
       '...x...xx...x...',
@@ -4733,8 +4739,9 @@ const LIB = {
       '................',
     ],
   },
-  worker: {
-    pal: { h: '#d9a441', H: '#b5832c', s: '#f0c8a0', e: '#3a2e20', b: '#4e7a3a', B: '#3a5c2b' },
+  worker: { ramp: 'leaf',
+    map: {b: 5, B: 3},
+    mix: {h: ['gold', 5], H: ['gold', 4], s: ['skin', 6], e: ['ink', 7]},
     rows: [
       '................',
       '.....hhhhhh.....',
@@ -4754,8 +4761,8 @@ const LIB = {
       '................',
     ],
   },
-  drop: {
-    pal: { W: '#d8f2ff', w: '#4aa8e0', d: '#2f7fb8' },
+  drop: { ramp: 'water',
+    map: {w: 5, d: 4, W: 6},
     rows: [
       '................',
       '.......W........',
@@ -4775,8 +4782,8 @@ const LIB = {
       '................',
     ],
   },
-  basket: {
-    pal: { K: '#b07a42', k: '#8a5a2e', d: '#6b4522' },
+  basket: { ramp: 'soil',
+    map: {K: 6, k: 5, d: 4},
     rows: [
       '................',
       '......KKKK......',
@@ -4796,8 +4803,9 @@ const LIB = {
       '................',
     ],
   },
-  salad: {
-    pal: { g: '#5d9e3a', G: '#8fd35f', o: '#e8823c', w: '#f2ede2', r: '#c95c5c', s: '#9a4a4a' },
+  salad: { ramp: 'leaf',
+    map: {g: 4, G: 6},
+    mix: {o: ['fire', 5], w: ['bone', 6], r: ['clothRed', 5], s: ['clothRed', 4]},
     rows: [
       '............',
       '...G..g.G...',
@@ -4810,8 +4818,8 @@ const LIB = {
       '............',
     ],
   },
-  bread: {
-    pal: { b: '#c98a4b', B: '#e8b878', d: '#9a6234' },
+  bread: { ramp: 'sand',
+    map: {b: 5, B: 6, d: 4, D: 4},
     rows: [
       '............',
       '...BBBBBB...',
@@ -4822,8 +4830,9 @@ const LIB = {
       '............',
     ],
   },
-  pie: {
-    pal: { c: '#e8b878', o: '#e8823c', O: '#f2a25c', w: '#f5f0e5' },
+  pie: { ramp: 'sand',
+    map: {c: 5},
+    mix: {o: ['fire', 4], O: ['fire', 5], w: ['bone', 6]},
     rows: [
       '............',
       '...cccccc...',
@@ -4834,8 +4843,9 @@ const LIB = {
       '............',
     ],
   },
-  sword: {
-    pal: { s: '#cdd6e4', S: '#f4f8ff', g: '#8a5a2e', G: '#e6b34d' },
+  sword: { ramp: 'metal',
+    map: {s: 5, S: 6},
+    mix: {g: ['soil', 4], G: ['gold', 5]},
     rows: [
       '................',
       '..........Ss....',
@@ -4857,24 +4867,107 @@ const LIB = {
   },
 };
 
-// نقاشی آیکون روی بوم موجود (با مقیاس صحیح، بدون AA)
-function paintIcon(cv, kind) {
-  const art = LIB[kind];
-  if (!cv || !art) return;
-  const c = cv.getContext('2d');
-  c.imageSmoothingEnabled = false;
-  c.clearRect(0, 0, cv.width, cv.height);
-  const gw = art.rows[0].length, gh = art.rows.length;
-  const tmp = document.createElement('canvas');
-  tmp.width = gw; tmp.height = gh;
-  const tc = tmp.getContext('2d');
-  for (let y = 0; y < gh; y++) for (let x = 0; x < gw; x++) {
+// ماده/پله‌ی یک کاراکتر (mix بر map مقدم است)
+const ICON_KINDS = Object.keys(ICONS);
+const matOf = (art, ch) => (art.mix && art.mix[ch]) ? art.mix[ch][0] : art.ramp;
+const stepOf = (art, ch) => (art.mix && art.mix[ch]) ? art.mix[ch][1] : (art.map[ch] ?? 5);
+
+
+return {ICONS, ICON_KINDS, matOf, stepOf};
+})();
+const {ICONS, ICON_KINDS, matOf, stepOf} = __m_art_icon_lib;
+const __m_art_icons = (() => {
+// icons.js — آیکون‌های پیکسلی UI (به‌جای ایموجی) — S7.1: داده از icon_lib (روی رمپ) + پخت این‌جا
+// پخت = پله‌ها → نورِ بالا-چپ (±۱ پله روی لبه) → حلقه‌ی ۱px جوهرِ یکدست (`ink` پله ۰) دورِ سیلوئت
+// API تغییر نکرده: paintIcon(canvas, kind) · iconEl(kind, size)
+
+
+
+const INK = 7, EMPTY = -1;   // مقدارِ سلول: ۰..۶ پله · ۷ جوهر · ۱- خالی
+
+// پخت یک آیکون: نگاشت → نورِ بالا-چپ → outline جوهر (بدون DOM — تست‌پذیر)
+function iconGrid(kind) {
+  const art = ICONS[kind];
+  if (!art) return null;
+  const h = art.rows.length, w = art.rows[0].length;
+  const step = new Int8Array(w * h).fill(EMPTY), mat = new Array(w * h).fill(null);
+  for (let y = 0; y < h; y++) for (let x = 0; x < w; x++) {
     const ch = art.rows[y][x];
     if (ch === '.') continue;
-    tc.fillStyle = art.pal[ch];
-    tc.fillRect(x, y, 1, 1);
+    const i = y * w + x;
+    step[i] = stepOf(art, ch); mat[i] = matOf(art, ch);
   }
-  c.drawImage(tmp, 0, 0, gw, gh, 0, 0, cv.width, cv.height);
+  // اسنپ‌شاتِ بدنه (پله‌های ۰..۶) — outline باید از **این** ماسک رشد کند، نه از خودِ step
+  // (وگرنه در همان پاس، خانه‌های تازه‌جوهرشده همسایه را جوهری می‌کنند و حلقه ۲–۳px می‌شود)
+  const body = new Uint8Array(w * h), occ = new Uint8Array(w * h); // بدنه · اشغال (بدنه ∪ جوهرِ هنر)
+  for (let i = 0; i < step.length; i++) {
+    body[i] = (step[i] > EMPTY && step[i] !== INK) ? 1 : 0;
+    occ[i] = step[i] > EMPTY ? 1 : 0;
+  }
+  // نورِ بالا-چپ: لبه‌ی بالا/چپ یک پله روشن‌تر · لبه‌ی پایین/راست یک پله تیره‌تر (فقط روی بدنه)
+  for (let y = 0; y < h; y++) for (let x = 0; x < w; x++) {
+    const i = y * w + x;
+    if (!body[i]) continue;
+    const up = y > 0 ? body[i - w] : 0, lf = x > 0 ? body[i - 1] : 0;
+    const dn = y < h - 1 ? body[i + w] : 0, rt = x < w - 1 ? body[i + 1] : 0;
+    let s = step[i];
+    if (!up || !lf) s += 1;
+    else if (!dn || !rt) s -= 1;
+    step[i] = s < 1 ? 1 : s > 6 ? 6 : s;
+  }
+  // outline جوهر ۱px: خانه‌ی خالی (نه بدنه، نه جوهرِ هنر) که مجاورِ **ماسکِ فریزشده** باشد
+  for (let y = 0; y < h; y++) for (let x = 0; x < w; x++) {
+    const i = y * w + x;
+    if (occ[i]) continue;
+    if ((y > 0 && occ[i - w]) || (y < h - 1 && occ[i + w]) || (x > 0 && occ[i - 1]) || (x < w - 1 && occ[i + 1])) { step[i] = INK; mat[i] = 'ink'; }
+  }
+  return { w, h, step, mat };
+}
+
+// رنگِ یک خانه (برای ممیزی/تست — بدون DOM)
+function iconCellRGB(kind, i) {
+  const g = iconGrid(kind);
+  if (!g || i < 0 || i >= g.step.length) return null;
+  const s = g.step[i];
+  if (s <= EMPTY) return null;
+  return s === INK ? rp('ink', 0) : rp(g.mat[i], s);
+}
+
+// بافرِ RGBA هم‌اندازه‌ی گرید (کش‌شده — آیکون‌ها ایستا هستند)
+const cache = new Map();
+function iconImage(kind) {
+  let d = cache.get(kind);
+  if (d) return d;
+  const g = iconGrid(kind);
+  if (!g) return null;
+  const data = new Uint8ClampedArray(g.w * g.h * 4);
+  for (let i = 0; i < g.step.length; i++) {
+    const s = g.step[i];
+    if (s <= EMPTY) continue;
+    const c = s === INK ? rp('ink', 0) : rp(g.mat[i], s);
+    data[i * 4] = c[0]; data[i * 4 + 1] = c[1]; data[i * 4 + 2] = c[2]; data[i * 4 + 3] = 255;
+  }
+  d = { w: g.w, h: g.h, data };
+  cache.set(kind, d);
+  return d;
+}
+
+// نقاشی آیکون روی بوم موجود (با مقیاس صحیح، بدون AA)
+function paintIcon(cv, kind) {
+  const img = iconImage(kind);
+  if (!cv || !img) return;
+  const c = cv.getContext('2d');
+  if (!c) return; // محیطِ بدون پشتیبانیِ canvas (مثل jsdom خالی) — بی‌خطا بگذر
+  c.imageSmoothingEnabled = false;
+  c.clearRect(0, 0, cv.width, cv.height);
+  const tmp = document.createElement('canvas');
+  tmp.width = img.w; tmp.height = img.h;
+  const tc = tmp.getContext('2d');
+  if (!tc) return;
+  const id = tc.createImageData(img.w, img.h);
+  id.data.set(img.data);
+  tc.putImageData(id, 0, 0);
+  c.drawImage(tmp, 0, 0, img.w, img.h, 0, 0, cv.width, cv.height);
 }
 
 // ساخت المان بوم با آیکون (برای درج در DOM)
@@ -4886,9 +4979,9 @@ function iconEl(kind, size = 16) {
   return cv;
 }
 
-return {paintIcon, iconEl};
+return {iconGrid, iconCellRGB, iconImage, paintIcon, iconEl};
 })();
-const {paintIcon, iconEl} = __m_art_icons;
+const {iconGrid, iconCellRGB, iconImage, paintIcon, iconEl} = __m_art_icons;
 const __m_farm_render = (() => {
 // farm_render.js — رندر صحنه‌ی مزرعه: تایل‌ها، دکور زنده، نشانگر، قهرمان+کارگر،
 // افکت‌ها، شب/شب‌تاب، پروانه/ماهی، آب‌وهوا (باران/ابر) — فقط رسم، هیچ منطقی
