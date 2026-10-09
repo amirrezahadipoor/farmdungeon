@@ -23,6 +23,15 @@ const STATS = {
   hare:     { hp: 14,  speed: 60, range: 15, windup: 0.30, dmg: 4,  stride: 18, cool: 0.9 },  // جهش‌گر
   boss:     { hp: 250, speed: 16, range: 26, windup: 0.48, dmg: 16, stride: 22, cool: 1.8 },
 };
+export const MSTATS = STATS; // ن۱۳۹: برای هم‌ترازیِ خانواده‌ها در dungeon.js
+const _lordS = {}; // آمارِ «باسِ خانواده»: بُردِ بیشتر، کمی کندتر
+const lordStats = (k) => _lordS[k] || (_lordS[k] = { ...STATS[k], range: STATS[k].range * 1.7, speed: STATS[k].speed * 0.85, cool: STATS[k].cool * 1.1 });
+export const LORD_SCALE = 1.6;
+function scaleUp(s, k) { // نزدیک‌ترین همسایه — پیکسل‌آرتِ درشت‌تر برای باسِ خانواده
+  const W = Math.round(s.w * k), H = Math.round(s.h * k), t = new s.constructor(W, H);
+  for (let y = 0; y < H; y++) { const sy = Math.min(s.h - 1, (y / k) | 0); for (let x = 0; x < W; x++) { const si = (sy * s.w + Math.min(s.w - 1, (x / k) | 0)) * 4, di = (y * W + x) * 4; t.d[di] = s.d[si]; t.d[di + 1] = s.d[si + 1]; t.d[di + 2] = s.d[si + 2]; t.d[di + 3] = s.d[si + 3]; } }
+  return t;
+}
 export const ALL_KINDS = [...MONSTER_KINDS, 'boss'];
 
 
@@ -30,7 +39,8 @@ export class Monster {
   constructor(kind, x, y, phase = 1, muls = {}) {
     this.kind = kind; this.x = x; this.y = y; this.phase = phase;
     this._phaseShown = phase; this._phaseFlash = 0; // S6.6: وضعیتِ نمایشیِ گذارِ فاز (فقط ظاهر)
-    const s = STATS[kind];
+    this.lord = !!muls.lord; // ن۱۳۹: باسِ مخصوصِ خانواده (نسخه‌ی غول‌پیکرِ همان هیولا)
+    const s = this.lord ? lordStats(kind) : STATS[kind];
     this.isElite = !!muls.elite; // تاج‌دار: قوی‌تر، غنیمت بیشتر (منبع واحد ضریب)
     this.dmg = s.dmg * (muls.dmgMul ?? 1) * (this.isElite ? 1.35 : 1);
     this.hp = s.hp * (muls.hpMul ?? 1) * (this.isElite ? 2.1 : 1); this.maxHp = this.hp;
@@ -40,12 +50,12 @@ export class Monster {
     this.atk = 'slam';
     this.kbx = 0; this.kby = 0; // ضربه‌ی عقب
   }
-  get isBoss() { return this.kind === 'boss'; }
+  get isBoss() { return this.kind === 'boss' || this.lord; }
 
   update(dt, target, hooks = {}) {
     this.time += dt;
     if (this.flash > 0) this.flash -= dt;
-    const s = STATS[this.kind];
+    const s = this.lord ? lordStats(this.kind) : STATS[this.kind];
     const spd = s.speed * (this.phase === 3 ? 1.4 : this.phase === 2 ? 1.2 : 1) * (this.isElite ? 1.1 : 1);
 
     // knockback با اصطکاک (و احترام به دیوارها)
@@ -123,11 +133,12 @@ export class Monster {
       if (this._phaseShown !== this.phase) { this._phaseShown = this.phase; this._phaseFlash = 2; }
       if (this._phaseFlash > 0) { phaseFlash = 1; this._phaseFlash--; }
     }
-    const key = `${this.kind}|${this.state}|${q(this.t)}|${q(this.ph)}|${this.face}|${this.flash > 0 ? 1 : 0}|${this.atk}|${this.phase}|${phaseFlash}`;
+    const key = `${this.lord ? 'L' : ''}${this.kind}|${this.state}|${q(this.t)}|${q(this.ph)}|${this.face}|${this.flash > 0 ? 1 : 0}|${this.atk}|${this.phase}|${phaseFlash}`;
     let s = Monster._cache.get(key);
     if (!s) {
       const o = { state: this.state, t: q(this.t), ph: q(this.ph), face: this.face, time: this.time, hit: this.flash > 0 };
-      s = this.isBoss ? drawBossFrame({ ...o, atk: this.atk, phase: this.phase, phaseFlash }) : drawMonsterFrame(this.kind, o);
+      s = this.kind === 'boss' ? drawBossFrame({ ...o, atk: this.atk, phase: this.phase, phaseFlash }) : drawMonsterFrame(this.kind, o);
+      if (this.lord) s = scaleUp(s, LORD_SCALE);
       Monster._cache.set(key, s); // snap پالت داخلِ draw*Frame (خط لولهٔ S6.1) — سقف حافظه در makeSpriteCache
     }
     return s;

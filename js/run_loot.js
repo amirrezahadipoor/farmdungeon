@@ -2,6 +2,7 @@
 // کشتار→ذرات/کمبو/دراپ، آهن‌ربای جمع‌آوری، بازکردن صندوق — اقتصادِ میدان نبرد
 import { deathFx } from './art/battle_fx.js'; // S6.7
 import { rollItemDrop, rollSeedDrop, rollCoinDrop } from './items.js';
+import { powerOf, seedCount, rollSeed, rollItem } from './loot_table.js';
 import { TILE } from './tiles.js';
 
 // مرگ دشمن: کمبو/هیت‌استاپ/ذرات + دراپ مستقیم (بذر=تنها منبع، سکه، آیتم نادر)
@@ -24,16 +25,17 @@ export function lootKill(run, e) {
   if (e.isElite) { n = Math.round(n * 2.2) + 2; D.drops.push({ x: e.x, y: e.y - 4, kind: 'heart', t: 0 }); } // نخبه: غنیمت×۲٫۲ + قلب تضمینی
   for (let j = 0; j < n; j++) D.drops.push({ x: e.x + (Math.random() - 0.5) * 12, y: e.y + (Math.random() - 0.5) * 12, kind: Math.random() < 0.1 ? 'heart' : 'essence', t: Math.random() * 6 });
   if (e.isBoss) run._bossKills = (run._bossKills || 0) + 1; // RPG: XP باس
-  const seedN = (e.isBoss ? 2 : 1) + (Math.random() < (run.seedP || 0) ? 1 : 0); // RPG: بذریابی
+  const pw = powerOf(run.floor, e.isElite, e.isBoss); // ن۱۳۹: دراپ بر اساسِ قدرتِ هیولا — ممکن است هیچ نیندازد (فقط EXP)
+  let seedN = seedCount(pw, e.isElite, e.isBoss); if (seedN && Math.random() < (run.seedP || 0)) seedN++; // RPG: بذریابی
   for (let j = 0; j < seedN; j++) {
-    const st = rollSeedDrop(run.floor, e.isElite, e.isBoss);
+    const st = rollSeed(pw);
     if (st) D.drops.push({ x: e.x + (Math.random() - 0.5) * 14, y: e.y + (Math.random() - 0.5) * 14, kind: 'seed', ty: st, t: Math.random() * 6 });
   }
   let cn = rollCoinDrop(run.floor, e.isElite, e.isBoss);
   if (e.kind === 'mummy') cn += 3 + Math.floor(run.floor / 3); // ن۴۴: مومیایی سکه‌دار مقبره
   if (e.stole) cn += e.stole; // ن۴۴: دزد — سکه‌های دزدی‌شده پس داده می‌شود
   if (cn > 0) D.drops.push({ x: e.x + (Math.random() - 0.5) * 10, y: e.y + (Math.random() - 0.5) * 10, kind: 'coin', n: cn, t: Math.random() * 6 });
-  const it = rollItemDrop(run.floor, e.isElite, e.isBoss);
+  const it = rollItem(pw, e.isElite, e.isBoss);
   if (it) D.drops.push({ x: e.x, y: e.y - 6, kind: 'item', id: it, t: 0 });
   if (e.isBoss) run.log.push({ k: 'bossDown' });
 }

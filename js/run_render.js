@@ -16,6 +16,7 @@ const LIT = [], LIT_R2 = 92 * 92; // S9.2: شعاعِ «موجودِ روشن» 
 import { drawMotes } from './art/motes.js'; // S4.8: غبار/اخگرِ آرامِ تم
 import { glowBegin, glowAdd, glowDraw, GLOW } from './art/glow.js'; // S4.6: درخششِ ارزان
 import { t, faNum } from './i18n.js';
+import { voidCol } from './art/dungeon_paint.js';
 
 const _sprCache = new Map(); // کش اسپرایت قهرمان (LRU)
 const ENTS = []; // لیست موجودات قابل رندر — بازمصرف بین فریم‌ها
@@ -74,10 +75,11 @@ const _dcell = (x, y) => _dr.cell(x, y);
 export function renderRun(run, r) {
     const D = run.dungeon, h = run.hero; _dr = D;
     const [shx, shy] = run.fx.offset(run.time);
-    let cx = clamp(Math.round(run.cam.x) + shx, 0, WORLD_W - r.w);
+    const DW = D.cols * TILE, DH = D.rows * TILE; // ن۱۳۹: ابعادِ طبقه متغیر است
+    let cx = clamp(Math.round(run.cam.x) + shx, 0, DW - r.w);
     // S10.8: قهرمانِ بلند زیرِ نوارِ بالای HUD نرود — دوربین تا ۵۲px بالای لبه‌ی نقشه (ناحیه‌ی پشتِ HUD) آزاد است
-    let cy = clamp(Math.round(run.cam.y) + shy, -52, WORLD_H - r.h);
-    if (!run._floorCache || run._floorCache.w !== WORLD_W) { // S10.1: پختِ تکه‌تکه — تا آماده شود صفحه‌ی تیره (زیرِ فیدِ ورود)
+    let cy = clamp(Math.round(run.cam.y) + shy, -52, DH - r.h);
+    if (!run._floorCache || run._floorCache.w !== DW) { // S10.1: پختِ تکه‌تکه — تا آماده شود صفحه‌ی تیره (زیرِ فیدِ ورود)
       run._floorCache = bakeFloorStep(run, globalThis.__BAKE_BUDGET ?? (typeof requestAnimationFrame === 'function' ? 8 : Infinity)); // node/ابزارها: یک‌جا
       if (!run._floorCache) { r.d.fill(0); for (let i = 3; i < r.d.length; i += 4) r.d[i] = 255; return; }
     }
@@ -85,16 +87,21 @@ export function renderRun(run, r) {
     if (cy < 0) for (let i = 0; i < -cy * r.w; i++) { r.d[i * 4] = 8; r.d[i * 4 + 1] = 7; r.d[i * 4 + 2] = 14; r.d[i * 4 + 3] = 255; } // S10.8: نوارِ پشتِ HUD
     // آب زنده‌ی دانجن (روی کش ایستا) — فقط تایل‌های آبِ نمایان
     const dwf = [0, 1, 2, 1][Math.floor(run.time * 0.9) % 4]; // ن۳۷: سیکل آرام آب دانجن
-    for (let ty = Math.max(0, Math.floor(cy / TILE)); ty <= Math.min(ROWS - 1, Math.ceil((cy + r.h) / TILE)); ty++)
-      for (let tx = Math.floor(cx / TILE); tx <= Math.min(COLS - 1, Math.ceil((cx + r.w) / TILE)); tx++)
+    for (let ty = Math.max(0, Math.floor(cy / TILE)); ty <= Math.min(D.rows - 1, Math.ceil((cy + r.h) / TILE)); ty++)
+      for (let tx = Math.floor(cx / TILE); tx <= Math.min(D.cols - 1, Math.ceil((cx + r.w) / TILE)); tx++)
         // S2.7: همان ماژولِ آبِ مزرعه — عمق + کاستیک + ساحلِ سنگیِ هم‌تُن با کفِ تم
-        if (D.cell(tx, ty).kind === 'water') drawWater(r, tx * TILE - cx, ty * TILE - cy, _dcell, tx, ty, dwf, dungeonShore(D.theme));
+        if (D.cell(tx, ty).kind === 'water' && D.visible(tx, ty)) drawWater(r, tx * TILE - cx, ty * TILE - cy, _dcell, tx, ty, dwf, dungeonShore(D.theme));
     {
       const sc = D.stairs;
       const sx = sc.x * TILE - cx, sy = sc.y * TILE - cy;
       if (run.stairsOpen() && Math.floor(run.time * 1.5) % 2 === 0 && sx > -TILE && sy > -TILE && sx < r.w && sy < r.h) r.rect(sx + 6, sy + 6, 4, 4, E.gold);
     }
-    drawTorches(r, D, cx, cy, run.time);
+    // ن۱۳۹: فقط مشعل‌های دیده‌شده و نزدیکِ قاب (صدها مشعل در طبقه‌ی بزرگ)
+    const TV = run._tv || (run._tv = []); TV.length = 0;
+    for (const t of TV) { const X = t.x * TILE - cx, Y = t.y * TILE - cy; if (X > -90 && Y > -90 && X < r.w + 90 && Y < r.h + 90 && D.visible(t.x, t.y + 1)) TV.push(t); }
+    const DT = run._dtv || (run._dtv = { torches: null }); DT.torches = TV;
+    if (Object.getPrototypeOf(DT) !== D) Object.setPrototypeOf(DT, D);
+    drawTorches(r, DT, cx, cy, run.time);
     drawChests(r, D, cx, cy, run.time);
     drawShrines(r, D, cx, cy, run.time);
     // هاله‌ی تهدید باس (نبض قرمز زیر پا)
@@ -128,7 +135,7 @@ export function renderRun(run, r) {
     }
     // pool رپرها — بدون تخصیص آبجکت در هر فریم
     let ne = 0;
-    for (const e of D.enemies) if (!e.dead) {
+    for (const e of D.enemies) if (!e.dead && (e.room == null || D.seen.has(e.room))) { // ن۱۳۹: هیولای اتاقِ ندیده دیده نمی‌شود
       let wp = ENTS[ne];
       if (!wp) { wp = ENTS[ne] = { y: 0, e: null, hero: false }; }
       wp.y = e.y; wp.e = e; wp.hero = false; ne++;
@@ -158,13 +165,14 @@ export function renderRun(run, r) {
       }
       else {
         const e = en.e, s = e.sprite();
-        s.over(r, Math.round(e.x) - 64 - cx, Math.round(e.y) - (e.isBoss ? 112 : 100) - cy);
+        if (e.lord) s.over(r, Math.round(e.x) - (s.w >> 1) - cx, Math.round(e.y) - 160 - cy); // ن۱۳۹: باسِ خانواده ×۱٫۶
+        else s.over(r, Math.round(e.x) - 64 - cx, Math.round(e.y) - (e.isBoss ? 112 : 100) - cy);
       }
     }
     drawProjs(r, run.projs || [], cx, cy); // ن۴۴: تیرها و گوی‌های آتش
     // S3.8: سرستون‌های ستون‌ها — بالای تایل بیرون می‌زنند و **بعد از موجودات/قهرمان** کشیده می‌شوند (y-sort یک‌لایه)
     // فهرستِ ستون‌ها یک‌بار به‌ازای هر دانجن ساخته می‌شود (نه هر فریم) ⇒ هزینه‌ی رندر ناچیز
-    if (!D._pillars) { const a = []; for (let y = 0; y < ROWS; y++) for (let x = 0; x < COLS; x++) { const c = D.cell(x, y); if (c && c.kind === 'pillar') a.push(x, y, c.v); } D._pillars = a; }
+    if (!D._pillars) { const a = []; for (let y = 0; y < D.rows; y++) for (let x = 0; x < D.cols; x++) { const c = D.cell(x, y); if (c && c.kind === 'pillar') a.push(x, y, c.v); } D._pillars = a; }
     const PL = D._pillars;
     for (let k = 0; k < PL.length; k += 3) {
       const px = PL[k] * TILE - cx, py = PL[k + 1] * TILE - cy;
@@ -199,7 +207,7 @@ export function renderRun(run, r) {
     };
     if (COLOR_LIGHTS.on) {
       // ترتیبِ اهمیت: نورهای کارکردی (مشعل/محتوای دراپ) اول، تزئینی‌ها آخر
-      for (const t of D.torches) pushC(t.x * TILE + 8 - cx, t.y * TILE + TORCH_LIGHT.yOff - cy, TORCH_LIGHT.r, TORCH_COL_ST, 0); // شدتِ رنگِ ملایم‌تر از شدتِ روشنایی
+      for (const t of TV) pushC(t.x * TILE + 8 - cx, t.y * TILE + TORCH_LIGHT.yOff - cy, TORCH_LIGHT.r, TORCH_COL_ST, 0); // شدتِ رنگِ ملایم‌تر از شدتِ روشنایی
       for (const d of D.drops) if (d.kind === 'essence') pushC(d.x - cx, d.y - cy, 14, 90, 1);
       if (D.shrine && !D.shrine.used) pushC(D.shrine.x - cx, D.shrine.y - cy, 16, 66, 3);
       for (const e of D.enemies) if (!e.dead && e.isBoss) pushC(e.x - cx, e.y - 40 - cy, 30, 92, 2); // برقِ گدازه‌ایِ باس
@@ -209,7 +217,7 @@ export function renderRun(run, r) {
     // ---- S4.6: درخشش‌های افزایشی (استامپِ پیش‌پخته) — پس از تاریکی رسم می‌شوند ----
     glowBegin();
     if (GLOW.on) {
-      for (const t2 of D.torches) glowAdd(t2.x * TILE + 8 - cx, t2.y * TILE + TORCH_LIGHT.yOff - cy, 0, 2, 96, 4); // مشعل
+      for (const t2 of TV) glowAdd(t2.x * TILE + 8 - cx, t2.y * TILE + TORCH_LIGHT.yOff - cy, 0, 2, 96, 4); // مشعل
       for (const d2 of D.drops) if (d2.kind === 'essence') glowAdd(d2.x - cx, d2.y - cy, 1, 0, 74, 3);           // اسانس
       if (D.shrine && !D.shrine.used) glowAdd(D.shrine.x - cx, D.shrine.y - cy, 3, 1, 58 + (Math.sin(run.time * 2.4) > 0 ? 12 : 0), 3); // محراب
       glowAdd(D.stairs.x * TILE + 8 - cx, D.stairs.y * TILE + 8 - cy, 2, 0, 40, 2);                              // پله‌ی خروج
@@ -220,16 +228,17 @@ export function renderRun(run, r) {
         else if (EYE_GLOW[e2.kind]) glowAdd(e2.x - cx, e2.y - (MHEAD[e2.kind] ?? 76) - cy, EYE_GLOW[e2.kind], 0, 44, 1);
       }
     }
-    setThemeGrade(GRADE.off ? -1 : D.theme);                     // S4.3: گریدینگِ رنگیِ تم (LUT یک‌بار در هر تغییرِ تم)
+    setThemeGrade(GRADE.off || D.big ? -1 : D.theme); // ن۱۳۹: سبکِ سه‌رخ رنگِ خودش را دارد                     // S4.3: گریدینگِ رنگیِ تم (LUT یک‌بار در هر تغییرِ تم)
     applyDarkness(r, run._dark, L, C, cx, cy); // S4.2: دوربین برای دیترِ جهانی
     glowDraw(r);                               // S4.6: هاله‌ها روی تاریکی (افزودنی + clamp)
     for (const en of LIT) drawEnt(en);         // S9.2: موجوداتِ روشن روی تاریکی
     drawMotes(r, 'dungeon', D.theme, cx, cy, run.time, r.w, r.h); // S4.8: ذراتِ آرامِ تم (≤۶، ۱px)
     // افکت‌ها روی تاریکی (می‌درخشند)
+    fogMask(r, D, cx, cy);                     // ن۱۳۹: مهِ جنگ — اتاق‌های ندیده سیاه
     run.fx.render(r, cx, cy);
     // ---- نوار جان + علامت حمله + تاجِ نخبه + کمبو: بعد از تاریکی (خوانا حتی در تاریکی) ----
     for (const e of D.enemies) {
-      if (e.dead) continue;
+      if (e.dead || (e.room != null && !D.seen.has(e.room))) continue;
       // S6.1: تاجِ نخبه **پس از تاریکی** — در S4.2 تاریکی اضافه شد و تاج که پیش از آن کشیده می‌شد خفه/تیره می‌ماند
       // (elite47 همین را «۴/۱۴» گزارش می‌کرد). حالا مثل نوار جان/مؤلفه‌های خوانایی در لایهٔ روشن است.
       if (e.isElite) drawEliteMark(r, Math.round(e.x - cx), Math.round(e.y - cy), run.time, Math.round(e.y - cy) - (e.isBoss ? 118 : (MHEAD[e.kind] ?? 76)));
@@ -253,27 +262,38 @@ export function renderRun(run, r) {
       const r2 = Math.max(2, rr2 - 5);
       r.ellipse(Math.round(h.x) - cx, Math.round(h.y) - 16 - cy, r2, r2 * 0.45, [220, 245, 255, Math.round(al * 0.6)]);
     }
-    // ---- مینی‌مپ (کش‌شده در هر طبقه — فقط نقطه‌های متحرک زنده) ----
-    const s = 1, my = 3;
+    // ---- مینی‌مپ (ن۱۳۹): هر پیکسل = ۲×۲ تایل؛ فقط جاهای کشف‌شده؛ بازسازی با تغییرِ مه ----
+    const MW = Math.ceil(D.cols / 2), MH = Math.ceil(D.rows / 2), my = 3;
     const hsx = Math.round(h.x) - cx, hsy = Math.round(h.y) - cy;
-    const mx = (hsx < COLS + 30 && hsy < ROWS + 30) ? r.w - COLS - 8 : 3; // ن۴۹: قهرمانِ گوشه‌ی بالا-چپ زیر مینی‌مپ گم می‌شد → مینی‌مپ می‌پرد گوشه‌ی راست
-    if (!run._mini || run._miniFloor !== run.floor) {
-      const m = run._mini = new Raster(COLS, ROWS);
-      for (let y = 0; y < ROWS; y++) for (let x = 0; x < COLS; x++) {
-        const c = D.cell(x, y);
-        if (c.kind === 'wall') continue;
-        let col = MINI_FLOOR;
-        if (c.kind === 'stairs') col = E.gold;
-        else if (c.kind === 'pillar') col = MINI_PILLAR;
-        else if (c.kind === 'decor' && c.v === 1) col = MINI_WATER;
-        m.px(x, y, col);
+    const mx = (hsx > r.w - MW - 30 && hsy < MH + 30) ? 3 : r.w - MW - 6;
+    if (!run._mini || run._miniVer !== D.visVer || run._miniFloor !== run.floor) {
+      const m = run._mini = new Raster(MW, MH);
+      for (let y = 0; y < D.rows; y += 2) for (let x = 0; x < D.cols; x += 2) {
+        let col = null;
+        for (let k = 0; k < 4; k++) { const X = x + (k & 1), Y = y + (k >> 1), c = D.cell(X, Y); if (!c || c.kind === 'wall' || D.vis[Y * D.cols + X] !== 1) continue;
+          col = c.kind === 'stairs' ? E.gold : c.kind === 'water' ? MINI_WATER : col || (D.roomAt(X, Y) === -2 ? MINI_PILLAR : MINI_FLOOR); }
+        if (col) m.px(x >> 1, y >> 1, col);
       }
-      run._miniFloor = run.floor;
+      run._miniVer = D.visVer; run._miniFloor = run.floor;
     }
-    r.rect(mx - 1, my - 1, COLS * s + 2, ROWS * s + 2, MINI_BG);
+    r.rect(mx - 1, my - 1, MW + 2, MH + 2, MINI_BG);
     run._mini.over(r, mx, my);
-    // S9.10: برچسبِ طبقه زیرِ مینی‌مپ حذف شد — در نمای کوچک بزرگ و بریده از لبه‌ی چپ بود؛ شماره‌ی طبقه در نوارِ پایینِ HUD هست
     const hx = Math.floor(h.x / TILE), hy = Math.floor(h.y / TILE);
-    if (Math.floor(run.time * 4) % 2 === 0) r.rect(mx + hx * s, my + hy * s, 2, 2, [255, 255, 255, 255]);
-    if (bossRef) r.px(mx + Math.floor(bossRef.x / TILE) * s, my + Math.floor(bossRef.y / TILE) * s, BOSS_DOT);
+    if (Math.floor(run.time * 4) % 2 === 0) r.rect(mx + (hx >> 1) - 1, my + (hy >> 1) - 1, 2, 2, [255, 255, 255, 255]);
+    if (bossRef && D.seen.has(bossRef.room)) r.px(mx + (Math.floor(bossRef.x / TILE) >> 1), my + (Math.floor(bossRef.y / TILE) >> 1), BOSS_DOT);
   }
+
+// ن۱۳۹: مه — تایل‌های ندیده = رنگِ پوچیِ تم؛ دهانه‌ی راهرو (vis=2) نیمه‌تاریک
+function fogMask(r, D, cx, cy) {
+  if (!D.big) return;
+  const v = voidCol(D.theme | 0), W = r.w, H = r.h;
+  const tx0 = Math.max(0, Math.floor(cx / TILE)), ty0 = Math.max(0, Math.floor(cy / TILE));
+  const tx1 = Math.min(D.cols - 1, Math.floor((cx + W - 1) / TILE)), ty1 = Math.min(D.rows - 1, Math.floor((cy + H - 1) / TILE));
+  for (let ty = ty0; ty <= ty1; ty++) for (let tx = tx0; tx <= tx1; tx++) {
+    const vis = D.visible(tx, ty), half = vis && D.vis[ty * D.cols + tx] === 2;
+    if (vis && !half) continue;
+    const x0 = Math.max(0, tx * TILE - cx), y0 = Math.max(0, ty * TILE - cy), x1 = Math.min(W, tx * TILE + TILE - cx), y1 = Math.min(H, ty * TILE + TILE - cy);
+    for (let y = y0; y < y1; y++) { let i = (y * W + x0) * 4;
+      for (let x = x0; x < x1; x++, i += 4) { if (half) { r.d[i] = (r.d[i] + v[0]) >> 1; r.d[i + 1] = (r.d[i + 1] + v[1]) >> 1; r.d[i + 2] = (r.d[i + 2] + v[2]) >> 1; } else { r.d[i] = v[0]; r.d[i + 1] = v[1]; r.d[i + 2] = v[2]; } } }
+  }
+}

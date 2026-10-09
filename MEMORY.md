@@ -38,11 +38,14 @@ farmdungeon/
     │   **rpg⟨124⟩ سطح/XP/امتیاز، ۸ استات (str/vit/agi/crit + bounty/seeker/green/trade)، rpgSection، refreshLvChip**
     │   ui⟨164⟩ توست/بنر/منو (rpgSection بالای منو) · app_ui⟨133⟩ چسب DOM + menuHooks(onBuy/onRpg) · ui_hud⟨71⟩ · ui_shrine⟨54⟩ محراب
     ├── مزرعه: game⟨217⟩ صحنه/صف/sellAll(×trade، +محصول دامی) + feetFree (برخوردِ جای‌پا با مانع؛ حرکت مستقیم) + livestock · game_apply⟨73⟩ نتیجه‌ی ابزار، برداشت(×bounty) · farm⟨137⟩ گرید+CROPS
-- `js/merchant.js` — تاجرِ گاری‌دار (تنها خریدار؛ CART_CAP=50/روز، پر ⇒ می‌رود، روزِ بعد برمی‌گردد؛ save.cart={sold,away}؛ sell(game,keep)).
+    │   - `js/merchant.js` — تاجرِ گاری‌دار (تنها خریدار؛ CART_CAP=50/روز، پر ⇒ می‌رود، روزِ بعد برمی‌گردد؛ save.cart={sold,away}؛ sell(game,keep)).
     │   farm_command⟨90⟩ تپ→مسیر · farm_worker⟨184⟩ کارگر · farm_layout⟨76⟩ · farm_terrain⟨280⟩ کش زمین · farm_render⟨197⟩ (دام‌ها در y-sort)
     │   **livestock⟨124⟩ آغل PEN(x1..10,y15..18، در (10,17))، stampPen، ANIMALS/GOODS، Livestock(sync/update/collect با نزدیک‌شدن)، syncGoodsChips**
     ├── دانجن: run⟨259⟩ حرکت(feetFree)/طبقه/مهارت/دوج/برکت/restart(از run._base) · run_combat⟨90⟩ حمله/کریت · run_loot⟨85⟩ دراپ(+seedP، _bossKills)
-    │   run_render⟨279⟩ · dungeon⟨144⟩ · dungeon_bake⟨257⟩ پختِ طبقه · dungeon_blueprints⟨66⟩ · dungeon/bp01…bp21,bp_boss⟨27⟩ نقشه‌های ۳۰×۲۰
+    │   run_render⟨~300⟩ fog(مه)+مینی‌مپِ کشف‌شده · dungeon⟨~120⟩ طبقه (seen/vis/reveal/roomAt، باسِ خانواده lord) · dungeon_bake⟨~270⟩ (big ⇒ paintStep)
+    │   **dungeon_gen⟨165⟩ سازنده‌ی طبقه‌ی بزرگ: layout scatter/hub/chain/ring/grid/twin، نقش‌ها start/stairs/boss/treasure/shrine، groups**
+    │   **floors/tiers⟨~30⟩ ۲۰ فصل×۵ (خانواده+تم+باس) · floors/index⟨~20⟩ specFor(f) (طراحی‌شده یا موقتِ auto) · floors/f001_010⟨~35⟩ طراحیِ دستیِ ۱..۱۰**
+    │   **loot_table⟨~45⟩ دراپ بر اساسِ قدرت p=طبقه+نخبه۸+باس۲۰ (SEED_LVL/ITEM_LVL، افتِ نمایی؛ بیشترِ هیولاها فقط EXP)** · art/dungeon_paint⟨~95⟩ پختِ سبکِ سه‌رخ (۶ پالتِ تم)
     │   monster⟨136⟩ STATS+نخبه · mobs_new⟨174⟩ AI ویژه · projectiles⟨45⟩
     ├── art/ (۵۹):
     │   پالت: ramps⟨69⟩ منبعِ رنگ (تغییرش outline کل بازی را عوض می‌کند!) · palette_master⟨77⟩ · palette_env⟨63⟩ · palette_hero⟨37⟩ · palette_snap⟨27⟩ · pm_snap⟨109⟩ · recolor⟨38⟩ · outline⟨75⟩ · rim⟨23⟩ · bake⟨121⟩ · quality⟨3⟩
@@ -81,3 +84,4 @@ farmdungeon/
 - ن۱۳۷: فیکس برخورد (حرکت مستقیم در مزرعه از حصار/درخت/خانه/آب رد می‌شد؛ دانجن نصف بدن در دیوار) با feetFree + دامداری (آغل/مرغ/گوسفند/گاو، خریدنی).
 
 - ن۱۳۸: سه آغلِ جدا coop/fold/barn (req worker، هرکدام ۵ حیوان، ساختمان روی نقشه پس از خرید، cell.block)؛ فروشِ مستقیم حذف ⇒ فقط تاجر (merchant.js)؛ کارگر محصولِ دام را جمع و به تاجر می‌فروشد (۵ تا از هر محصول نگه می‌دارد)؛ سبد ⇒ انبار؛ migrate pen/chicken/sheep/cow؛ گاریِ پارک‌شده تایل‌های (21..22,17) را block می‌کند؛ تاجر = FarmWorker variant 2 (آبی→قرمز).
+- ن۱۳۹: دانجنِ ۱۰۰ طبقه — طبقه‌های بزرگِ تو‌در‌تو (۹۶×۷۲ تا ۱۲۸×۹۶)، مهِ جنگ (اتاق تا ورود سیاه، هیولاهایش خواب/نامرئی، بیدار در بُرد ۱۲۵px یا پس از زخم)، فصل‌های ۵طبقه‌ای (خانواده‌ی هیولا + باسِ غول‌پیکرِ همان خانواده ×۱٫۶)، دراپِ قدرت‌محور. بلوپرینت‌های ۳۰×۲۰ و js/dungeon/ حذف. **طراحی‌شده: ۱..۱۰؛ بعدی: f011_020.js (فصل ۳ خرگوش، ۴ عنکبوت) و به همین ترتیب تا ۱۰۰** — بقیه فعلاً spec موقت (auto) دارند.

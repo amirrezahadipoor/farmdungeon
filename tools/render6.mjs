@@ -76,13 +76,14 @@ const W = { coins: 800, inventory: { carrot: 0, wheat: 0, pumpkin: 0 }, selected
   // نزدیکی قهرمان روشن، دور تیره
   const hx = Math.round(run.hero.x) - run.cam.x, hy = Math.round(run.hero.y) - run.cam.y;
   const at = (x, y) => { const i = ((Math.max(0, Math.min(159, y | 0))) * 240 + (Math.max(0, Math.min(239, x | 0)))) * 4; return r.d[i] + r.d[i + 1] + r.d[i + 2]; };
-  A(at(hx + 22, hy + 14) > at(hx + 70, hy + 40) + 60, 'تاریکی: نزدیک قهرمان روشن‌تر', at(hx + 22, hy + 14) + '>' + at(hx + 70, hy + 40));
+  let avg = 0; for (let i = 0; i < r.d.length; i += 4) avg += r.d[i] + r.d[i + 1] + r.d[i + 2]; avg /= r.d.length / 4; // ن۱۳۹: اتاق‌ها مشعل دارند؛ مقایسه با میانگینِ قاب (مه/پوچی تیره)
+  A(at(hx + 22, hy + 14) > avg + 20, 'تاریکی: نزدیک قهرمان روشن‌تر از میانگین', at(hx + 22, hy + 14) + '>' + Math.round(avg));
 }
 // ===== ۶. ستون/دکور/گنج در چند سید =====
 {
   let pillars = 0, decors = 0, chests = 0;
   for (let seed = 1; seed <= 40; seed++) {
-    const run = new Run(seed, {});
+    const run = new Run(seed, {}); run.loadFloor(3 + (seed % 3) * 2); // ن۱۳۹: طبقه‌های ۳/۵/۷ ستون دارند (۱ ندارد)
     for (const c of run.dungeon.grid) { if (c.kind === 'pillar') pillars++; if (c.kind === 'decor') decors++; }
     chests += run.dungeon.chests.length;
   }
@@ -102,7 +103,7 @@ const W = { coins: 800, inventory: { carrot: 0, wheat: 0, pumpkin: 0 }, selected
   A(hp5 > hp1, 'سختی: hp طبقه ۵ > طبقه ۱ (هم‌نوع)', hp1 + '→' + hp5 + ' (' + k1 + ')');
   const rb = new Run(3, {});
   while (!rb.isBossFloor) rb.loadFloor(rb.floor + 1);
-  A(rb.floor === 10 && rb.dungeon.enemies.some((e) => e.isBoss), 'باس: طبقه ۱۰ گولم‌لرد', 'floor=' + rb.floor);
+  A(rb.floor === 5 && rb.dungeon.enemies.some((e) => e.lord), 'باس: طبقه ۵ شاه‌لجن (باسِ خانواده)', 'floor=' + rb.floor);
   A(rb.stairsOpen() === false, 'باس: پله تا مرگ باس قفل');
   rb.log.length = 0;
   rb.loadFloor(10);

@@ -119,13 +119,13 @@ async function s03_floors() {
     const r = window.__getRun(); let bad = [], themes = {};
     for (let f = 1; f <= 16; f++) {
       r.loadFloor(f);
-      const t = Math.floor((f - 1) / 5) % 4;
+      const t = [0, 1, 1, 4][Math.floor((f - 1) / 5)]; // ن۱۳۹: تمِ هر فصل از floors/tiers
       themes[f] = r.dungeon.theme;
       if (r.dungeon.theme !== t) bad.push('theme f' + f + '=' + r.dungeon.theme + '≠' + t);
       const hx = Math.floor(r.hero.x / 16), hy = Math.floor(r.hero.y / 16);
       if (!r.dungeon.walkable(hx, hy)) bad.push('spawn-wall f' + f);
       if (!r.dungeon.enemies.length) bad.push('no-enemy f' + f);
-      if (f % 10 === 0 && !r.dungeon.enemies.some(e => e.isBoss)) bad.push('no-boss f' + f);
+      if (f % 5 === 0 && !r.dungeon.enemies.some(e => e.isBoss)) bad.push('no-boss f' + f);
     }
     r.loadFloor(6);
     return { bad, theme6: themes[6], theme11: themes[11], theme16: themes[16], theme1: themes[1], f: r.floor };
@@ -260,7 +260,7 @@ async function s10_night_rain() {
 const SCENARIOS = [
   ['بوت مزرعه (باندل، fade-in، HUD، بدون AC)', s01_boot],
   ['ورود دانجن با onGate (گذار + اسپاون سالم)', s02_gate],
-  ['۱۶ طبقه + ۴ تم + اسپاون/دشمن/باس (باس هر ۱۰)', s03_floors],
+  ['۱۶ طبقه + تمِ فصل + اسپاون/دشمن/باس (باس هر ۵)', s03_floors],
   ['مرگ تستی (_hooks.onHit + overlay)', s04_death],
   ['خروج #exitD → بازگشت مزرعه', s05_exit],
   ['سیو/لود (v6، visibilitychange، بوت دوم)', s06_save],

@@ -3,6 +3,7 @@
 //   ۱ base → ۲ wallMass (S3.2) → ۳ floorPattern (S3.4) → ۴ AO (S3.5) → ۵ decals (S3.6) → ۶ staticProps (S3.7/3.8)
 // در این نشست فقط زیرساخت ساخته شد: پاس‌های S3.2+ یا خالی‌اند یا **هم‌ارزِ رفتارِ قبلی**
 // ⇒ خروجیِ کش بایت‌به‌بایت همانِ `buildFloorCache` قدیمی است (پذیرشِ S3.1).
+import { newCache, paintRows } from './art/dungeon_paint.js';
 import { groundSprite, TILE, COLS, ROWS, WORLD_W, WORLD_H } from './tiles.js';
 import { Raster } from './raster.js';
 import { drawAO } from './art/dungeon_depth.js'; // S3.5
@@ -236,6 +237,7 @@ for (let k = 0; k < 3; k++) _STEPS.push((c, D) => passSeam(c, D, Math.floor(ROWS
 _STEPS.push(passStaticProps);
 const _COST = new Float32Array(_STEPS.length).fill(4);
 export function bakeFloorStep(run, budgetMs = 8) {
+  if (run.dungeon.big) return paintStep(run, budgetMs); // ن۱۳۹: طبقه‌ی بزرگ — سبکِ سه‌رخ (art/dungeon_paint)
   let j = run._bakeJob;
   if (!j || j.D !== run.dungeon) { // دو بومِ چرخشی (پینگ‌پنگ) ⇒ بدون تخصیصِ ۱MB در هر طبقه (فشارِ GC وسطِ تکه‌ها)
     const pool = run._bakePool || (run._bakePool = [new Raster(WORLD_W, WORLD_H), new Raster(WORLD_W, WORLD_H)]);
@@ -252,6 +254,18 @@ export function bakeFloorStep(run, budgetMs = 8) {
   } while (j.i < _STEPS.length && performance.now() - t0 + _COST[j.i] <= budgetMs);
   run._buildSlice = performance.now() - t0; run._buildSteps = i0 * 100 + j.i;               // برای soak: هزینه‌ی همین فریم
   if (j.i < _STEPS.length) return null;
+  run._bakeJob = null;
+  return j.cache;
+}
+
+// ن۱۳۹: پختِ تکه‌تکه‌ی طبقه‌ی بزرگ — ردیف‌به‌ردیف با بودجه‌ی زمانی
+function paintStep(run, budgetMs) {
+  let j = run._bakeJob;
+  if (!j || j.D !== run.dungeon) j = run._bakeJob = { D: run.dungeon, cache: newCache(run.dungeon), y: 0 };
+  const t0 = performance.now(), D = j.D;
+  do { const y1 = Math.min(D.rows, j.y + 6); paintRows(j.cache, D, j.y, y1); j.y = y1; } while (j.y < D.rows && performance.now() - t0 < budgetMs);
+  run._buildSlice = performance.now() - t0;
+  if (j.y < D.rows) return null;
   run._bakeJob = null;
   return j.cache;
 }

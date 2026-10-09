@@ -73,7 +73,7 @@ export class Run {
   loadFloor(f) {
     if (f > 1 && this.onSfx) this.onSfx('floor'); // موج پایین‌روی طبقه‌ی جدید
     this._floorCache = null; // رندر ایستای طبقه‌ی جدید در فریم بعد
-    this._splash = { t0: this.time, n: f, boss: f % 10 === 0 }; // ن۴۱: اسپلش نام طبقه (this.floor هنوز قدیمی است — از f)
+    this._splash = { t0: this.time, n: f, boss: f % 5 === 0 }; // ن۴۱: اسپلش نام طبقه (this.floor هنوز قدیمی است — از f)
     const _after = () => { // پاف غبار ظهور برای هر هیولای جدید
       for (const e of this.dungeon.enemies) this.fx.burst(e.x, e.y - 8, [[150, 145, 165, 200], [90, 85, 105, 200]], 8, { sp: 30, up: 14, life: 0.5 });
     };
@@ -192,8 +192,12 @@ export class Run {
 
     // ---- دشمن‌ها ----
     this._tgt.x = h.x; this._tgt.y = h.y - 10; // بازنویسی همان شیء — صفر تخصیص
+    { const rm = D.roomAt(Math.floor(h.x / TILE), Math.floor(h.y / TILE)); if (rm >= 0 && D.reveal(rm)) this.log.push({ k: 'room' }); } // ن۱۳۹: ورود به اتاق ⇒ کشف
     for (let i = D.enemies.length - 1; i >= 0; i--) {
       const e = D.enemies[i];
+      // ن۱۳۹: هیولای اتاقِ ندیده خواب است؛ بیدار شد ⇒ فقط در بُردِ دید/پس از زخم دنبال می‌کند
+      if (e.room != null && !D.seen.has(e.room)) continue;
+      if (!e.aggro) { const d2 = (e.x - h.x) ** 2 + (e.y - h.y) ** 2; if (d2 < (e.isBoss ? 170 : 125) ** 2 || e.hp < e.maxHp) e.aggro = true; else { e.time += dt; continue; } }
       e.update(dt, this._tgt, this._hooks);
       if (e.dead) { D.enemies.splice(i, 1); lootKill(this, e); } // غنیمت/کمبو/ذرات در run_loot.js
     }
@@ -215,7 +219,8 @@ export class Run {
     if (this.stairsOpen() && onStairs && this.standT > 0.4) { this.loadFloor(this.floor + 1); this.standT = 0; return; }
     this.standT = onStairs ? (this.standT || 0) + dt : 0;
 
-    const tx = clamp(h.x - this.view.w / 2, 0, WORLD_W - this.view.w), ty = clamp(h.y - this.view.h / 2, -52, WORLD_H - this.view.h); // S10.8: ۵۲px پشتِ HUD
+    const DW = this.dungeon.cols * TILE, DH = this.dungeon.rows * TILE; // ن۱۳۹
+    const tx = clamp(h.x - this.view.w / 2, 0, DW - this.view.w), ty = clamp(h.y - this.view.h / 2, -52, DH - this.view.h); // S10.8: ۵۲px پشتِ HUD
     const k = 1 - Math.exp(-9 * dt);
     this.cam.x += (tx - this.cam.x) * k; this.cam.y += (ty - this.cam.y) * k;
   }

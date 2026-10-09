@@ -1,14 +1,16 @@
-// dungeon.js — ساخت دانجن از نقشه‌های دست‌چین (ن۳۲): انتخاب blueprint + قرینه + چینش
-// صندوق/محراب/مشعل/دکور/دشمن‌ها با مقیاس طبقه + تم رنگی (سنگ/خزه/گدازه/یخ هر ۵ طبقه)
+// dungeon.js — طبقه‌ی دانجن (ن۱۳۹): چیدمانِ بزرگِ تو‌در‌تو از dungeon_gen + طراحیِ هر طبقه در js/floors؛
+// هیولاها گروه‌به‌گروه در اتاق‌ها (خانواده‌ی فصل)، باسِ خانواده هر ۵ طبقه، مهِ جنگ (seen/vis).
 import { Monster } from './monster.js';
-import { BLUEPRINTS, BOSS_BLUEPRINT } from './dungeon_blueprints.js';
+import { generate, K_FLOOR, K_WATER, K_PILLAR } from './dungeon_gen.js';
+import { specFor } from './floors/index.js';
+import { tierOf, isBossFloor, floorInTier } from './floors/tiers.js';
+import { MSTATS } from './monster.js';
 import { DEATH_COLORS } from './art/monster_parts.js';
 import { Locomotion, GAITS } from './skeleton.js';
 import { ACT_DUR } from './art/hero_pose.js';
 import { groundSprite, E, TILE, COLS, ROWS, WORLD_W, WORLD_H } from './tiles.js';
 import { Raster } from './raster.js';
 import { FX } from './fx.js';
-import { MOB_TAGS } from './mobs_new.js'; // ن۴۴: هیولاهای امضای هر معماری
 
 export const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
 function mulberry32(a) {
@@ -19,126 +21,76 @@ function mulberry32(a) {
     return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
   };
 }
-const POOL = [
-  { kinds: ['slime', 'bat'], from: 1 }, { kinds: ['spider'], from: 2 }, { kinds: ['skeleton'], from: 3 },
-  { kinds: ['wolf'], from: 4 }, { kinds: ['ghost'], from: 6 }, { kinds: ['golem'], from: 8 },
-];
-export const floor10 = (f) => f % 10 === 0;
+export const floor10 = (f) => isBossFloor(f); // ن۱۳۹: باس هر ۵ طبقه (نامِ قدیمی برای سازگاری)
 
 export class Dungeon {
+  // ن۱۳۹: طبقه‌ی بزرگِ تو‌در‌تو — چیدمانِ هر طبقه ثابت (seed = شماره‌ی طبقه، طراحیِ دستی در js/floors)،
+  // هیولا/نخبه/دکورِ تصادفی با seedِ دور. مه: اتاق تا واردش نشوی دیده نمی‌شود (seen/vis).
   constructor(seed, floor) {
-    this.seed = seed; this.floor = floor;
-    this.cols = COLS; this.rows = ROWS;
+    this.seed = seed; this.floor = floor; this.big = true;
     this.rng = mulberry32(seed * 7919 + floor * 104729);
-    this.grid = [];
-    for (let y = 0; y < ROWS; y++) for (let x = 0; x < COLS; x++) this.grid.push({ x, y, kind: 'wall', v: 0 });
-    this.enemies = []; this.chests = []; this.drops = []; this.torches = [];
-    this.shrine = null; // محراب باستانی (برکت انتخابی) — از طبقه ۲
-    this._gen();
+    this.spec = specFor(floor); this.tier = tierOf(floor);
+    const g = generate(this.spec, floor * 92821 + 17);
+    this.cols = g.cols; this.rows = g.rows; this.gen = g;
+    this.rooms = g.rooms; this.roomMap = g.room;
+    this.theme = this.tier.theme;
+    this.grid = new Array(g.cols * g.rows);
+    const R = this.rng, wv = () => { const u = R(); return u < 0.41 ? 0 : u < 0.82 ? 1 : u < 0.92 ? 2 : 3; };
+    for (let y = 0; y < g.rows; y++) for (let x = 0; x < g.cols; x++) {
+      const k = g.kind[y * g.cols + x];
+      this.grid[y * g.cols + x] = { x, y, kind: k === K_FLOOR ? 'dfloor' : k === K_WATER ? 'water' : k === K_PILLAR ? 'pillar' : 'wall', v: k === K_FLOOR ? Math.floor(R() * 3) : k === K_PILLAR ? (R() < 0.35 ? 1 : 0) : wv() };
+    }
+    this.enemies = []; this.chests = []; this.drops = [];
+    this.torches = g.torches; this.spawn = g.spawn; this.stairs = g.stairs;
+    this.cell(g.stairs.x, g.stairs.y).kind = 'stairs';
+    for (const c of g.chests) this.chests.push({ x: c.x, y: c.y, open: false });
+    this.shrine = g.shrine && floor >= 2 ? { x: g.shrine.x * TILE + 8, y: g.shrine.y * TILE + 8, used: false } : null;
+    for (const d of g.decor) { const c = this.cell(d.x, d.y); if (c.kind === 'dfloor') { c.kind = 'decor'; c.v = d.v; } }
+    // مه
+    this.seen = new Set(); this.vis = new Uint8Array(g.cols * g.rows); this.visVer = 0;
+    this._spawnAll();
+    this.reveal(g.startId);
   }
-  cell(x, y) { return (x < 0 || y < 0 || x >= COLS || y >= ROWS) ? null : this.grid[y * COLS + x]; }
+  cell(x, y) { return (x < 0 || y < 0 || x >= this.cols || y >= this.rows) ? null : this.grid[y * this.cols + x]; }
   walkable(x, y) { const c = this.cell(x, y); return !!c && (c.kind === 'dfloor' || c.kind === 'stairs' || c.kind === 'decor'); }
-
-  _gen() {
-    const R = this.rng;
-    this.theme = Math.floor((this.floor - 1) / 5) % 6; // S3.10: ۶ تم — سنگ→خزه→گدازه→یخ→**باتلاق**→**معدن**
-    const bp = floor10(this.floor) ? BOSS_BLUEPRINT : BLUEPRINTS[Math.floor(R() * BLUEPRINTS.length)];
-    const flip = R() < 0.5; // قرینه‌ی افقی برای تنوع — اتصال حفظ می‌شود
-    const FX = (x) => (flip ? this.cols - 1 - x : x);
-    const chestC = [], shrineC = [], decorC = [], enemyC = [];
-    let bossSpot = null;
-    for (let y = 0; y < ROWS; y++) for (let x = 0; x < COLS; x++) {
-      const ch = bp.rows[y][x], xx = FX(x);
-      const c = this.cell(xx, y);
-      // ن۴۳: واریانت دیوار — ۰/۱ سالم، ۲ خرابی (~۱۰٪)، ۳ خزه‌گرفته (~۸٪)؛ خرابی/خزه قبلاً کد مرده بود
-      const wv = () => { const u = R(); return u < 0.41 ? 0 : u < 0.82 ? 1 : u < 0.92 ? 2 : 3; };
-      if (ch === '#') { c.kind = 'wall'; c.v = wv(); }
-      else if (ch === 'T') { c.kind = 'wall'; c.v = wv(); this.torches.push({ x: xx, y }); }
-      else if (ch === 'P') { c.kind = 'pillar'; c.v = R() < 0.35 ? 1 : 0; }
-      else if (ch === 'W') { c.kind = 'water'; c.v = 0; }
-      else if (ch === 'R') { c.kind = 'decor'; c.v = 5; } // فرش تالار تخت
-      else if (ch === 'S') { c.kind = 'dfloor'; c.v = Math.floor(R() * 3); this.spawn = { x: xx, y }; }
-      else if (ch === '>') { c.kind = 'stairs'; c.v = 0; this.stairs = { x: xx, y }; }
-      else {
-        c.kind = 'dfloor'; c.v = Math.floor(R() * 3);
-        if (ch === 'C') chestC.push({ x: xx, y });
-        else if (ch === 'H') shrineC.push({ x: xx, y });
-        else if (ch === 'D') decorC.push({ x: xx, y });
-        else if (ch === 'E') enemyC.push({ x: xx, y });
-        else if (ch === 'B') bossSpot = { x: xx, y };
-      }
-    }
-    // صندوق‌ها: از جایگاه‌های دست‌چین (۲-۴ تا)
-    const nChests = Math.min(chestC.length, 2 + (R() < 0.5 ? 1 : 0) + (this.floor >= 4 ? 1 : 0));
-    for (let i = chestC.length - 1; i > 0; i--) { const j = Math.floor(R() * (i + 1)); [chestC[i], chestC[j]] = [chestC[j], chestC[i]]; }
-    for (let i = 0; i < nChests; i++) this.chests.push({ x: chestC[i].x, y: chestC[i].y, open: false });
-    // محراب: طبقه‌ی ۲+، ۶۰٪ — روی جایگاه دست‌چینِ نقشه
-    if (this.floor >= 2 && shrineC.length && R() < 0.6) {
-      const sh = shrineC[Math.floor(R() * shrineC.length)];
-      this.shrine = { x: sh.x * TILE + 8, y: sh.y * TILE + 8, used: false };
-    }
-    // دکور: جایگاه‌های دست‌چین (~۵۵٪) + پاشش ارگانیک روی کف (استخوان/قارچ/ترک/کریستال/تار)
-    const DV = [0, 0, 0, 1, 1, 2, 2, 3, 4];
-    for (const d of decorC) if (R() < 0.55) { const c = this.cell(d.x, d.y); c.kind = 'decor'; c.v = DV[Math.floor(R() * 9)]; }
-    for (const c of this.grid) if (c.kind === 'dfloor' && R() < 0.06) { c.kind = 'decor'; c.v = DV[Math.floor(R() * 9)]; }
-    // دشمن‌ها با مقیاس طبقه — روی مناطق E + کف دور از اسپاون
-    const hpMul = 1 + 0.13 * (this.floor - 1), dmgMul = 1 + 0.075 * (this.floor - 1);
-    if (floor10(this.floor)) {
-      const b = bossSpot || this.stairs;
-      this.enemies.push(new Monster('boss', b.x * TILE + 8, b.y * TILE + 8, 1 + Math.floor(this.floor / 20), { hpMul, dmgMul }));
-      for (const k of ['slime', 'slime', 'bat']) {
-        const spot = enemyC.length ? enemyC[Math.floor(R() * enemyC.length)] : this.spawn;
-        this._spawnMobAt(k, spot.x, spot.y, hpMul, dmgMul);
-      }
-    } else {
-      const n = 4 + Math.floor(this.floor * 1.3);
-      const pool = POOL.filter((p) => p.from <= this.floor).flatMap((p) => p.kinds);
-      const spots = enemyC.slice();
-      for (let y = 0; y < ROWS; y++) for (let x = 0; x < COLS; x++) {
-        const c = this.cell(x, y);
-        if (c.kind === 'dfloor' && Math.abs(x - this.spawn.x) + Math.abs(y - this.spawn.y) >= 8) spots.push({ x, y });
-      }
-      for (let i = 0; i < n && spots.length; i++) {
-        const sp = spots[Math.floor(R() * spots.length)];
-        this._spawnMobAt(pool[Math.floor(R() * pool.length)], sp.x, sp.y, hpMul, dmgMul);
-      }
-      // ن۴۴: هیولاهای امضای معماری (مومیایی مقبره، کماندار میدان تیر، …) — ۱..۳ تا بر حسب طبقه
-      const tags = MOB_TAGS[bp.name] || [];
-      const nsig = 1 + (this.floor >= 5 ? 1 : 0) + (this.floor >= 12 ? 1 : 0);
-      for (const k of tags) for (let i = 0; i < nsig && spots.length; i++) {
-        const sp = spots[Math.floor(R() * spots.length)];
-        this._spawnMobAt(k, sp.x, sp.y, hpMul, dmgMul);
-      }
-    }
-    this._reachFix();
+  roomAt(x, y) { return (x < 0 || y < 0 || x >= this.cols || y >= this.rows) ? -1 : this.roomMap[y * this.cols + x]; }
+  // ورود به اتاق: کلِ اتاق + دیوارهایش + راهروهای طی‌شده (بین دو اتاقِ دیده‌شده) + ۲ تایل از دهانه‌ی بقیه‌ی راهروها
+  reveal(id) {
+    if (id < 0 || this.seen.has(id)) return false;
+    this.seen.add(id);
+    const W = this.cols, H = this.rows, V = this.vis, M = this.roomMap, q = [];
+    for (let k = 0; k < W * H; k++) if (M[k] === id) { V[k] = 1; q.push(k, 0); }
+    for (const L of this.gen.lt) if (this.seen.has(L.i) && this.seen.has(L.j)) for (const k of L.t) V[k] = 1;
+    for (let h = 0; h < q.length; h += 2) { const k = q[h], d = q[h + 1]; if (d >= 2) continue;
+      for (const n of [k - 1, k + 1, k - W, k + W]) if (n >= 0 && n < W * H && M[n] === -2 && !V[n]) { V[n] = 2; q.push(n, d + 1); } }
+    this.visVer++;
+    return true;
   }
-  // S8.3: هیولای غیرباس روی جزیره‌ی محصور ⇒ نزدیک‌ترین کفِ قابل‌دسترس از اسپاون (بدون RNG ⇒ چیدمان/سید دست‌نخورده)
-  _reachFix() {
-    const seen = new Uint8Array(COLS * ROWS), q = [this.spawn.y * COLS + this.spawn.x], ok = [];
-    seen[q[0]] = 1;
-    while (q.length) {
-      const i = q.pop(), x = i % COLS, y = (i / COLS) | 0;
-      if (this.grid[i].kind === 'dfloor') ok.push(i);
-      for (const [dx, dy] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) { const X = x + dx, Y = y + dy; if (this.walkable(X, Y) && !seen[Y * COLS + X]) { seen[Y * COLS + X] = 1; q.push(Y * COLS + X); } }
+  // تایل دیده می‌شود؟ (دیوار: اگر یکی از همسایه‌های کفش دیده شده)
+  visible(x, y) {
+    if (x < 0 || y < 0 || x >= this.cols || y >= this.rows) return false;
+    const W = this.cols; if (this.vis[y * W + x]) return true;
+    if (this.roomMap[y * W + x] !== -1) return false;
+    for (let dy = -1; dy <= 2; dy++) for (let dx = -1; dx <= 1; dx++) { const X = x + dx, Y = y + dy; if (X >= 0 && Y >= 0 && X < W && Y < this.rows && this.vis[Y * W + X]) return true; }
+    return false;
+  }
+  _spawnAll() {
+    const g = this.gen, f = this.floor, T = this.tier, R = this.rng, fi = floorInTier(f);
+    const hpMul = 1 + 0.13 * (f - 1), dmgMul = 1 + 0.075 * (f - 1);
+    const norm = (k) => ({ hp: Math.pow(20 / MSTATS[k].hp, 0.6), dmg: Math.pow(4 / MSTATS[k].dmg, 0.6) }); // هم‌ترازیِ خانواده‌ها ⇒ قدرت را طبقه تعیین می‌کند، نه نوع
+    for (const grp of g.groups) {
+      for (const sp of grp.spots) {
+        const kind = T.mobs[Math.floor(R() * T.mobs.length)], n = norm(kind);
+        const elite = f >= 3 && R() < 0.06 + 0.02 * fi;
+        const m = new Monster(kind, sp.x * TILE + 8, sp.y * TILE + 8, 1, { hpMul: hpMul * n.hp, dmgMul: dmgMul * n.dmg, elite });
+        m.room = grp.room; this.enemies.push(m);
+      }
     }
-    ok.sort((a, b) => a - b);
-    for (const e of this.enemies) {
-      const ex = Math.floor(e.x / TILE), ey = Math.floor(e.y / TILE);
-      if (e.isBoss || seen[ey * COLS + ex]) continue;
-      let best = -1, bd = 1e9;
-      for (const i of ok) { const d = Math.abs(i % COLS - ex) + Math.abs(((i / COLS) | 0) - ey); if (d < bd) { bd = d; best = i; } }
-      if (best >= 0) { e.x = (best % COLS) * TILE + 8; e.y = ((best / COLS) | 0) * TILE + 8; }
+    if (g.bossAt) { // باسِ مخصوصِ خانواده‌ی همین فصل (طبقه‌ی ۱۰۰: اهریمنِ نهایی)
+      const final = T.final && f >= 100, kind = final ? 'boss' : T.mobs[0], n = final ? { hp: 1, dmg: 1 } : norm(kind);
+      const b = new Monster(kind, g.bossAt.x * TILE + 8, g.bossAt.y * TILE + 8, 1 + (final ? 1 : 0), { hpMul: hpMul * n.hp * (final ? 1 : 11), dmgMul: dmgMul * n.dmg * (final ? 1 : 1.9), lord: !final });
+      b.room = g.endId; this.enemies.push(b);
+      for (let i = 0; i < 2; i++) { const k = T.mobs[i % T.mobs.length], nn = norm(k); const e = new Monster(k, g.bossAt.x * TILE + 8 + (i ? 30 : -30), g.bossAt.y * TILE + 20, 1, { hpMul: hpMul * nn.hp, dmgMul: dmgMul * nn.dmg }); e.room = g.endId; this.enemies.push(e); }
     }
   }
-  // اسپاون روی تایل مشخص (نقشه‌ی دست‌چین)
-  _spawnMobAt(kind, tx, ty, hpMul = 1, dmgMul = 1) {
-    // نخبه: از طبقه‌ی ۳، ۱۵٪ شانس — قوی‌تر ولی غنیمت×۲٫۲ + قلب تضمینی
-    const elite = this.floor >= 3 && this.rng() < 0.15;
-    const m = { hpMul, dmgMul, elite };
-    let x = tx, y = ty;
-    for (let tries = 0; tries < 8 && !this.walkable(x, y); tries++) { x = tx + Math.floor(this.rng() * 5) - 2; y = ty + Math.floor(this.rng() * 5) - 2; }
-    if (!this.walkable(x, y)) { x = this.spawn.x; y = this.spawn.y; }
-    this.enemies.push(new Monster(kind, x * TILE + 8, y * TILE + 8, 1, m));
-  }
-
 }

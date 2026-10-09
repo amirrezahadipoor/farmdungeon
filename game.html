@@ -7592,12 +7592,22 @@ bandit:   { hp: 22,  speed: 46, range: 15, windup: 0.35, dmg: 3,  stride: 16, co
 hare:     { hp: 14,  speed: 60, range: 15, windup: 0.30, dmg: 4,  stride: 18, cool: 0.9 },  // جهش‌گر
 boss:     { hp: 250, speed: 16, range: 26, windup: 0.48, dmg: 16, stride: 22, cool: 1.8 },
 };
+const MSTATS = STATS; // ن۱۳۹: برای هم‌ترازیِ خانواده‌ها در dungeon.js
+const _lordS = {}; // آمارِ «باسِ خانواده»: بُردِ بیشتر، کمی کندتر
+const lordStats = (k) => _lordS[k] || (_lordS[k] = { ...STATS[k], range: STATS[k].range * 1.7, speed: STATS[k].speed * 0.85, cool: STATS[k].cool * 1.1 });
+const LORD_SCALE = 1.6;
+function scaleUp(s, k) { // نزدیک‌ترین همسایه — پیکسل‌آرتِ درشت‌تر برای باسِ خانواده
+const W = Math.round(s.w * k), H = Math.round(s.h * k), t = new s.constructor(W, H);
+for (let y = 0; y < H; y++) { const sy = Math.min(s.h - 1, (y / k) | 0); for (let x = 0; x < W; x++) { const si = (sy * s.w + Math.min(s.w - 1, (x / k) | 0)) * 4, di = (y * W + x) * 4; t.d[di] = s.d[si]; t.d[di + 1] = s.d[si + 1]; t.d[di + 2] = s.d[si + 2]; t.d[di + 3] = s.d[si + 3]; } }
+return t;
+}
 const ALL_KINDS = [...MONSTER_KINDS, 'boss'];
 class Monster {
 constructor(kind, x, y, phase = 1, muls = {}) {
 this.kind = kind; this.x = x; this.y = y; this.phase = phase;
 this._phaseShown = phase; this._phaseFlash = 0; // S6.6: وضعیتِ نمایشیِ گذارِ فاز (فقط ظاهر)
-const s = STATS[kind];
+this.lord = !!muls.lord; // ن۱۳۹: باسِ مخصوصِ خانواده (نسخه‌ی غول‌پیکرِ همان هیولا)
+const s = this.lord ? lordStats(kind) : STATS[kind];
 this.isElite = !!muls.elite; // تاج‌دار: قوی‌تر، غنیمت بیشتر (منبع واحد ضریب)
 this.dmg = s.dmg * (muls.dmgMul ?? 1) * (this.isElite ? 1.35 : 1);
 this.hp = s.hp * (muls.hpMul ?? 1) * (this.isElite ? 2.1 : 1); this.maxHp = this.hp;
@@ -7607,11 +7617,11 @@ this.idleT = 0.4 + Math.random() * 0.8; this.coolT = 0;
 this.atk = 'slam';
 this.kbx = 0; this.kby = 0; // ضربه‌ی عقب
 }
-get isBoss() { return this.kind === 'boss'; }
+get isBoss() { return this.kind === 'boss' || this.lord; }
 update(dt, target, hooks = {}) {
 this.time += dt;
 if (this.flash > 0) this.flash -= dt;
-const s = STATS[this.kind];
+const s = this.lord ? lordStats(this.kind) : STATS[this.kind];
 const spd = s.speed * (this.phase === 3 ? 1.4 : this.phase === 2 ? 1.2 : 1) * (this.isElite ? 1.1 : 1);
 if (this.kbx || this.kby) {
 const nx = this.x + this.kbx * dt, ny = this.y + this.kby * dt;
@@ -7681,20 +7691,333 @@ if (this.isBoss) {
 if (this._phaseShown !== this.phase) { this._phaseShown = this.phase; this._phaseFlash = 2; }
 if (this._phaseFlash > 0) { phaseFlash = 1; this._phaseFlash--; }
 }
-const key = `${this.kind}|${this.state}|${q(this.t)}|${q(this.ph)}|${this.face}|${this.flash > 0 ? 1 : 0}|${this.atk}|${this.phase}|${phaseFlash}`;
+const key = `${this.lord ? 'L' : ''}${this.kind}|${this.state}|${q(this.t)}|${q(this.ph)}|${this.face}|${this.flash > 0 ? 1 : 0}|${this.atk}|${this.phase}|${phaseFlash}`;
 let s = Monster._cache.get(key);
 if (!s) {
 const o = { state: this.state, t: q(this.t), ph: q(this.ph), face: this.face, time: this.time, hit: this.flash > 0 };
-s = this.isBoss ? drawBossFrame({ ...o, atk: this.atk, phase: this.phase, phaseFlash }) : drawMonsterFrame(this.kind, o);
+s = this.kind === 'boss' ? drawBossFrame({ ...o, atk: this.atk, phase: this.phase, phaseFlash }) : drawMonsterFrame(this.kind, o);
+if (this.lord) s = scaleUp(s, LORD_SCALE);
 Monster._cache.set(key, s); // snap پالت داخلِ draw*Frame (خط لولهٔ S6.1) — سقف حافظه در makeSpriteCache
 }
 return s;
 }
 }
 Monster._cache = makeSpriteCache(300, 90); // سقف ۳۰۰×۶۴KB≈۱۹MB — حذفِ ۹۰ قدیمی‌ترین در ترتیبِ درج
-return {ALL_KINDS, Monster};
+return {MSTATS, LORD_SCALE, ALL_KINDS, Monster};
 })();
-const {ALL_KINDS, Monster} = __m_monster;
+const {MSTATS, LORD_SCALE, ALL_KINDS, Monster} = __m_monster;
+const __m_floors_tiers = (() => {
+const TIERS = [
+{ mobs: ['slime'],             theme: 0, name: { fa: 'سیاه‌چالِ لزج',    en: 'Slime Cellars' },     lord: { fa: 'شاه‌لجن',          en: 'Slime King' } },
+{ mobs: ['bat'],               theme: 1, name: { fa: 'غارِ بال‌ها',       en: 'Wing Caves' },        lord: { fa: 'مادرِ خفاش‌ها',     en: 'Bat Matriarch' } },
+{ mobs: ['hare'],              theme: 1, name: { fa: 'لانه‌ی جهنده‌ها',   en: 'Warren Deep' },       lord: { fa: 'خرگوشِ غول',       en: 'Giant Hare' } },
+{ mobs: ['spider'],            theme: 4, name: { fa: 'تارستانِ مرطوب',   en: 'Webbed Marsh' },      lord: { fa: 'ملکه‌ی تار',        en: 'Web Queen' } },
+{ mobs: ['bandit'],            theme: 5, name: { fa: 'معدنِ راهزنان',    en: 'Bandit Mine' },       lord: { fa: 'سرکرده‌ی راهزنان',  en: 'Bandit Chief' } },
+{ mobs: ['skeleton'],          theme: 0, name: { fa: 'گورستانِ زیرین',   en: 'Under Crypt' },       lord: { fa: 'سردارِ استخوان',    en: 'Bone General' } },
+{ mobs: ['ghost'],             theme: 3, name: { fa: 'تالارهای یخ‌زده',  en: 'Frozen Halls' },      lord: { fa: 'شبحِ سپید',         en: 'Pale Wraith' } },
+{ mobs: ['imp'],               theme: 2, name: { fa: 'کوره‌های آتش',     en: 'Fire Forges' },       lord: { fa: 'شیطانکِ اعظم',      en: 'Arch Imp' } },
+{ mobs: ['archer'],            theme: 0, name: { fa: 'دژِ کمانداران',    en: 'Archer Keep' },       lord: { fa: 'تیرانداز‌ِ سایه',    en: 'Shadow Marksman' } },
+{ mobs: ['wolf'],              theme: 1, name: { fa: 'کنامِ گرگ‌ها',      en: 'Wolf Den' },          lord: { fa: 'گرگِ پیر',          en: 'Elder Wolf' } },
+{ mobs: ['ram'],               theme: 5, name: { fa: 'تونل‌های شاخ',     en: 'Horn Tunnels' },      lord: { fa: 'قوچِ آهنین',        en: 'Iron Ram' } },
+{ mobs: ['yeti'],              theme: 3, name: { fa: 'یخچالِ ژرف',       en: 'Deep Glacier' },      lord: { fa: 'یتیِ کهن',          en: 'Ancient Yeti' } },
+{ mobs: ['mummy'],             theme: 4, name: { fa: 'مقبره‌های غرق',    en: 'Sunken Tombs' },      lord: { fa: 'فرعونِ باتلاق',     en: 'Bog Pharaoh' } },
+{ mobs: ['golem'],             theme: 2, name: { fa: 'قلبِ مذاب',        en: 'Molten Core' },       lord: { fa: 'غولِ گدازه',        en: 'Magma Colossus' } },
+{ mobs: ['skeleton', 'archer'], theme: 0, name: { fa: 'لشکرِ مردگان',    en: 'Legion of the Dead' }, lord: { fa: 'سردارِ استخوان',    en: 'Bone General' } },
+{ mobs: ['ghost', 'bat'],      theme: 3, name: { fa: 'شبِ بی‌پایان',     en: 'Endless Night' },     lord: { fa: 'شبحِ سپید',         en: 'Pale Wraith' } },
+{ mobs: ['imp', 'golem'],      theme: 2, name: { fa: 'آتشفشانِ خفته',    en: 'Sleeping Volcano' },  lord: { fa: 'غولِ گدازه',        en: 'Magma Colossus' } },
+{ mobs: ['wolf', 'yeti'],      theme: 3, name: { fa: 'کولاکِ وحشی',      en: 'Wild Blizzard' },     lord: { fa: 'یتیِ کهن',          en: 'Ancient Yeti' } },
+{ mobs: ['mummy', 'spider'],   theme: 4, name: { fa: 'باتلاقِ نفرین',    en: 'Cursed Bog' },        lord: { fa: 'ملکه‌ی تار',        en: 'Web Queen' } },
+{ mobs: ['golem', 'ghost', 'imp', 'mummy'], theme: 2, name: { fa: 'دروازه‌ی اهریمن', en: 'Demon Gate' }, lord: { fa: 'اهریمن', en: 'The Demon' }, final: true },
+];
+const tierOf = (f) => TIERS[Math.min(TIERS.length - 1, Math.floor((f - 1) / 5))];
+const isBossFloor = (f) => f % 5 === 0;
+const floorInTier = (f) => ((f - 1) % 5) + 1; // ۱..۵
+return {TIERS, tierOf, isBossFloor, floorInTier};
+})();
+const {TIERS, tierOf, isBossFloor, floorInTier} = __m_floors_tiers;
+const __m_floors_f001_010 = (() => {
+const F001_010 = {
+1: { name: { fa: 'ورودیِ نمور', en: 'Damp Entrance' }, layout: 'scatter', cols: 96, rows: 72, rooms: 10, rw: [12, 18], rh: [9, 13],
+round: 2, loops: 0.03, treasure: 1, empty: 0.35, dens: 0.7, startAt: 'left' },
+2: { name: { fa: 'راهروهای چکه', en: 'Dripping Passages' }, layout: 'chain', cols: 96, rows: 72, rooms: 12, chainCols: 4, rw: [12, 17], rh: [9, 12],
+winding: true, treasure: 2, empty: 0.3, dens: 0.8, startAt: 'top' },
+3: { name: { fa: 'تالارِ ستون‌ها', en: 'Hall of Pillars' }, layout: 'hub', cols: 112, rows: 84, rooms: 13, rw: [12, 18], rh: [9, 13],
+pillars: 0.8, round: 1, treasure: 2, empty: 0.25, dens: 0.9 },
+4: { name: { fa: 'حوضچه‌های لجن', en: 'Ooze Pools' }, layout: 'scatter', cols: 112, rows: 84, rooms: 15, rw: [13, 20], rh: [10, 14],
+pools: 0.7, loops: 0.12, round: 3, treasure: 2, empty: 0.25, dens: 1 },
+5: { name: { fa: 'تختِ شاه‌لجن', en: 'Throne of the Slime King' }, layout: 'ring', cols: 112, rows: 84, rooms: 12, spokes: 3, rw: [12, 17], rh: [9, 12],
+round: 2, pools: 0.4, treasure: 2, empty: 0.2, dens: 1, boss: true },
+6: { name: { fa: 'دهانه‌ی دوقلو', en: 'Twin Mouths' }, layout: 'twin', cols: 112, rows: 84, rooms: 14, rw: [12, 18], rh: [9, 13],
+round: 3, loops: 0.08, treasure: 2, empty: 0.3, dens: 0.9, startAt: 'left' },
+7: { name: { fa: 'سقف‌های بلند', en: 'High Vaults' }, layout: 'grid', cols: 112, rows: 84, gridCols: 5, gridRows: 4, holes: 0.15, rw: [12, 16], rh: [9, 12],
+pillars: 0.45, round: 1, treasure: 3, empty: 0.25, dens: 1 },
+8: { name: { fa: 'پیچ‌وتابِ تاریک', en: 'Dark Coils' }, layout: 'chain', cols: 120, rows: 90, rooms: 15, chainCols: 5, rw: [12, 17], rh: [9, 13],
+winding: true, cross: 0.4, treasure: 2, empty: 0.2, dens: 1.1, startAt: 'top' },
+9: { name: { fa: 'چاه‌های آب', en: 'Cistern Wells' }, layout: 'hub', cols: 120, rows: 90, rooms: 15, rw: [13, 19], rh: [10, 14],
+pools: 0.6, cross: 0.5, loops: 0.1, treasure: 2, empty: 0.2, dens: 1.1 },
+10: { name: { fa: 'آشیانه‌ی مادر', en: 'The Matriarch Roost' }, layout: 'ring', cols: 120, rows: 90, rooms: 14, spokes: 4, rw: [12, 18], rh: [9, 13],
+round: 3, pillars: 0.35, treasure: 2, empty: 0.15, dens: 1.2, boss: true },
+};
+return {F001_010};
+})();
+const {F001_010} = __m_floors_f001_010;
+const __m_floors_index = (() => {
+const DESIGNED = { ...F001_010 };
+const MAX_FLOOR = 100;
+const LAYOUTS = ['scatter', 'chain', 'hub', 'grid', 'twin', 'ring'];
+function specFor(f) {
+if (DESIGNED[f]) return DESIGNED[f];
+const g = Math.min(1, f / 60), b = isBossFloor(f);
+return { name: null, layout: b ? 'ring' : LAYOUTS[(f * 7) % LAYOUTS.length], cols: 128, rows: 96, rooms: 16 + Math.round(4 * g),
+rw: [12, 20], rh: [9, 14], round: f % 4, pillars: 0.3, pools: 0.25, loops: 0.07, winding: f % 3 === 0, treasure: 2,
+empty: 0.22, dens: 1 + 0.4 * g, spokes: 3, boss: b, auto: true };
+}
+return {DESIGNED, MAX_FLOOR, specFor};
+})();
+const {DESIGNED, MAX_FLOOR, specFor} = __m_floors_index;
+const __m_dungeon_gen = (() => {
+const K_WALL = 0, K_FLOOR = 1, K_WATER = 2, K_PILLAR = 3;
+function rng(seed) {
+let a = seed >>> 0;
+return () => { a = (a + 0x6D2B79F5) >>> 0; let t = a; t = Math.imul(t ^ (t >>> 15), t | 1); t ^= t + Math.imul(t ^ (t >>> 7), t | 61); return ((t ^ (t >>> 14)) >>> 0) / 4294967296; };
+}
+function generate(spec, seed) {
+const R = rng(seed), ri = (a, b) => a + Math.floor(R() * (b - a + 1));
+const W = spec.cols || 128, H = spec.rows || 96;
+const [wMin, wMax] = spec.rw || [12, 22], [hMin, hMax] = spec.rh || [9, 15];
+const rooms = [];
+const fits = (x, y, w, h, gap = 4) => x >= 2 && y >= 3 && x + w <= W - 3 && y + h <= H - 3 &&
+!rooms.some((o) => x < o.x + o.w + gap && x + w + gap > o.x && y < o.y + o.h + gap + 1 && y + h + gap + 1 > o.y);
+const add = (x, y, w, h, role = null) => { const o = { x, y, w, h, id: rooms.length, cx: x + (w >> 1), cy: y + (h >> 1), role, feat: null }; rooms.push(o); return o; };
+const tryAt = (cx, cy, w, h, n = 30, role = null) => { // نزدیکِ نقطه‌ی هدف جا پیدا کن
+for (let i = 0; i < n; i++) { const x = Math.round(cx - w / 2 + (R() - 0.5) * i * 0.8), y = Math.round(cy - h / 2 + (R() - 0.5) * i * 0.6); if (fits(x, y, w, h)) return add(x, y, w, h, role); }
+return null;
+};
+const rw = () => ri(wMin, wMax), rh = () => ri(hMin, hMax);
+const N = spec.rooms || 18, arch = spec.layout || 'scatter';
+const links = [];
+if (arch === 'hub') {
+const hub = add((W >> 1) - 13, (H >> 1) - 9, 26, 18, 'hub');
+for (let t = 0; t < 1500 && rooms.length < N; t++) { const w = rw(), h = rh(); const x = ri(2, W - w - 3), y = ri(3, H - h - 3); if (fits(x, y, w, h)) add(x, y, w, h); }
+for (const o of rooms) if (o !== hub && Math.hypot(o.cx - hub.cx, (o.cy - hub.cy) * 1.3) < 40) links.push([hub.id, o.id]);
+} else if (arch === 'chain') { // مارپیچِ سطری: چپ→راست، پایین، راست→چپ…
+const cols = spec.chainCols || 5, rowsN = Math.ceil(N / cols), sw = (W - 8) / cols, sh = (H - 8) / rowsN;
+let prev = null;
+for (let r = 0; r < rowsN; r++) for (let c0 = 0; c0 < cols; c0++) {
+const c = r % 2 ? cols - 1 - c0 : c0, o = tryAt(4 + sw * (c + 0.5), 4 + sh * (r + 0.5), Math.min(rw(), sw - 5 | 0), Math.min(rh(), sh - 6 | 0));
+if (o) { if (prev) links.push([prev.id, o.id]); prev = o; }
+}
+} else if (arch === 'ring') {
+const core = add((W >> 1) - 10, (H >> 1) - 7, 20, 14, 'hub'), M = N - 1;
+let first = null, prev = null;
+for (let i = 0; i < M; i++) {
+const a = (i / M) * Math.PI * 2 + R() * 0.2, o = tryAt(W / 2 + Math.cos(a) * (W / 2 - 16), H / 2 + Math.sin(a) * (H / 2 - 12), rw(), rh());
+if (!o) continue; if (prev) links.push([prev.id, o.id]); else first = o; prev = o;
+}
+if (prev && first && prev !== first) links.push([prev.id, first.id]);
+const ringRooms = rooms.filter((o) => o !== core);
+for (let k = 0; k < (spec.spokes || 2) && ringRooms.length; k++) links.push([core.id, ringRooms[Math.floor(k * ringRooms.length / (spec.spokes || 2))].id]);
+} else if (arch === 'grid') {
+const gc = spec.gridCols || 5, gr = spec.gridRows || 4, sw = (W - 8) / gc, sh = (H - 8) / gr, cell = [];
+for (let r = 0; r < gr; r++) for (let c = 0; c < gc; c++) {
+if (R() < (spec.holes ?? 0.1)) { cell.push(null); continue; }
+cell.push(tryAt(4 + sw * (c + 0.5), 4 + sh * (r + 0.5), Math.min(rw(), sw - 5 | 0), Math.min(rh(), sh - 6 | 0)));
+}
+for (let r = 0; r < gr; r++) for (let c = 0; c < gc; c++) {
+const o = cell[r * gc + c]; if (!o) continue;
+const rt = c + 1 < gc && cell[r * gc + c + 1], dn = r + 1 < gr && cell[(r + 1) * gc + c];
+if (rt && R() < 0.62) links.push([o.id, rt.id]); if (dn && R() < 0.62) links.push([o.id, dn.id]);
+}
+} else if (arch === 'twin') {
+const half = N >> 1;
+for (const side of [0, 1]) for (let t = 0; t < 900 && rooms.filter((o) => o.side === side).length < half; t++) {
+const w = rw(), h = rh(), x = side ? ri((W >> 1) + 6, W - w - 3) : ri(2, (W >> 1) - w - 6), y = ri(3, H - h - 3);
+if (fits(x, y, w, h)) add(x, y, w, h).side = side;
+}
+} else { // scatter
+for (let t = 0; t < 1500 && rooms.length < N; t++) { const w = rw(), h = rh(), x = ri(2, W - w - 3), y = ri(3, H - h - 3); if (fits(x, y, w, h)) add(x, y, w, h); }
+}
+const par = rooms.map((_, i) => i), fd = (i) => (par[i] === i ? i : (par[i] = fd(par[i])));
+const uni = (i, j) => { const a = fd(i), b = fd(j); if (a === b) return false; par[a] = b; return true; };
+for (const [i, j] of links) uni(i, j);
+const E = [];
+for (let i = 0; i < rooms.length; i++) for (let j = i + 1; j < rooms.length; j++) {
+const a = rooms[i], b = rooms[j]; if (arch === 'twin' && a.side !== b.side) continue;
+E.push([Math.abs(a.cx - b.cx) + Math.abs(a.cy - b.cy), i, j]);
+}
+E.sort((a, b) => a[0] - b[0]);
+for (const [d, i, j] of E) { if (uni(i, j)) links.push([i, j]); else if (R() < (spec.loops ?? 0.06) && d < 44 && !links.some((l) => (l[0] === i && l[1] === j) || (l[0] === j && l[1] === i))) links.push([i, j]); }
+if (arch === 'twin') { // تنها پلِ میانِ دو بال (نزدیک‌ترین جفت)
+let best = null, bd = 1e9;
+for (const a of rooms) for (const b of rooms) if (a.side === 0 && b.side === 1) { const d = Math.abs(a.cx - b.cx) + Math.abs(a.cy - b.cy) * 2; if (d < bd) { bd = d; best = [a.id, b.id]; } }
+if (best) { links.push(best); uni(best[0], best[1]); }
+for (const [d, i, j] of E) if (uni(i, j)) links.push([i, j]);
+}
+const kind = new Uint8Array(W * H), room = new Int16Array(W * H).fill(-1);
+for (const o of rooms) {
+const cut = spec.round != null ? spec.round : ri(0, 3);
+const cross = spec.cross && R() < spec.cross; // اتاقِ صلیبی: چهار گوشه‌ی بزرگِ بریده
+for (let y = o.y; y < o.y + o.h; y++) for (let x = o.x; x < o.x + o.w; x++) {
+const dx = Math.min(x - o.x, o.x + o.w - 1 - x), dy = Math.min(y - o.y, o.y + o.h - 1 - y);
+if (dx + dy < cut) continue;
+if (cross && dx < (o.w / 4 | 0) && dy < (o.h / 4 | 0)) continue;
+kind[y * W + x] = K_FLOOR; room[y * W + x] = o.id;
+}
+}
+const cw = spec.cw || 2, lt = [];
+const dig = (x, y, L) => { for (let dy = 0; dy < cw; dy++) for (let dx = 0; dx < cw; dx++) { const X = x + dx, Y = y + dy; if (X < 1 || Y < 2 || X >= W - 1 || Y >= H - 1) continue; const k = Y * W + X; if (room[k] === -1) { room[k] = -2; kind[k] = K_FLOOR; L.push(k); } } };
+for (const [i, j] of links) {
+const a = rooms[i], b = rooms[j], L = []; lt.push({ i, j, t: L });
+let x = a.cx, y = a.cy;
+const goX = (tx) => { while (x !== tx) { dig(x, y, L); x += Math.sign(tx - x); } }, goY = (ty) => { while (y !== ty) { dig(x, y, L); y += Math.sign(ty - y); } };
+if (spec.winding && Math.abs(a.cx - b.cx) > 12) { const mx = ri(Math.min(a.cx, b.cx) + 4, Math.max(a.cx, b.cx) - 4); goX(mx); goY(b.cy); goX(b.cx); }
+else if (R() < 0.5) { goX(b.cx); goY(b.cy); } else { goY(b.cy); goX(b.cx); }
+dig(x, y, L);
+}
+const deg = rooms.map(() => 0); for (const [i, j] of links) { deg[i]++; deg[j]++; }
+const start = spec.startAt === 'left' ? rooms.reduce((a, b) => (a.cx < b.cx ? a : b)) : spec.startAt === 'top' ? rooms.reduce((a, b) => (a.cy < b.cy ? a : b)) : rooms.reduce((a, b) => (a.cx + a.cy < b.cx + b.cy ? a : b));
+const dist = bfs(kind, W, H, start.cy * W + start.cx);
+const dOf = (o) => dist[o.cy * W + o.cx];
+const end = rooms.reduce((a, b) => (dOf(a) >= dOf(b) ? a : b));
+start.role = 'start'; end.role = spec.boss ? 'boss' : 'stairs';
+const deadEnds = rooms.filter((o) => !o.role && deg[o.id] === 1).sort((a, b) => dOf(b) - dOf(a));
+const nT = spec.treasure ?? 2;
+for (let i = 0; i < nT && i < deadEnds.length; i++) deadEnds[i].role = 'treasure';
+const free = rooms.filter((o) => !o.role);
+if (spec.shrine !== false && free.length) free[Math.floor(R() * free.length)].role = 'shrine';
+for (const o of rooms) {
+if (o.role === 'start' || o.role === 'treasure') continue;
+const big = o.w >= 14 && o.h >= 10;
+if (big && spec.pillars && R() < spec.pillars) { o.feat = 'pillars';
+for (let y = o.y + 3; y < o.y + o.h - 3; y += 3) for (let x = o.x + 3; x < o.x + o.w - 3; x += 4) if (room[y * W + x] === o.id) kind[y * W + x] = K_PILLAR; }
+else if (big && spec.pools && R() < spec.pools && o.role !== 'boss') { o.feat = 'pool';
+const rx = (o.w >> 2), ry = (o.h >> 2);
+for (let y = o.cy - ry; y <= o.cy + ry; y++) for (let x = o.cx - rx; x <= o.cx + rx; x++) if (((x - o.cx) / rx) ** 2 + ((y - o.cy) / ry) ** 2 <= 1 && room[y * W + x] === o.id) kind[y * W + x] = K_WATER; }
+}
+const floorAt = (o, fx, fy) => { // نزدیک‌ترین کفِ آزادِ اتاق به نقطه‌ی کسری
+const tx = Math.round(o.x + 1 + fx * (o.w - 3)), ty = Math.round(o.y + 1 + fy * (o.h - 3));
+for (let r = 0; r < 6; r++) for (let dy = -r; dy <= r; dy++) for (let dx = -r; dx <= r; dx++) { const x = tx + dx, y = ty + dy; if (room[y * W + x] === o.id && kind[y * W + x] === K_FLOOR) return { x, y }; }
+return { x: o.cx, y: o.cy };
+};
+const spawn = floorAt(start, 0.5, 0.6), stairs = floorAt(end, 0.85, 0.85);
+const chests = [];
+for (const o of rooms) if (o.role === 'treasure') { chests.push(floorAt(o, 0.35, 0.3)); if (o.w > 14) chests.push(floorAt(o, 0.65, 0.3)); }
+if (spec.boss) chests.push(floorAt(end, 0.15, 0.2));
+const sh = rooms.find((o) => o.role === 'shrine'); const shrine = sh ? floorAt(sh, 0.5, 0.35) : null;
+const torches = [];
+for (let y = 1; y < H - 1; y++) for (let x = 1; x < W - 1; x++) if (kind[y * W + x] === K_WALL && room[(y + 1) * W + x] >= 0 && kind[(y + 1) * W + x] !== K_WALL && x % 4 === (spec.torchMod ?? 0)) torches.push({ x, y });
+const decor = [];
+for (let k = 0; k < W * H; k++) if (kind[k] === K_FLOOR && room[k] >= 0 && R() < (spec.decor ?? 0.04)) decor.push({ x: k % W, y: (k / W) | 0, v: Math.floor(R() * 9) });
+const groups = [];
+for (const o of rooms) {
+if (o.role === 'start' || o.role === 'boss' || o.role === 'shrine') continue;
+if (o.role !== 'treasure' && R() < (spec.empty ?? 0.25)) continue;
+const area = o.w * o.h, n = Math.max(1, Math.min(6, Math.round((spec.dens || 1) * (1 + area / 110) + (o.role === 'treasure' ? 1 : 0))));
+const g = { room: o.id, spots: [] };
+for (let i = 0; i < n; i++) g.spots.push(floorAt(o, 0.25 + 0.5 * R(), 0.25 + 0.5 * R()));
+groups.push(g);
+}
+const bossAt = spec.boss ? floorAt(end, 0.5, 0.45) : null;
+return { cols: W, rows: H, kind, room, rooms, links, lt, spawn, stairs, chests, shrine, torches, decor, groups, bossAt, startId: start.id, endId: end.id, dist: dOf(end) };
+}
+function bfs(kind, W, H, s) {
+const d = new Int32Array(W * H).fill(-1), q = new Int32Array(W * H); let h = 0, t = 0;
+d[s] = 0; q[t++] = s;
+while (h < t) { const k = q[h++], x = k % W, y = (k / W) | 0;
+for (const n of [k - 1, k + 1, k - W, k + W]) { if (n < 0 || n >= W * H || d[n] >= 0 || kind[n] !== K_FLOOR) continue; if ((n === k - 1 && x === 0) || (n === k + 1 && x === W - 1)) continue; d[n] = d[k] + 1; q[t++] = n; } }
+return d;
+}
+return {K_WALL, K_FLOOR, K_WATER, K_PILLAR, rng, generate};
+})();
+const {K_WALL, K_FLOOR, K_WATER, K_PILLAR, rng, generate} = __m_dungeon_gen;
+const __m_art_dungeon_paint = (() => {
+const C = (h) => [parseInt(h.slice(1, 3), 16), parseInt(h.slice(3, 5), 16), parseInt(h.slice(5, 7), 16), 255];
+const TH = [
+['#16131e', '#76727e', '#9a96a0', '#56525f', '#262130', '#4f4b5a', '#625e6c', '#3b3746', '#2f2b39', '#45414f', '#413d4a', '#4a4654', '#34303d', '#2c2836', '#8a8692'], // سنگ
+['#121a16', '#6d7a66', '#8f9c84', '#4f5b4b', '#1f2a22', '#46523f', '#58654d', '#343f30', '#28321f', '#3d4838', '#394434', '#434e3d', '#2e3829', '#262f22', '#6fa04a'], // خزه
+['#1c1110', '#7a6660', '#9c847a', '#5a4642', '#2e1a18', '#56403a', '#6b4e44', '#3f2c28', '#2e1e1c', '#4a3834', '#45332f', '#503c37', '#36261f', '#2c1e1a', '#e0733a'], // گدازه
+['#121822', '#8a9aac', '#b4c4d4', '#64748a', '#22303e', '#5a6a80', '#70829a', '#46546a', '#34404f', '#4f5e72', '#4a596c', '#56667a', '#3a4658', '#303a4a', '#bfe6ff'], // یخ
+['#121612', '#68705a', '#868e74', '#4a5240', '#1e241a', '#464d3a', '#565e48', '#343a2a', '#282d20', '#3c4232', '#383e2e', '#424836', '#2c3124', '#242a1e', '#8aa04e'], // باتلاق
+['#17130f', '#7a6e5e', '#9c8e78', '#5a5042', '#2a2219', '#54493a', '#675a46', '#3e352a', '#2e271e', '#4a4134', '#463d30', '#504638', '#362f25', '#2c261e', '#d8b060'], // معدن
+].map((t) => t.map(C));
+const voidCol = (theme) => TH[theme % 6][0];
+const hash = (x, y, s = 0) => { let h = (x * 374761393 + y * 668265263 + s * 1442695041) | 0; h = (h ^ (h >>> 13)) * 1274126177; return ((h ^ (h >>> 16)) >>> 0) / 4294967296; };
+const isFloorK = (k) => k === 'dfloor' || k === 'stairs' || k === 'decor' || k === 'water' || k === 'pillar';
+function newCache(D) { const r = new Raster(D.cols * TILE, D.rows * TILE); const v = voidCol(D.theme | 0); for (let i = 0; i < r.d.length; i += 4) { r.d[i] = v[0]; r.d[i + 1] = v[1]; r.d[i + 2] = v[2]; r.d[i + 3] = 255; } return r; }
+function paintRows(r, D, y0, y1) {
+const P = TH[(D.theme | 0) % 6], [, CAP, CAPHI, CAPSH, OUT, BR, BRHI, BRSH, MOR, F1, F2, F3, FMOR, FSH, ACC] = P, FL = [F1, F2, F3];
+const W = D.cols, H = D.rows;
+const fl = (x, y) => { const c = D.cell(x, y); return !!c && isFloorK(c.kind); };
+const near = (x, y) => { for (let j = -1; j <= 1; j++) for (let i = -1; i <= 1; i++) if (fl(x + i, y + j)) return true; return false; };
+const face = (x, y) => !fl(x, y) && fl(x, y + 1);
+const isW = (x, y) => x >= 0 && y >= 0 && x < W && y < H && !fl(x, y) && (near(x, y) || face(x, y + 1));
+for (let y = y0; y < y1; y++) for (let x = 0; x < W; x++) {
+const ox = x * TILE, oy = y * TILE, c = D.cell(x, y);
+if (fl(x, y)) {
+r.rect(ox, oy, TILE, TILE, FL[Math.floor(hash(x >> 1, y >> 1) * 3)]);
+if (x % 2 === 0) r.rect(ox, oy, 1, TILE, FMOR); if (y % 2 === 0) r.rect(ox, oy, TILE, 1, FMOR);
+if (hash(x, y, 3) < 0.1) { let cx = ox + 3 + Math.floor(hash(x, y, 4) * 8), cy = oy + 3; for (let k = 0; k < 8; k++) { r.rect(cx, cy, 1, 1, FMOR); cx += hash(x, y, k) < 0.5 ? 1 : 0; cy++; } }
+if (!fl(x, y - 1)) r.rect(ox, oy, TILE, 3, FSH); if (!fl(x - 1, y)) r.rect(ox, oy, 2, TILE, FSH);
+if (c.kind === 'decor') paintDecor(r, ox, oy, c.v | 0, ACC, FMOR, CAPHI, x, y);
+else if (c.kind === 'stairs') for (let i = 0; i < 4; i++) { r.rect(ox + 1, oy + 1 + i * 4, TILE - 2, 4, [CAPHI, CAP, CAPSH, OUT][i]); r.rect(ox + 1, oy + 1 + i * 4, TILE - 2, 1, i ? CAPSH : CAPHI); }
+else if (c.kind === 'pillar') { r.ellipse(ox + 8, oy + 13, 7, 3, FSH); r.rect(ox + 3, oy + 2, 10, 12, BR); r.rect(ox + 3, oy + 2, 2, 12, BRHI); r.rect(ox + 11, oy + 2, 2, 12, BRSH); r.rect(ox + 3, oy + 7, 10, 1, MOR); }
+} else if (isW(x, y)) {
+if (face(x, y)) {
+r.rect(ox, oy, TILE, TILE, BR);
+for (let row = 0; row < 4; row++) { const by = oy + row * 4, off = (row % 2) * 4; r.rect(ox, by, TILE, 1, MOR);
+for (let bx = -off; bx < TILE; bx += 8) { if (bx >= 0) r.rect(ox + bx, by, 1, 4, MOR); const s = hash(x * 4 + ((bx + 8) >> 3), y * 4 + row, 7), x0 = Math.max(0, bx + 1), w = Math.min(7, TILE - x0);
+if (s < 0.25) r.rect(ox + x0, by + 1, w, 1, BRHI); else if (s > 0.8) r.rect(ox + x0, by + 3, w, 1, BRSH); } }
+r.rect(ox, oy + TILE - 1, TILE, 1, BRSH);
+if (c && c.v === 3 && hash(x, y, 11) < 0.7) for (let i = 0; i < 5; i++) r.rect(ox + Math.floor(hash(x, y, 20 + i) * 14), oy + 8 + Math.floor(hash(x, y, 30 + i) * 7), 2, 1, ACC); // خزه/رگه
+if (c && c.v === 2) r.rect(ox + 4 + Math.floor(hash(x, y, 12) * 6), oy + 5, 4, 3, MOR); // آجرِ افتاده
+} else {
+r.rect(ox, oy, TILE, TILE, CAP);
+if (hash(x, y, 9) < 0.3) r.rect(ox + 4 + Math.floor(hash(x, y, 2) * 6), oy + 5, 3, 1, CAPSH);
+if (!isW(x, y - 1)) r.rect(ox, oy, TILE, 2, OUT);
+if (!isW(x - 1, y) && !fl(x - 1, y)) r.rect(ox, oy, 2, TILE, OUT);
+if (!isW(x + 1, y) && !fl(x + 1, y)) r.rect(ox + TILE - 2, oy, 2, TILE, OUT);
+if (!isW(x, y + 1) && !fl(x, y + 1)) r.rect(ox, oy + TILE - 2, TILE, 2, OUT);
+if (face(x, y + 1) || fl(x, y + 1)) r.rect(ox, oy + TILE - 2, TILE, 2, CAPHI);
+if (fl(x - 1, y)) r.rect(ox, oy, 2, TILE, CAPHI); if (fl(x + 1, y)) r.rect(ox + TILE - 2, oy, 2, TILE, CAPSH); if (fl(x, y - 1)) r.rect(ox, oy, TILE, 2, CAPSH);
+}
+}
+}
+}
+function paintDecor(r, ox, oy, v, ACC, DK, HI, x, y) {
+const j = Math.floor(hash(x, y, 5) * 6);
+if (v <= 2) { r.rect(ox + 3 + j, oy + 9, 6, 1, HI); r.rect(ox + 2 + j, oy + 8, 2, 3, HI); r.rect(ox + 8 + j, oy + 8, 2, 3, HI); } // استخوان
+else if (v <= 4) { r.rect(ox + 5 + j, oy + 7, 4, 2, ACC); r.rect(ox + 6 + j, oy + 9, 2, 3, HI); } // قارچ/کریستال
+else if (v === 5) { for (let i = 0; i < 4; i++) r.rect(ox + 3 + i * 3, oy + 6 + (i % 2) * 3, 2, 2, DK); } // سنگریزه
+else { r.rect(ox + 2, oy + 2, 12, 1, HI); r.rect(ox + 2, oy + 2, 1, 12, HI); r.rect(ox + 3, oy + 3, 8, 8, null || [HI[0], HI[1], HI[2], 60]); } // تار
+}
+return {voidCol, newCache, paintRows};
+})();
+const {voidCol, newCache, paintRows} = __m_art_dungeon_paint;
+const __m_loot_table = (() => {
+const SEED_LVL = { carrot: 1, wheat: 6, pumpkin: 14, strawberry: 24, eggplant: 40, corn: 58 };
+const ITEM_LVL = { 1: 1, 2: 22, 3: 52 }; // tier ← سطح
+const softW = (lvl, p, k) => (p >= lvl ? 1 : Math.exp(-(lvl - p) / k)); // زیرِ سطح: افتِ نمایی (k کوچک‌تر = سخت‌گیرتر)
+const powerOf = (floor, elite, boss) => floor + (elite ? 8 : 0) + (boss ? 20 : 0);
+function pickW(w, R) { let s = 0; for (const k in w) s += w[k]; let r = R() * s; for (const k in w) { r -= w[k]; if (r <= 0) return k; } return null; }
+function seedCount(p, elite, boss, R = Math.random) {
+if (boss) return 2;
+const ch = Math.min(0.9, (0.18 + 0.24 * Math.min(1, p / 100)) * (elite ? 2 : 1));
+return R() < ch ? 1 : 0;
+}
+function rollSeed(p, R = Math.random) {
+const w = {}; for (const k in SEED_LVL) w[k] = softW(SEED_LVL[k], p, 3.5) * (SEED_LVL[k] <= p ? 1 + SEED_LVL[k] / 30 : 1); // بالای سطح: کمی ترجیحِ بهترین‌ها
+return pickW(w, R);
+}
+function rollItem(p, elite, boss, R = Math.random) {
+const ch = boss ? 1 : Math.min(0.6, (0.03 + 0.06 * Math.min(1, p / 100)) * (elite ? 3 : 1));
+if (R() >= ch) return null;
+const w = {}; for (const id in ITEMS) w[id] = softW(ITEM_LVL[ITEMS[id].tier] || 1, p, 5);
+return pickW(w, R);
+}
+function seedOdds(p) { const w = {}; let s = 0; for (const k in SEED_LVL) { w[k] = softW(SEED_LVL[k], p, 3.5) * (SEED_LVL[k] <= p ? 1 + SEED_LVL[k] / 30 : 1); s += w[k]; } for (const k in w) w[k] /= s; return w; }
+return {SEED_LVL, ITEM_LVL, powerOf, seedCount, rollSeed, rollItem, seedOdds};
+})();
+const {SEED_LVL, ITEM_LVL, powerOf, seedCount, rollSeed, rollItem, seedOdds} = __m_loot_table;
 const __m_astar = (() => {
 function findPath(farm, sx, sy, gx, gy) {
 const W = farm.cols, H = farm.rows;
@@ -9144,687 +9467,6 @@ render(r) { renderFarm(this, r); }
 return {feetFree, Game};
 })();
 const {feetFree, Game} = __m_game;
-const __m_dungeon_bp01 = (() => {
-const BP01 = {
-name: 'دهلیز دوقلو',
-rows: [
-'##############################',
-'#S........#.......#..........#',
-'#.........#.......#..........#',
-'T.........#.P...P.#..........T',
-'#.........#.......#....CC....#',
-'#............................#',
-'#...PP....#.......#..........#',
-'#.........#.......#..........#',
-'#.........#.P...P.#..........#',
-'#.........#.......#..........#',
-'#.........#.......#...PD.....#',
-'#.........#...E...#..........#',
-'#.................#..........#',
-'#.........#.P...P............#',
-'#....H....#.......#..........#',
-'#....C....#.......#..........#',
-'T.........#.......#..........T',
-'#...E.D...#.......#.....E...>#',
-'#.........#.......#..........#',
-'##############################',
-],
-};
-return {BP01};
-})();
-const {BP01} = __m_dungeon_bp01;
-const __m_dungeon_bp02 = (() => {
-const BP02 = {
-name: 'نیایشگاه صلیبی',
-rows: [
-'##############################',
-'#########............#########',
-'#########.S..........#########',
-'#########.C........C.#########',
-'#########............#########',
-'############..E...############',
-'#########T#P......P#T#########',
-'#............................#',
-'#......................D.....#',
-'#.HEP....P..........P....PCC.#',
-'#.....D...................E..#',
-'#............................#',
-'############......############',
-'#########T#P......P#T#########',
-'############..E...############',
-'#########............#########',
-'#########............#########',
-'#########............#########',
-'#########.....>......#########',
-'##############################',
-],
-};
-return {BP02};
-})();
-const {BP02} = __m_dungeon_bp02;
-const __m_dungeon_bp03 = (() => {
-const BP03 = {
-name: 'پل خندق',
-rows: [
-'##############################',
-'#S....WWWW......WWWW....WWWW.#',
-'#.....WWWW......WWWW....WWWW.#',
-'#.....WWWW....H.WWWW....WWWW.#',
-'#............................#',
-'T.........C..................T',
-'#..C...E......E.......E......#',
-'#........P..P......P..P......#',
-'#............................#',
-'#WWWWWWWWW..WWWWWWWW..WWWWWWW#',
-'#WWWWWWWWW..WWWWWWWW..WWWWWWW#',
-'#WWWWWWWWW..WWWWWWWW..WWWWWWW#',
-'#........P..P......P..P......#',
-'#....D...............C.......#',
-'T......E..............E...C..T',
-'#............................#',
-'#.....WWWW....D.WWWW....WWWW.#',
-'#.....WWWW......WWWW....WWWW.#',
-'#.....WWWW......WWWW....WWWW>#',
-'##############################',
-],
-};
-return {BP03};
-})();
-const {BP03} = __m_dungeon_bp03;
-const __m_dungeon_bp04 = (() => {
-const BP04 = {
-name: 'مارپیچ سنگی',
-rows: [
-'##############################',
-'#S...........................#',
-'#.............P..............#',
-'#..#######T#########T######..#',
-'#..#..C.....D.....E.......#..#',
-'#..#.####################.#..#',
-'#..#.#........P.........#.#..#',
-'#..#.#.################.#.#..#',
-'#.E#.#.#................#H#E.#',
-'#..T.#.#..C...>....P..#.#.T..#',
-'#..#.#.#.P.........C..#.#.#..#',
-'#..#.#.#..............#.#.#..#',
-'#..#.#.################.#.#..#',
-'#..#...............D....#.#..#',
-'#..#.####################.#..#',
-'#..#..D...E..................#',
-'#..########################..#',
-'#.............P..............#',
-'#..........................C.#',
-'##############################',
-],
-};
-return {BP04};
-})();
-const {BP04} = __m_dungeon_bp04;
-const __m_dungeon_bp05 = (() => {
-const BP05 = {
-name: 'پادگان',
-rows: [
-'##############################',
-'#S........#........#.........#',
-'#.C....D..#..C..D..#....C....#',
-'#.........#........#.........#',
-'T....P....#...P....#...P.....T',
-'#.........#........#.........#',
-'#....E....#...E....#...E.....#',
-'#.........#........#.........#',
-'##.####.####.####.####.####.##',
-'#............................#',
-'#.........T...E....T.........#',
-'#............................#',
-'####.####.####.####.####.##.##',
-'#.........#........#.........#',
-'#.........#........#.........#',
-'T....P....#...P....#...P.....T',
-'#....E....#...E....#...E.....#',
-'#.C....D..#..H..D..#....C....#',
-'#.........#........#........>#',
-'##############################',
-],
-};
-return {BP05};
-})();
-const {BP05} = __m_dungeon_bp05;
-const __m_dungeon_bp06 = (() => {
-const BP06 = {
-name: 'کتابخانه‌ی ستون‌دار',
-rows: [
-'##############T###############',
-'#............................#',
-'#.S........C.................#',
-'#...P...P...P...P...P...P..C.#',
-'#............................#',
-'#.....E.......D...E..........#',
-'T............................T',
-'#...P...P...P...P...P...P....#',
-'#............................#',
-'#.D...........E............D.#',
-'#............................#',
-'#...P...P...P...P...P...P....#',
-'#............................#',
-'T.........E...D.......E......T',
-'#............................#',
-'#...P...P...P...P...P...P....#',
-'#.C..........................#',
-'#.................C........>.#',
-'#.............H..............#',
-'##############T###############',
-],
-};
-return {BP06};
-})();
-const {BP06} = __m_dungeon_bp06;
-const __m_dungeon_bp07 = (() => {
-const BP07 = {
-name: 'غار ریشه‌ها',
-rows: [
-'##############################',
-'#############........#########',
-'###S......###..CE....#########',
-'###...E...###........#.....###',
-'###.D....................C.###',
-'###..............###....EP.###',
-'###.......####...#####.....###',
-'########..T###...####T.....###',
-'########...###.............###',
-'######......####...P......####',
-'######WW....####WWW.......####',
-'######WWE.......WWWE......####',
-'#####P....................####',
-'######......####..........####',
-'########.T.######..#T###....##',
-'###........#.......#####....##',
-'###..C.....#.HE.........D...##',
-'###........#.......#####..>.##',
-'###........###################',
-'##############################',
-],
-};
-return {BP07};
-})();
-const {BP07} = __m_dungeon_bp07;
-const __m_dungeon_bp08 = (() => {
-const BP08 = {
-name: 'کارگاه گدازه',
-rows: [
-'##############################',
-'#............................#',
-'#.S...........D............C.#',
-'#.......P.....E......P.......#',
-'#....E..................E....#',
-'#...........T####T...........#',
-'#...........######...........#',
-'#.........P.######.P.........#',
-'#...........######...........#',
-'T.C.WWWW....######....WWWW.H.T',
-'#...WWWW....######....WWWW...#',
-'#.........P.######.P.........#',
-'#............................#',
-'#............................#',
-'#....E..................E....#',
-'#.........P..WWWW..P.........#',
-'#.......D....WWWW....D.......#',
-'#.C........................>.#',
-'#............................#',
-'##############################',
-],
-};
-return {BP08};
-})();
-const {BP08} = __m_dungeon_bp08;
-const __m_dungeon_bp09 = (() => {
-const BP09 = {
-name: 'سرداب',
-rows: [
-'##############################',
-'#....#....#....#....#....#...#',
-'#..C.#....#..C.#....#..C.#D..#',
-'#.P..#.P..#.P..#.P..#.P..#P..#',
-'#....#....#....#....#....#...#',
-'#....#....#....#....#....#...#',
-'#..E.#....#....#....#..E.#...#',
-'#....#....#....#....#....#...#',
-'##.##T#.####.##T#.####.##T#.##',
-'#S............E..............#',
-'#...................E........#',
-'####.####.T###.####.T###.#.###',
-'#....#....#....#....#....#...#',
-'#....#..E.#....#..E.#....#...#',
-'#....#....#....#....#....#...#',
-'#.P..#.P..#.P..#.P..#.P..#P..#',
-'#....#....#....#....#....#...#',
-'#..C.#H...#..C.#..D.#..D.#.>.#',
-'#....#....#....#....#....#...#',
-'##############################',
-],
-};
-return {BP09};
-})();
-const {BP09} = __m_dungeon_bp09;
-const __m_dungeon_bp10 = (() => {
-const BP10 = {
-name: 'زندان',
-rows: [
-'##############################',
-'T....#....#....#....#....#...T',
-'#.D..#..P.#....#.C..#..D.#.P.#',
-'#....#....#....#....#....#...#',
-'#.P..#....#.H..#....#..E.#...#',
-'#....#....#....#....#....#...#',
-'#.D..#..C.#....#....#..P.#...#',
-'#....#....#....#....#....#...#',
-'#..###..###..###..###..###...#',
-'TS..........................E#',
-'#P..........................>T',
-'#..###..###..###..###..###...#',
-'#....#....#....#....#....#...#',
-'#.P..#..D.#....#.H..#....#.C.#',
-'#....#....#.E..#....#..D.#...#',
-'#.C..#....#....#..P.#....#...#',
-'#....#..P.#....#....#.E..#...#',
-'#.D..#....#....#....#....#...#',
-'T....#....#....#....#....#...T',
-'##############################',
-],
-};
-return {BP10};
-})();
-const {BP10} = __m_dungeon_bp10;
-const __m_dungeon_bp11 = (() => {
-const BP11 = {
-name: 'هشت‌ضلعی',
-rows: [
-'##############################',
-'TS...........................#',
-'#..D.....................C...#',
-'#............................#',
-'############..################',
-'T......#.P..........P.#......T',
-'#......#..............#......#',
-'#......#....RRRRRR....#......#',
-'#......#....RRRRRR....#......#',
-'#............EEEE............#',
-'#............E..E............#',
-'#......#....RRRRRR....#......#',
-'#......#....RRRRRR....#......#',
-'#......#.P.......D..P.#......#',
-'#......#......H.......#......#',
-'############..################',
-'#..........................C.#',
-'#...P................D......>#',
-'#..D.....................P...T',
-'##############################',
-],
-};
-return {BP11};
-})();
-const {BP11} = __m_dungeon_bp11;
-const __m_dungeon_bp12 = (() => {
-const BP12 = {
-name: 'مقبره‌ی پادشاهان',
-rows: [
-'##############################',
-'TS...........................#',
-'#.....#...........#....C.....#',
-'#.....#...........#..........#',
-'#............................#',
-'T.....########..########.....#',
-'#.....#....RRRRRRRR....#.....#',
-'#.....#.C..RRRRRRRR..D.#.....#',
-'#.....#....RPPRRPPR....#.....#',
-'#..........RREEEERR..........#',
-'#..........RRRRHRRR..........#',
-'#.....#....RPPRRPPR....#.....#',
-'#.....#.D..RRRRRRRR..C.#.....#',
-'#.....#....RRRRRRRR....#.....#',
-'T.....########..########.....T',
-'#............................#',
-'#...P........D...........E..>#',
-'#............................#',
-'#.....P................D.....T',
-'##############################',
-],
-};
-return {BP12};
-})();
-const {BP12} = __m_dungeon_bp12;
-const __m_dungeon_bp13 = (() => {
-const BP13 = {
-name: 'باغ ایرانی',
-rows: [
-'##############################',
-'TS............WW.............#',
-'#.....D......WW..........D...#',
-'#....P........WW.........P...#',
-'#............................#',
-'#....E...............E.......#',
-'#....P.......WW........P.....#',
-'#.............WW.............#',
-'TWWWWWWWWWWW......WWWWWWWWWWWT',
-'#WWWWW..WWWW..H...WWW..WWWWWW#',
-'#WWWWW..WWWW......WWW..WWWWWW#',
-'#WWWWWWWWWWW......WWWWWWWWWWW#',
-'#........E....WW..........E..#',
-'#............................#',
-'#............................#',
-'#....C.......WW........C.....#',
-'#.............WW............>#',
-'#.....D......WW..........D...#',
-'T.............WW.............T',
-'##############################',
-],
-};
-return {BP13};
-})();
-const {BP13} = __m_dungeon_bp13;
-const __m_dungeon_bp14 = (() => {
-const BP14 = {
-name: 'پل معلق',
-rows: [
-'##############################',
-'TS.........................D.#',
-'#..........................C.#',
-'T....WWWWWWWWWWWWWWWWWWWW....#',
-'#....WWWWWWWWWWWWWWWWWWWW....#',
-'#....WWWWWWWWWWWWWWWWWWWW....#',
-'#....WWWW..H..WWW.....WWW....#',
-'#....WWWW.PP..WWW..C..WWW....#',
-'#....WWWW.....WWW.....WWW....#',
-'#............................#',
-'#............................#',
-'#....WWWW..D..WWW..P..WWW....#',
-'#....WWWW.....WWW.E...WWW....#',
-'#....WWWWWWWWWWWWWWWWWWWW....T',
-'#....WWWWWWWWWWWWWWWWWWWW....#',
-'T....WWWWWWWWWWWWWWWWWWWW....#',
-'#....WWWWWWWWWWWWWWWWWWWW....#',
-'#....E..................D....#',
-'#....D................E.....>#',
-'##############################',
-],
-};
-return {BP14};
-})();
-const {BP14} = __m_dungeon_bp14;
-const __m_dungeon_bp15 = (() => {
-const BP15 = {
-name: 'میدان تیر',
-rows: [
-'##############################',
-'TS...........................#',
-'#...........P....P...........#',
-'#...D........................#',
-'T#########################...#',
-'#.........................C..#',
-'#..P.........E.........P.....#',
-'#............................#',
-'#...##########################',
-'#............................#',
-'#...P......E.......E.....P...#',
-'#.........D..................#',
-'##########################...T',
-'#.....D...................C..#',
-'#.H..P...............P.......#',
-'#............................#',
-'#...##########################',
-'#....................E.......#',
-'#........................>...T',
-'##############################',
-],
-};
-return {BP15};
-})();
-const {BP15} = __m_dungeon_bp15;
-const __m_dungeon_bp16 = (() => {
-const BP16 = {
-name: 'کاروان‌سرا',
-rows: [
-'##############################',
-'TS...........................#',
-'#...C......................D.#',
-'#............................#',
-'T.....##################.....#',
-'#.....#................#.....#',
-'#.....#..P..........P..#.....#',
-'#.....#.......E........#.....#',
-'#.....#.....WWWWWW.....#.....#',
-'#...........WWWWWW...........#',
-'#...........WWWWWW...........#',
-'#.....#.....WWWWWW.....#.....#',
-'#.....#.C....E.......H.#.....#',
-'#.....#.......PP.......#.....#',
-'#.....#................#.....#',
-'T.....########..########.....T',
-'#...D........................#',
-'#..........E..............C..#',
-'#..........................>.T',
-'##############################',
-],
-};
-return {BP16};
-})();
-const {BP16} = __m_dungeon_bp16;
-const __m_dungeon_bp17 = (() => {
-const BP17 = {
-name: 'تار',
-rows: [
-'##############################',
-'TS...........................#',
-'#...D.........P..P...........#',
-'#............................#',
-'T.......######..######.......#',
-'#.......#C..........C#.......#',
-'#.......#............#.......#',
-'#..........###..##...........#',
-'#.......#...#E..E#...#.......#',
-'#............E..E............#',
-'#............E...............#',
-'#.......#...#E..E#...#.......#',
-'#..........###..##...........#',
-'#.......#............#.......#',
-'#H......#C..........C#.......#',
-'T.......######..######.......T',
-'#............................#',
-'#...P..P.......D.............#',
-'#.........................>..T',
-'##############################',
-],
-};
-return {BP17};
-})();
-const {BP17} = __m_dungeon_bp17;
-const __m_dungeon_bp18 = (() => {
-const BP18 = {
-name: 'آتشکده',
-rows: [
-'##############################',
-'#............H.............>.T',
-'#.........T..RRRR..#.........#',
-'#.........#..RRRR..#P........#',
-'#.........#..RRRR..#.........#',
-'#............RRRR............#',
-'#............RRRR............#',
-'#.........#.ERRRRE.#.........#',
-'#.........#..RRRR............#',
-'#.........#..RRRR............#',
-'#.........#.ERRRRE.#.........#',
-'#.........T..RRRR..#.......P.#',
-'#............RRRR............#',
-'#............RRRR............#',
-'#.........#.CRRRRC.#.........#',
-'#.........#..RRRR............#',
-'#....D....T..RRRR..#....P....#',
-'#S........#..RRRR..#.........#',
-'#............D...............#',
-'##############################',
-],
-};
-return {BP18};
-})();
-const {BP18} = __m_dungeon_bp18;
-const __m_dungeon_bp19 = (() => {
-const BP19 = {
-name: 'یخچال',
-rows: [
-'##############################',
-'T.........WWWW......WWW......#',
-'#......WWWWWWW...D...WWWWW...#',
-'#....WWWWWWWWW..WW...WWWW....#',
-'#...WWW...WWWW......WW....P..#',
-'#..WW........WW.........C....#',
-'#S...WW......WWW....WW.......T',
-'#.....WW............E........#',
-'#.......WW..........WW.......#',
-'#....WWW........P...WWW......#',
-'#...WWWW......H..WWWW........#',
-'#..WWW...........E....WWW....#',
-'#....WW..............WW......#',
-'#......WWW........C..WWWW....#',
-'#........WW............WW....#',
-'#...P....WWWW.......D........#',
-'T.........WWW....WWW.........#',
-'#....D.......WWWW........E...#',
-'#....P......................>T',
-'##############################',
-],
-};
-return {BP19};
-})();
-const {BP19} = __m_dungeon_bp19;
-const __m_dungeon_bp20 = (() => {
-const BP20 = {
-name: 'خزانه',
-rows: [
-'##############################',
-'TS........................H..#',
-'#............................#',
-'#.....D................D.....#',
-'T####..#######################',
-'#C..P.........##P..C.........#',
-'#............E##...........E.#',
-'#............................#',
-'#............................#',
-'#............................#',
-'#####..#######################',
-'#............P##...........C.#',
-'#C...........E##E.........P..#',
-'#............................#',
-'#............................#',
-'#....D........##.......D.....#',
-'#............P##.............#',
-'#.............##.............#',
-'#............>...............T',
-'##############################',
-],
-};
-return {BP20};
-})();
-const {BP20} = __m_dungeon_bp20;
-const __m_dungeon_bp21 = (() => {
-const BP21 = {
-name: 'آزمایشگاه',
-rows: [
-'##############################',
-'TS...........................#',
-'#..D.....................D...#',
-'#............................#',
-'T...PPPPPP....WW....PPPPPP...#',
-'#............................#',
-'#............................#',
-'#............................#',
-'T...PPPPPP....WW....PPPPPP...T',
-'#............H..E............#',
-'#.........D..................#',
-'#............................#',
-'#............................#',
-'#............................#',
-'#...PPPPPP....WW....PPPPPP...#',
-'#....E.......................#',
-'#...C..WW................C...#',
-'#......E.....................#',
-'#........................>...T',
-'##############################',
-],
-};
-return {BP21};
-})();
-const {BP21} = __m_dungeon_bp21;
-const __m_dungeon_bp_boss = (() => {
-const BP_BOSS = {
-name: 'تالار تخت',
-rows: [
-'##############################',
-'#S..#........RRRR........#...#',
-'#...#........RRRR........#...#',
-'#.C.#........RRRR........#.C.#',
-'#...#.P......RRRR......P.#...#',
-'#...#........RRRR........#...#',
-'#...#........RRRR........#...#',
-'#............RERR............#',
-'#.....P......RRRR......P.....#',
-'T............RRRR............T',
-'#...#.....E..RRRR..E.....#...#',
-'#...#........RRRR........#...#',
-'#.C.#.P......RERR......P.#.C.#',
-'#...#........RRRR........#...#',
-'#...#........RRRR........#...#',
-'#...#.P....RRRRRRRR....P.#...#',
-'#...#...E..RRRBRRRR..E...#...#',
-'#...#......RT####TR......#...#',
-'#...#......R######R......#.>.#',
-'##############################',
-],
-};
-return {BP_BOSS};
-})();
-const {BP_BOSS} = __m_dungeon_bp_boss;
-const __m_dungeon_blueprints = (() => {
-const BLUEPRINTS = [
-BP01,
-BP02,
-BP03,
-BP04,
-BP05,
-BP06,
-BP07,
-BP08,
-BP09,
-BP10,
-BP11,
-BP12,
-BP13,
-BP14,
-BP15,
-BP16,
-BP17,
-BP18,
-BP19,
-BP20,
-BP21,
-];
-const BOSS_BLUEPRINT = BP_BOSS;
-function validateBlueprints() {
-const errs = [];
-const all = [...BLUEPRINTS, BOSS_BLUEPRINT];
-for (const bp of all) {
-if (bp.rows.length !== 20) errs.push(bp.name + ': ' + bp.rows.length + ' سطر');
-bp.rows.forEach((row, y) => {
-if (row.length !== 30) errs.push(bp.name + ' سطر ' + y + ': ' + row.length + ' کاراکتر');
-if (/[^#.S>CHTPWDREB]/.test(row)) errs.push(bp.name + ' سطر ' + y + ': کاراکتر مجهول');
-});
-const s = bp.rows.join('').split('S').length - 1, g = bp.rows.join('').split('>').length - 1;
-if (s !== 1) errs.push(bp.name + ': S=' + s);
-if (g !== 1) errs.push(bp.name + ': >=' + g);
-}
-return errs;
-}
-return {BLUEPRINTS, BOSS_BLUEPRINT, validateBlueprints};
-})();
-const {BLUEPRINTS, BOSS_BLUEPRINT, validateBlueprints} = __m_dungeon_blueprints;
 const __m_dungeon = (() => {
 const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
 function mulberry32(a) {
@@ -9835,115 +9477,71 @@ t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;
 return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
 };
 }
-const POOL = [
-{ kinds: ['slime', 'bat'], from: 1 }, { kinds: ['spider'], from: 2 }, { kinds: ['skeleton'], from: 3 },
-{ kinds: ['wolf'], from: 4 }, { kinds: ['ghost'], from: 6 }, { kinds: ['golem'], from: 8 },
-];
-const floor10 = (f) => f % 10 === 0;
+const floor10 = (f) => isBossFloor(f); // ن۱۳۹: باس هر ۵ طبقه (نامِ قدیمی برای سازگاری)
 class Dungeon {
 constructor(seed, floor) {
-this.seed = seed; this.floor = floor;
-this.cols = COLS; this.rows = ROWS;
+this.seed = seed; this.floor = floor; this.big = true;
 this.rng = mulberry32(seed * 7919 + floor * 104729);
-this.grid = [];
-for (let y = 0; y < ROWS; y++) for (let x = 0; x < COLS; x++) this.grid.push({ x, y, kind: 'wall', v: 0 });
-this.enemies = []; this.chests = []; this.drops = []; this.torches = [];
-this.shrine = null; // محراب باستانی (برکت انتخابی) — از طبقه ۲
-this._gen();
+this.spec = specFor(floor); this.tier = tierOf(floor);
+const g = generate(this.spec, floor * 92821 + 17);
+this.cols = g.cols; this.rows = g.rows; this.gen = g;
+this.rooms = g.rooms; this.roomMap = g.room;
+this.theme = this.tier.theme;
+this.grid = new Array(g.cols * g.rows);
+const R = this.rng, wv = () => { const u = R(); return u < 0.41 ? 0 : u < 0.82 ? 1 : u < 0.92 ? 2 : 3; };
+for (let y = 0; y < g.rows; y++) for (let x = 0; x < g.cols; x++) {
+const k = g.kind[y * g.cols + x];
+this.grid[y * g.cols + x] = { x, y, kind: k === K_FLOOR ? 'dfloor' : k === K_WATER ? 'water' : k === K_PILLAR ? 'pillar' : 'wall', v: k === K_FLOOR ? Math.floor(R() * 3) : k === K_PILLAR ? (R() < 0.35 ? 1 : 0) : wv() };
 }
-cell(x, y) { return (x < 0 || y < 0 || x >= COLS || y >= ROWS) ? null : this.grid[y * COLS + x]; }
+this.enemies = []; this.chests = []; this.drops = [];
+this.torches = g.torches; this.spawn = g.spawn; this.stairs = g.stairs;
+this.cell(g.stairs.x, g.stairs.y).kind = 'stairs';
+for (const c of g.chests) this.chests.push({ x: c.x, y: c.y, open: false });
+this.shrine = g.shrine && floor >= 2 ? { x: g.shrine.x * TILE + 8, y: g.shrine.y * TILE + 8, used: false } : null;
+for (const d of g.decor) { const c = this.cell(d.x, d.y); if (c.kind === 'dfloor') { c.kind = 'decor'; c.v = d.v; } }
+this.seen = new Set(); this.vis = new Uint8Array(g.cols * g.rows); this.visVer = 0;
+this._spawnAll();
+this.reveal(g.startId);
+}
+cell(x, y) { return (x < 0 || y < 0 || x >= this.cols || y >= this.rows) ? null : this.grid[y * this.cols + x]; }
 walkable(x, y) { const c = this.cell(x, y); return !!c && (c.kind === 'dfloor' || c.kind === 'stairs' || c.kind === 'decor'); }
-_gen() {
-const R = this.rng;
-this.theme = Math.floor((this.floor - 1) / 5) % 6; // S3.10: ۶ تم — سنگ→خزه→گدازه→یخ→**باتلاق**→**معدن**
-const bp = floor10(this.floor) ? BOSS_BLUEPRINT : BLUEPRINTS[Math.floor(R() * BLUEPRINTS.length)];
-const flip = R() < 0.5; // قرینه‌ی افقی برای تنوع — اتصال حفظ می‌شود
-const FX = (x) => (flip ? this.cols - 1 - x : x);
-const chestC = [], shrineC = [], decorC = [], enemyC = [];
-let bossSpot = null;
-for (let y = 0; y < ROWS; y++) for (let x = 0; x < COLS; x++) {
-const ch = bp.rows[y][x], xx = FX(x);
-const c = this.cell(xx, y);
-const wv = () => { const u = R(); return u < 0.41 ? 0 : u < 0.82 ? 1 : u < 0.92 ? 2 : 3; };
-if (ch === '#') { c.kind = 'wall'; c.v = wv(); }
-else if (ch === 'T') { c.kind = 'wall'; c.v = wv(); this.torches.push({ x: xx, y }); }
-else if (ch === 'P') { c.kind = 'pillar'; c.v = R() < 0.35 ? 1 : 0; }
-else if (ch === 'W') { c.kind = 'water'; c.v = 0; }
-else if (ch === 'R') { c.kind = 'decor'; c.v = 5; } // فرش تالار تخت
-else if (ch === 'S') { c.kind = 'dfloor'; c.v = Math.floor(R() * 3); this.spawn = { x: xx, y }; }
-else if (ch === '>') { c.kind = 'stairs'; c.v = 0; this.stairs = { x: xx, y }; }
-else {
-c.kind = 'dfloor'; c.v = Math.floor(R() * 3);
-if (ch === 'C') chestC.push({ x: xx, y });
-else if (ch === 'H') shrineC.push({ x: xx, y });
-else if (ch === 'D') decorC.push({ x: xx, y });
-else if (ch === 'E') enemyC.push({ x: xx, y });
-else if (ch === 'B') bossSpot = { x: xx, y };
+roomAt(x, y) { return (x < 0 || y < 0 || x >= this.cols || y >= this.rows) ? -1 : this.roomMap[y * this.cols + x]; }
+reveal(id) {
+if (id < 0 || this.seen.has(id)) return false;
+this.seen.add(id);
+const W = this.cols, H = this.rows, V = this.vis, M = this.roomMap, q = [];
+for (let k = 0; k < W * H; k++) if (M[k] === id) { V[k] = 1; q.push(k, 0); }
+for (const L of this.gen.lt) if (this.seen.has(L.i) && this.seen.has(L.j)) for (const k of L.t) V[k] = 1;
+for (let h = 0; h < q.length; h += 2) { const k = q[h], d = q[h + 1]; if (d >= 2) continue;
+for (const n of [k - 1, k + 1, k - W, k + W]) if (n >= 0 && n < W * H && M[n] === -2 && !V[n]) { V[n] = 2; q.push(n, d + 1); } }
+this.visVer++;
+return true;
+}
+visible(x, y) {
+if (x < 0 || y < 0 || x >= this.cols || y >= this.rows) return false;
+const W = this.cols; if (this.vis[y * W + x]) return true;
+if (this.roomMap[y * W + x] !== -1) return false;
+for (let dy = -1; dy <= 2; dy++) for (let dx = -1; dx <= 1; dx++) { const X = x + dx, Y = y + dy; if (X >= 0 && Y >= 0 && X < W && Y < this.rows && this.vis[Y * W + X]) return true; }
+return false;
+}
+_spawnAll() {
+const g = this.gen, f = this.floor, T = this.tier, R = this.rng, fi = floorInTier(f);
+const hpMul = 1 + 0.13 * (f - 1), dmgMul = 1 + 0.075 * (f - 1);
+const norm = (k) => ({ hp: Math.pow(20 / MSTATS[k].hp, 0.6), dmg: Math.pow(4 / MSTATS[k].dmg, 0.6) }); // هم‌ترازیِ خانواده‌ها ⇒ قدرت را طبقه تعیین می‌کند، نه نوع
+for (const grp of g.groups) {
+for (const sp of grp.spots) {
+const kind = T.mobs[Math.floor(R() * T.mobs.length)], n = norm(kind);
+const elite = f >= 3 && R() < 0.06 + 0.02 * fi;
+const m = new Monster(kind, sp.x * TILE + 8, sp.y * TILE + 8, 1, { hpMul: hpMul * n.hp, dmgMul: dmgMul * n.dmg, elite });
+m.room = grp.room; this.enemies.push(m);
 }
 }
-const nChests = Math.min(chestC.length, 2 + (R() < 0.5 ? 1 : 0) + (this.floor >= 4 ? 1 : 0));
-for (let i = chestC.length - 1; i > 0; i--) { const j = Math.floor(R() * (i + 1)); [chestC[i], chestC[j]] = [chestC[j], chestC[i]]; }
-for (let i = 0; i < nChests; i++) this.chests.push({ x: chestC[i].x, y: chestC[i].y, open: false });
-if (this.floor >= 2 && shrineC.length && R() < 0.6) {
-const sh = shrineC[Math.floor(R() * shrineC.length)];
-this.shrine = { x: sh.x * TILE + 8, y: sh.y * TILE + 8, used: false };
+if (g.bossAt) { // باسِ مخصوصِ خانواده‌ی همین فصل (طبقه‌ی ۱۰۰: اهریمنِ نهایی)
+const final = T.final && f >= 100, kind = final ? 'boss' : T.mobs[0], n = final ? { hp: 1, dmg: 1 } : norm(kind);
+const b = new Monster(kind, g.bossAt.x * TILE + 8, g.bossAt.y * TILE + 8, 1 + (final ? 1 : 0), { hpMul: hpMul * n.hp * (final ? 1 : 11), dmgMul: dmgMul * n.dmg * (final ? 1 : 1.9), lord: !final });
+b.room = g.endId; this.enemies.push(b);
+for (let i = 0; i < 2; i++) { const k = T.mobs[i % T.mobs.length], nn = norm(k); const e = new Monster(k, g.bossAt.x * TILE + 8 + (i ? 30 : -30), g.bossAt.y * TILE + 20, 1, { hpMul: hpMul * nn.hp, dmgMul: dmgMul * nn.dmg }); e.room = g.endId; this.enemies.push(e); }
 }
-const DV = [0, 0, 0, 1, 1, 2, 2, 3, 4];
-for (const d of decorC) if (R() < 0.55) { const c = this.cell(d.x, d.y); c.kind = 'decor'; c.v = DV[Math.floor(R() * 9)]; }
-for (const c of this.grid) if (c.kind === 'dfloor' && R() < 0.06) { c.kind = 'decor'; c.v = DV[Math.floor(R() * 9)]; }
-const hpMul = 1 + 0.13 * (this.floor - 1), dmgMul = 1 + 0.075 * (this.floor - 1);
-if (floor10(this.floor)) {
-const b = bossSpot || this.stairs;
-this.enemies.push(new Monster('boss', b.x * TILE + 8, b.y * TILE + 8, 1 + Math.floor(this.floor / 20), { hpMul, dmgMul }));
-for (const k of ['slime', 'slime', 'bat']) {
-const spot = enemyC.length ? enemyC[Math.floor(R() * enemyC.length)] : this.spawn;
-this._spawnMobAt(k, spot.x, spot.y, hpMul, dmgMul);
-}
-} else {
-const n = 4 + Math.floor(this.floor * 1.3);
-const pool = POOL.filter((p) => p.from <= this.floor).flatMap((p) => p.kinds);
-const spots = enemyC.slice();
-for (let y = 0; y < ROWS; y++) for (let x = 0; x < COLS; x++) {
-const c = this.cell(x, y);
-if (c.kind === 'dfloor' && Math.abs(x - this.spawn.x) + Math.abs(y - this.spawn.y) >= 8) spots.push({ x, y });
-}
-for (let i = 0; i < n && spots.length; i++) {
-const sp = spots[Math.floor(R() * spots.length)];
-this._spawnMobAt(pool[Math.floor(R() * pool.length)], sp.x, sp.y, hpMul, dmgMul);
-}
-const tags = MOB_TAGS[bp.name] || [];
-const nsig = 1 + (this.floor >= 5 ? 1 : 0) + (this.floor >= 12 ? 1 : 0);
-for (const k of tags) for (let i = 0; i < nsig && spots.length; i++) {
-const sp = spots[Math.floor(R() * spots.length)];
-this._spawnMobAt(k, sp.x, sp.y, hpMul, dmgMul);
-}
-}
-this._reachFix();
-}
-_reachFix() {
-const seen = new Uint8Array(COLS * ROWS), q = [this.spawn.y * COLS + this.spawn.x], ok = [];
-seen[q[0]] = 1;
-while (q.length) {
-const i = q.pop(), x = i % COLS, y = (i / COLS) | 0;
-if (this.grid[i].kind === 'dfloor') ok.push(i);
-for (const [dx, dy] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) { const X = x + dx, Y = y + dy; if (this.walkable(X, Y) && !seen[Y * COLS + X]) { seen[Y * COLS + X] = 1; q.push(Y * COLS + X); } }
-}
-ok.sort((a, b) => a - b);
-for (const e of this.enemies) {
-const ex = Math.floor(e.x / TILE), ey = Math.floor(e.y / TILE);
-if (e.isBoss || seen[ey * COLS + ex]) continue;
-let best = -1, bd = 1e9;
-for (const i of ok) { const d = Math.abs(i % COLS - ex) + Math.abs(((i / COLS) | 0) - ey); if (d < bd) { bd = d; best = i; } }
-if (best >= 0) { e.x = (best % COLS) * TILE + 8; e.y = ((best / COLS) | 0) * TILE + 8; }
-}
-}
-_spawnMobAt(kind, tx, ty, hpMul = 1, dmgMul = 1) {
-const elite = this.floor >= 3 && this.rng() < 0.15;
-const m = { hpMul, dmgMul, elite };
-let x = tx, y = ty;
-for (let tries = 0; tries < 8 && !this.walkable(x, y); tries++) { x = tx + Math.floor(this.rng() * 5) - 2; y = ty + Math.floor(this.rng() * 5) - 2; }
-if (!this.walkable(x, y)) { x = this.spawn.x; y = this.spawn.y; }
-this.enemies.push(new Monster(kind, x * TILE + 8, y * TILE + 8, 1, m));
 }
 }
 return {clamp, floor10, Dungeon};
@@ -9969,16 +9567,17 @@ let n = e.isBoss ? Math.round(25 * mul) : Math.max(1, Math.round((1 + Math.rando
 if (e.isElite) { n = Math.round(n * 2.2) + 2; D.drops.push({ x: e.x, y: e.y - 4, kind: 'heart', t: 0 }); } // نخبه: غنیمت×۲٫۲ + قلب تضمینی
 for (let j = 0; j < n; j++) D.drops.push({ x: e.x + (Math.random() - 0.5) * 12, y: e.y + (Math.random() - 0.5) * 12, kind: Math.random() < 0.1 ? 'heart' : 'essence', t: Math.random() * 6 });
 if (e.isBoss) run._bossKills = (run._bossKills || 0) + 1; // RPG: XP باس
-const seedN = (e.isBoss ? 2 : 1) + (Math.random() < (run.seedP || 0) ? 1 : 0); // RPG: بذریابی
+const pw = powerOf(run.floor, e.isElite, e.isBoss); // ن۱۳۹: دراپ بر اساسِ قدرتِ هیولا — ممکن است هیچ نیندازد (فقط EXP)
+let seedN = seedCount(pw, e.isElite, e.isBoss); if (seedN && Math.random() < (run.seedP || 0)) seedN++; // RPG: بذریابی
 for (let j = 0; j < seedN; j++) {
-const st = rollSeedDrop(run.floor, e.isElite, e.isBoss);
+const st = rollSeed(pw);
 if (st) D.drops.push({ x: e.x + (Math.random() - 0.5) * 14, y: e.y + (Math.random() - 0.5) * 14, kind: 'seed', ty: st, t: Math.random() * 6 });
 }
 let cn = rollCoinDrop(run.floor, e.isElite, e.isBoss);
 if (e.kind === 'mummy') cn += 3 + Math.floor(run.floor / 3); // ن۴۴: مومیایی سکه‌دار مقبره
 if (e.stole) cn += e.stole; // ن۴۴: دزد — سکه‌های دزدی‌شده پس داده می‌شود
 if (cn > 0) D.drops.push({ x: e.x + (Math.random() - 0.5) * 10, y: e.y + (Math.random() - 0.5) * 10, kind: 'coin', n: cn, t: Math.random() * 6 });
-const it = rollItemDrop(run.floor, e.isElite, e.isBoss);
+const it = rollItem(pw, e.isElite, e.isBoss);
 if (it) D.drops.push({ x: e.x, y: e.y - 6, kind: 'item', id: it, t: 0 });
 if (e.isBoss) run.log.push({ k: 'bossDown' });
 }
@@ -10166,7 +9765,7 @@ this.loadFloor(1);
 loadFloor(f) {
 if (f > 1 && this.onSfx) this.onSfx('floor'); // موج پایین‌روی طبقه‌ی جدید
 this._floorCache = null; // رندر ایستای طبقه‌ی جدید در فریم بعد
-this._splash = { t0: this.time, n: f, boss: f % 10 === 0 }; // ن۴۱: اسپلش نام طبقه (this.floor هنوز قدیمی است — از f)
+this._splash = { t0: this.time, n: f, boss: f % 5 === 0 }; // ن۴۱: اسپلش نام طبقه (this.floor هنوز قدیمی است — از f)
 const _after = () => { // پاف غبار ظهور برای هر هیولای جدید
 for (const e of this.dungeon.enemies) this.fx.burst(e.x, e.y - 8, [[150, 145, 165, 200], [90, 85, 105, 200]], 8, { sp: 30, up: 14, life: 0.5 });
 };
@@ -10272,8 +9871,11 @@ h.loco.update(dt, spd, vx, vy, run);
 runAttack(this, dt);
 runSkillSpin(this, dt);
 this._tgt.x = h.x; this._tgt.y = h.y - 10; // بازنویسی همان شیء — صفر تخصیص
+{ const rm = D.roomAt(Math.floor(h.x / TILE), Math.floor(h.y / TILE)); if (rm >= 0 && D.reveal(rm)) this.log.push({ k: 'room' }); } // ن۱۳۹: ورود به اتاق ⇒ کشف
 for (let i = D.enemies.length - 1; i >= 0; i--) {
 const e = D.enemies[i];
+if (e.room != null && !D.seen.has(e.room)) continue;
+if (!e.aggro) { const d2 = (e.x - h.x) ** 2 + (e.y - h.y) ** 2; if (d2 < (e.isBoss ? 170 : 125) ** 2 || e.hp < e.maxHp) e.aggro = true; else { e.time += dt; continue; } }
 e.update(dt, this._tgt, this._hooks);
 if (e.dead) { D.enemies.splice(i, 1); lootKill(this, e); } // غنیمت/کمبو/ذرات در run_loot.js
 }
@@ -10288,7 +9890,8 @@ const sc = D.stairs;
 const onStairs = Math.floor(h.x / TILE) === sc.x && Math.floor(h.y / TILE) === sc.y;
 if (this.stairsOpen() && onStairs && this.standT > 0.4) { this.loadFloor(this.floor + 1); this.standT = 0; return; }
 this.standT = onStairs ? (this.standT || 0) + dt : 0;
-const tx = clamp(h.x - this.view.w / 2, 0, WORLD_W - this.view.w), ty = clamp(h.y - this.view.h / 2, -52, WORLD_H - this.view.h); // S10.8: ۵۲px پشتِ HUD
+const DW = this.dungeon.cols * TILE, DH = this.dungeon.rows * TILE; // ن۱۳۹
+const tx = clamp(h.x - this.view.w / 2, 0, DW - this.view.w), ty = clamp(h.y - this.view.h / 2, -52, DH - this.view.h); // S10.8: ۵۲px پشتِ HUD
 const k = 1 - Math.exp(-9 * dt);
 this.cam.x += (tx - this.cam.x) * k; this.cam.y += (ty - this.cam.y) * k;
 }
@@ -10507,6 +10110,7 @@ for (let k = 0; k < 3; k++) _STEPS.push((c, D) => passSeam(c, D, Math.floor(ROWS
 _STEPS.push(passStaticProps);
 const _COST = new Float32Array(_STEPS.length).fill(4);
 function bakeFloorStep(run, budgetMs = 8) {
+if (run.dungeon.big) return paintStep(run, budgetMs); // ن۱۳۹: طبقه‌ی بزرگ — سبکِ سه‌رخ (art/dungeon_paint)
 let j = run._bakeJob;
 if (!j || j.D !== run.dungeon) { // دو بومِ چرخشی (پینگ‌پنگ) ⇒ بدون تخصیصِ ۱MB در هر طبقه (فشارِ GC وسطِ تکه‌ها)
 const pool = run._bakePool || (run._bakePool = [new Raster(WORLD_W, WORLD_H), new Raster(WORLD_W, WORLD_H)]);
@@ -10523,6 +10127,16 @@ j.maxMs = Math.max(j.maxMs, c);
 } while (j.i < _STEPS.length && performance.now() - t0 + _COST[j.i] <= budgetMs);
 run._buildSlice = performance.now() - t0; run._buildSteps = i0 * 100 + j.i;               // برای soak: هزینه‌ی همین فریم
 if (j.i < _STEPS.length) return null;
+run._bakeJob = null;
+return j.cache;
+}
+function paintStep(run, budgetMs) {
+let j = run._bakeJob;
+if (!j || j.D !== run.dungeon) j = run._bakeJob = { D: run.dungeon, cache: newCache(run.dungeon), y: 0 };
+const t0 = performance.now(), D = j.D;
+do { const y1 = Math.min(D.rows, j.y + 6); paintRows(j.cache, D, j.y, y1); j.y = y1; } while (j.y < D.rows && performance.now() - t0 < budgetMs);
+run._buildSlice = performance.now() - t0;
+if (j.y < D.rows) return null;
 run._bakeJob = null;
 return j.cache;
 }
@@ -10581,24 +10195,29 @@ const _dcell = (x, y) => _dr.cell(x, y);
 function renderRun(run, r) {
 const D = run.dungeon, h = run.hero; _dr = D;
 const [shx, shy] = run.fx.offset(run.time);
-let cx = clamp(Math.round(run.cam.x) + shx, 0, WORLD_W - r.w);
-let cy = clamp(Math.round(run.cam.y) + shy, -52, WORLD_H - r.h);
-if (!run._floorCache || run._floorCache.w !== WORLD_W) { // S10.1: پختِ تکه‌تکه — تا آماده شود صفحه‌ی تیره (زیرِ فیدِ ورود)
+const DW = D.cols * TILE, DH = D.rows * TILE; // ن۱۳۹: ابعادِ طبقه متغیر است
+let cx = clamp(Math.round(run.cam.x) + shx, 0, DW - r.w);
+let cy = clamp(Math.round(run.cam.y) + shy, -52, DH - r.h);
+if (!run._floorCache || run._floorCache.w !== DW) { // S10.1: پختِ تکه‌تکه — تا آماده شود صفحه‌ی تیره (زیرِ فیدِ ورود)
 run._floorCache = bakeFloorStep(run, globalThis.__BAKE_BUDGET ?? (typeof requestAnimationFrame === 'function' ? 8 : Infinity)); // node/ابزارها: یک‌جا
 if (!run._floorCache) { r.d.fill(0); for (let i = 3; i < r.d.length; i += 4) r.d[i] = 255; return; }
 }
 blitRegion(r, run._floorCache, cx, cy, r.w, r.h);
 if (cy < 0) for (let i = 0; i < -cy * r.w; i++) { r.d[i * 4] = 8; r.d[i * 4 + 1] = 7; r.d[i * 4 + 2] = 14; r.d[i * 4 + 3] = 255; } // S10.8: نوارِ پشتِ HUD
 const dwf = [0, 1, 2, 1][Math.floor(run.time * 0.9) % 4]; // ن۳۷: سیکل آرام آب دانجن
-for (let ty = Math.max(0, Math.floor(cy / TILE)); ty <= Math.min(ROWS - 1, Math.ceil((cy + r.h) / TILE)); ty++)
-for (let tx = Math.floor(cx / TILE); tx <= Math.min(COLS - 1, Math.ceil((cx + r.w) / TILE)); tx++)
-if (D.cell(tx, ty).kind === 'water') drawWater(r, tx * TILE - cx, ty * TILE - cy, _dcell, tx, ty, dwf, dungeonShore(D.theme));
+for (let ty = Math.max(0, Math.floor(cy / TILE)); ty <= Math.min(D.rows - 1, Math.ceil((cy + r.h) / TILE)); ty++)
+for (let tx = Math.floor(cx / TILE); tx <= Math.min(D.cols - 1, Math.ceil((cx + r.w) / TILE)); tx++)
+if (D.cell(tx, ty).kind === 'water' && D.visible(tx, ty)) drawWater(r, tx * TILE - cx, ty * TILE - cy, _dcell, tx, ty, dwf, dungeonShore(D.theme));
 {
 const sc = D.stairs;
 const sx = sc.x * TILE - cx, sy = sc.y * TILE - cy;
 if (run.stairsOpen() && Math.floor(run.time * 1.5) % 2 === 0 && sx > -TILE && sy > -TILE && sx < r.w && sy < r.h) r.rect(sx + 6, sy + 6, 4, 4, E.gold);
 }
-drawTorches(r, D, cx, cy, run.time);
+const TV = run._tv || (run._tv = []); TV.length = 0;
+for (const t of TV) { const X = t.x * TILE - cx, Y = t.y * TILE - cy; if (X > -90 && Y > -90 && X < r.w + 90 && Y < r.h + 90 && D.visible(t.x, t.y + 1)) TV.push(t); }
+const DT = run._dtv || (run._dtv = { torches: null }); DT.torches = TV;
+if (Object.getPrototypeOf(DT) !== D) Object.setPrototypeOf(DT, D);
+drawTorches(r, DT, cx, cy, run.time);
 drawChests(r, D, cx, cy, run.time);
 drawShrines(r, D, cx, cy, run.time);
 const bossRef = D.enemies.find((e) => e.isBoss) || null; // یک find برای هاله + مینی‌مپ
@@ -10626,7 +10245,7 @@ drawTitleC(r, t('floor') + ' ' + faNum(run._splash.n) + (run._splash.boss ? ' �
 }
 }
 let ne = 0;
-for (const e of D.enemies) if (!e.dead) {
+for (const e of D.enemies) if (!e.dead && (e.room == null || D.seen.has(e.room))) { // ن۱۳۹: هیولای اتاقِ ندیده دیده نمی‌شود
 let wp = ENTS[ne];
 if (!wp) { wp = ENTS[ne] = { y: 0, e: null, hero: false }; }
 wp.y = e.y; wp.e = e; wp.hero = false; ne++;
@@ -10652,11 +10271,12 @@ else if (h.iframe > 0 && Math.floor(h.iframe * 24) % 2 === 0) r.rect(hx + 14, hy
 }
 else {
 const e = en.e, s = e.sprite();
-s.over(r, Math.round(e.x) - 64 - cx, Math.round(e.y) - (e.isBoss ? 112 : 100) - cy);
+if (e.lord) s.over(r, Math.round(e.x) - (s.w >> 1) - cx, Math.round(e.y) - 160 - cy); // ن۱۳۹: باسِ خانواده ×۱٫۶
+else s.over(r, Math.round(e.x) - 64 - cx, Math.round(e.y) - (e.isBoss ? 112 : 100) - cy);
 }
 }
 drawProjs(r, run.projs || [], cx, cy); // ن۴۴: تیرها و گوی‌های آتش
-if (!D._pillars) { const a = []; for (let y = 0; y < ROWS; y++) for (let x = 0; x < COLS; x++) { const c = D.cell(x, y); if (c && c.kind === 'pillar') a.push(x, y, c.v); } D._pillars = a; }
+if (!D._pillars) { const a = []; for (let y = 0; y < D.rows; y++) for (let x = 0; x < D.cols; x++) { const c = D.cell(x, y); if (c && c.kind === 'pillar') a.push(x, y, c.v); } D._pillars = a; }
 const PL = D._pillars;
 for (let k = 0; k < PL.length; k += 3) {
 const px = PL[k] * TILE - cx, py = PL[k + 1] * TILE - cy;
@@ -10687,7 +10307,7 @@ if (X < -rad || Y < -rad || X > r.w + rad || Y > r.h + rad) return; // بیرو�
 C.push(X, Y, Math.min(40, rad), st, cid);
 };
 if (COLOR_LIGHTS.on) {
-for (const t of D.torches) pushC(t.x * TILE + 8 - cx, t.y * TILE + TORCH_LIGHT.yOff - cy, TORCH_LIGHT.r, TORCH_COL_ST, 0); // شدتِ رنگِ ملایم‌تر از شدتِ روشنایی
+for (const t of TV) pushC(t.x * TILE + 8 - cx, t.y * TILE + TORCH_LIGHT.yOff - cy, TORCH_LIGHT.r, TORCH_COL_ST, 0); // شدتِ رنگِ ملایم‌تر از شدتِ روشنایی
 for (const d of D.drops) if (d.kind === 'essence') pushC(d.x - cx, d.y - cy, 14, 90, 1);
 if (D.shrine && !D.shrine.used) pushC(D.shrine.x - cx, D.shrine.y - cy, 16, 66, 3);
 for (const e of D.enemies) if (!e.dead && e.isBoss) pushC(e.x - cx, e.y - 40 - cy, 30, 92, 2); // برقِ گدازه‌ایِ باس
@@ -10696,7 +10316,7 @@ pushC(h.x - cx, h.y - 14 - cy, 22, 44, 4);           // هالهٔ گرمِ مل
 }
 glowBegin();
 if (GLOW.on) {
-for (const t2 of D.torches) glowAdd(t2.x * TILE + 8 - cx, t2.y * TILE + TORCH_LIGHT.yOff - cy, 0, 2, 96, 4); // مشعل
+for (const t2 of TV) glowAdd(t2.x * TILE + 8 - cx, t2.y * TILE + TORCH_LIGHT.yOff - cy, 0, 2, 96, 4); // مشعل
 for (const d2 of D.drops) if (d2.kind === 'essence') glowAdd(d2.x - cx, d2.y - cy, 1, 0, 74, 3);           // اسانس
 if (D.shrine && !D.shrine.used) glowAdd(D.shrine.x - cx, D.shrine.y - cy, 3, 1, 58 + (Math.sin(run.time * 2.4) > 0 ? 12 : 0), 3); // محراب
 glowAdd(D.stairs.x * TILE + 8 - cx, D.stairs.y * TILE + 8 - cy, 2, 0, 40, 2);                              // پله‌ی خروج
@@ -10707,14 +10327,15 @@ if (e2.isBoss) glowAdd(e2.x - cx, e2.y - 44 - cy, 4, 2, 58, 2);
 else if (EYE_GLOW[e2.kind]) glowAdd(e2.x - cx, e2.y - (MHEAD[e2.kind] ?? 76) - cy, EYE_GLOW[e2.kind], 0, 44, 1);
 }
 }
-setThemeGrade(GRADE.off ? -1 : D.theme);                     // S4.3: گریدینگِ رنگیِ تم (LUT یک‌بار در هر تغییرِ تم)
+setThemeGrade(GRADE.off || D.big ? -1 : D.theme); // ن۱۳۹: سبکِ سه‌رخ رنگِ خودش را دارد                     // S4.3: گریدینگِ رنگیِ تم (LUT یک‌بار در هر تغییرِ تم)
 applyDarkness(r, run._dark, L, C, cx, cy); // S4.2: دوربین برای دیترِ جهانی
 glowDraw(r);                               // S4.6: هاله‌ها روی تاریکی (افزودنی + clamp)
 for (const en of LIT) drawEnt(en);         // S9.2: موجوداتِ روشن روی تاریکی
 drawMotes(r, 'dungeon', D.theme, cx, cy, run.time, r.w, r.h); // S4.8: ذراتِ آرامِ تم (≤۶، ۱px)
+fogMask(r, D, cx, cy);                     // ن۱۳۹: مهِ جنگ — اتاق‌های ندیده سیاه
 run.fx.render(r, cx, cy);
 for (const e of D.enemies) {
-if (e.dead) continue;
+if (e.dead || (e.room != null && !D.seen.has(e.room))) continue;
 if (e.isElite) drawEliteMark(r, Math.round(e.x - cx), Math.round(e.y - cy), run.time, Math.round(e.y - cy) - (e.isBoss ? 118 : (MHEAD[e.kind] ?? 76)));
 if (e.hp < e.maxHp) {
 const bw = e.isBoss ? 40 : 18, top = Math.round(e.y - cy) - (e.isBoss ? 100 : 64);
@@ -10735,27 +10356,37 @@ r.ellipse(Math.round(h.x) - cx, Math.round(h.y) - 16 - cy, rr2, rr2 * 0.45, [150
 const r2 = Math.max(2, rr2 - 5);
 r.ellipse(Math.round(h.x) - cx, Math.round(h.y) - 16 - cy, r2, r2 * 0.45, [220, 245, 255, Math.round(al * 0.6)]);
 }
-const s = 1, my = 3;
+const MW = Math.ceil(D.cols / 2), MH = Math.ceil(D.rows / 2), my = 3;
 const hsx = Math.round(h.x) - cx, hsy = Math.round(h.y) - cy;
-const mx = (hsx < COLS + 30 && hsy < ROWS + 30) ? r.w - COLS - 8 : 3; // ن۴۹: قهرمانِ گوشه‌ی بالا-چپ زیر مینی‌مپ گم می‌شد → مینی‌مپ می‌پرد گوشه‌ی راست
-if (!run._mini || run._miniFloor !== run.floor) {
-const m = run._mini = new Raster(COLS, ROWS);
-for (let y = 0; y < ROWS; y++) for (let x = 0; x < COLS; x++) {
-const c = D.cell(x, y);
-if (c.kind === 'wall') continue;
-let col = MINI_FLOOR;
-if (c.kind === 'stairs') col = E.gold;
-else if (c.kind === 'pillar') col = MINI_PILLAR;
-else if (c.kind === 'decor' && c.v === 1) col = MINI_WATER;
-m.px(x, y, col);
+const mx = (hsx > r.w - MW - 30 && hsy < MH + 30) ? 3 : r.w - MW - 6;
+if (!run._mini || run._miniVer !== D.visVer || run._miniFloor !== run.floor) {
+const m = run._mini = new Raster(MW, MH);
+for (let y = 0; y < D.rows; y += 2) for (let x = 0; x < D.cols; x += 2) {
+let col = null;
+for (let k = 0; k < 4; k++) { const X = x + (k & 1), Y = y + (k >> 1), c = D.cell(X, Y); if (!c || c.kind === 'wall' || D.vis[Y * D.cols + X] !== 1) continue;
+col = c.kind === 'stairs' ? E.gold : c.kind === 'water' ? MINI_WATER : col || (D.roomAt(X, Y) === -2 ? MINI_PILLAR : MINI_FLOOR); }
+if (col) m.px(x >> 1, y >> 1, col);
 }
-run._miniFloor = run.floor;
+run._miniVer = D.visVer; run._miniFloor = run.floor;
 }
-r.rect(mx - 1, my - 1, COLS * s + 2, ROWS * s + 2, MINI_BG);
+r.rect(mx - 1, my - 1, MW + 2, MH + 2, MINI_BG);
 run._mini.over(r, mx, my);
 const hx = Math.floor(h.x / TILE), hy = Math.floor(h.y / TILE);
-if (Math.floor(run.time * 4) % 2 === 0) r.rect(mx + hx * s, my + hy * s, 2, 2, [255, 255, 255, 255]);
-if (bossRef) r.px(mx + Math.floor(bossRef.x / TILE) * s, my + Math.floor(bossRef.y / TILE) * s, BOSS_DOT);
+if (Math.floor(run.time * 4) % 2 === 0) r.rect(mx + (hx >> 1) - 1, my + (hy >> 1) - 1, 2, 2, [255, 255, 255, 255]);
+if (bossRef && D.seen.has(bossRef.room)) r.px(mx + (Math.floor(bossRef.x / TILE) >> 1), my + (Math.floor(bossRef.y / TILE) >> 1), BOSS_DOT);
+}
+function fogMask(r, D, cx, cy) {
+if (!D.big) return;
+const v = voidCol(D.theme | 0), W = r.w, H = r.h;
+const tx0 = Math.max(0, Math.floor(cx / TILE)), ty0 = Math.max(0, Math.floor(cy / TILE));
+const tx1 = Math.min(D.cols - 1, Math.floor((cx + W - 1) / TILE)), ty1 = Math.min(D.rows - 1, Math.floor((cy + H - 1) / TILE));
+for (let ty = ty0; ty <= ty1; ty++) for (let tx = tx0; tx <= tx1; tx++) {
+const vis = D.visible(tx, ty), half = vis && D.vis[ty * D.cols + tx] === 2;
+if (vis && !half) continue;
+const x0 = Math.max(0, tx * TILE - cx), y0 = Math.max(0, ty * TILE - cy), x1 = Math.min(W, tx * TILE + TILE - cx), y1 = Math.min(H, ty * TILE + TILE - cy);
+for (let y = y0; y < y1; y++) { let i = (y * W + x0) * 4;
+for (let x = x0; x < x1; x++, i += 4) { if (half) { r.d[i] = (r.d[i] + v[0]) >> 1; r.d[i + 1] = (r.d[i + 1] + v[1]) >> 1; r.d[i + 2] = (r.d[i + 2] + v[2]) >> 1; } else { r.d[i] = v[0]; r.d[i + 1] = v[1]; r.d[i + 2] = v[2]; } } }
+}
 }
 return {heroSprite, renderRun};
 })();
