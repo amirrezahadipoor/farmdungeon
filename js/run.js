@@ -211,6 +211,7 @@ export class Run {
     // ---- دشمن‌ها ----
     this._tgt.x = h.x; this._tgt.y = h.y - 10; // بازنویسی همان شیء — صفر تخصیص
     { const rm = D.roomAt(Math.floor(h.x / TILE), Math.floor(h.y / TILE)); if (rm >= 0 && D.reveal(rm)) { this.log.push({ k: 'room' }); onRoomReveal(this, rm); } }
+    { const tx = Math.floor(h.x / TILE), ty = Math.floor(h.y / TILE), kk = ty * D.cols + tx; if (kk !== this._rvK) { this._rvK = kk; const rn = D.revealNear(tx, ty); if (rn >= 0 && D.reveal(rn)) { this.log.push({ k: 'room' }); onRoomReveal(this, rn); } } }
     extrasUpdate(this, dt); // ن۱۳۹: ورود به اتاق ⇒ کشف
     for (let i = D.enemies.length - 1; i >= 0; i--) {
       const e = D.enemies[i];

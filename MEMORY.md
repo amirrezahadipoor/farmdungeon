@@ -100,3 +100,4 @@ farmdungeon/
 
 - ن۱۵۰: js/floor_extras.js (تله spike/tar/fire، اتاقِ مخفی پشتِ دیوارِ ترک‌دار dress 'secret'، رویداد ambush/spring/greed؛ genExtras در Dungeon، extrasUpdate/onRoomReveal در run، drawExtras در run_render) + js/sfx/music.js (چیپ‌تیون farm/dungeon/boss، setMusic در main_app). باسِ روح دیگر از دیوار رد نمی‌شود و تله‌پورتش ≤110px از خانه. صندوق‌ها فقط در تایلِ دیده‌شده رسم می‌شوند.
 - ن۱۵۱: bestFloor با هر نزول ذخیره می‌شود (main_app log loop)؛ تست مرورگر: موسیقی dungeon فعال، 60fps، بدون خطا.
+- ن۱۵۲: D.revealNear(tx,ty) — راهرو با هر قدم تا ۷ کاشی BFS روشن، اتاقِ مجاور (≤۱) کامل کشف (run.js).

@@ -72,6 +72,19 @@ export class Dungeon {
     this.visVer++;
     return true;
   }
+  // ن۱۵۲: راهرو در لحظه روشن می‌شود — پخشِ BFS روی کاشی‌های راهرو تا ۷ قدم؛ اتاقِ مجاور (≤۱ قدم) کامل کشف می‌شود
+  revealNear(tx, ty) {
+    const W = this.cols, H = this.rows, M = this.roomMap, V = this.vis, k0 = ty * W + tx; let ch = false, rm = -1;
+    if (tx < 0 || ty < 0 || tx >= W || ty >= H) return -1;
+    const q = [k0, 0], seen = new Set([k0]);
+    for (let i = 0; i < q.length; i += 2) { const k = q[i], d = q[i + 1];
+      if (M[k] === -2 && !V[k]) { V[k] = 1; ch = true; }
+      if (M[k] >= 0 && d <= 1 && !this.seen.has(M[k])) rm = M[k];
+      if (d >= 7 || (M[k] !== -2 && k !== k0)) continue;
+      for (const n of [k - 1, k + 1, k - W, k + W]) if (n >= 0 && n < W * H && !seen.has(n) && M[n] !== -1 && this.walkable(n % W, (n / W) | 0)) { seen.add(n); q.push(n, d + 1); } }
+    if (ch) this.visVer++;
+    return rm;
+  }
   // تایل دیده می‌شود؟ (دیوار: اگر یکی از همسایه‌های کفش دیده شده)
   visible(x, y) {
     if (x < 0 || y < 0 || x >= this.cols || y >= this.rows) return false;
