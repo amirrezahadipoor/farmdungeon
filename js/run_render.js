@@ -12,6 +12,18 @@ import { drawWater, dungeonShore } from './art/water.js'; // S2.7: آب و کر�
 import { drawPillarHead } from './art/ground.js'; // S3.8: سرستونِ بیرون‌زده (بعد از موجودات ⇒ y-sort)
 import { drawProjs } from './projectiles.js'; // ن۴۴
 import { applyDarkness, COLOR_LIGHTS, C_RAD_CAP, C_MAX, setThemeGrade, GRADE } from './art/light.js'; // S4.1: پاسِ نورِ رنگی
+const _rims = new WeakMap(), RIM_C = [242, 239, 228, 210];
+function heroRim(spr) { // حلقه‌ی ۴-همسایه دورِ پیکسل‌های مات (α≥200؛ سایه‌ی پخته‌شده نادیده) — یک‌بار به‌ازای هر اسپرایت؛ فهرستِ اندیس (ارزان)
+  let m = _rims.get(spr);
+  if (m) return m;
+  const w = spr.w, h = spr.h, d = spr.d; m = [];
+  const op = (x, y) => x >= 0 && y >= 0 && x < w && y < h && d[(y * w + x) * 4 + 3] >= 200;
+  for (let y = 0; y < h; y++) for (let x = 0; x < w; x++) if (!op(x, y) && (op(x - 1, y) || op(x + 1, y) || op(x, y - 1) || op(x, y + 1))) m.push(x, y);
+  _rims.set(spr, m);
+  return m;
+}
+function drawRim(r, m, ox, oy) { for (let i = 0; i < m.length; i += 2) r.px(ox + m[i], oy + m[i + 1], RIM_C); }
+const LIT = [], LIT_R2 = 92 * 92; // S9.2: شعاعِ «موجودِ روشن» ≈ هاله‌ی دیدِ قهرمان (۷۸) + حاشیه
 import { drawMotes } from './art/motes.js'; // S4.8: غبار/اخگرِ آرامِ تم
 import { glowBegin, glowAdd, glowDraw, GLOW } from './art/glow.js'; // S4.6: درخششِ ارزان
 import { t, faNum } from './i18n.js';
@@ -132,9 +144,18 @@ export function renderRun(run, r) {
     hp.y = h.y; hp.hero = true; hp.e = null; ne++;
     ENTS.length = ne;
     ENTS.sort(BY_Y);
+    // S9.2: موجوداتِ داخلِ هاله‌ی قهرمان **پس از تاریکی** کشیده می‌شوند (رنگِ کاملِ پالت ⇒ جدا از کف)؛ دورترها مثل قبل در تاریکی
+    let nLit = 0;
     for (const en of ENTS) {
+      if (!en.hero) { const e = en.e, dx = e.x - h.x, dy = e.y - h.y; if (dx * dx + dy * dy < LIT_R2) { LIT[nLit++] = en; continue; } }
+      else { LIT[nLit++] = en; continue; }
+      drawEnt(en);
+    }
+    LIT.length = nLit;
+    function drawEnt(en) {
       if (en.hero) {
         const hx = Math.round(h.x) - HOX - cx, hy = Math.round(h.y) - HOY - cy;
+        drawRim(r, heroRim(run._heroSprite()), hx, hy); // S9.2: حلقه‌ی روشنِ ۱px بیرونِ outline ⇒ قهرمان روی هر کف جدا
         run._heroSprite().over(r, hx, hy); // سایه داخل اسپرایت پخته شده (ن۳۵: دوبل حذف شد)
         // فلاش قرمز هنگام آسیب (سوسو)
         if (h.hurtT > 0 && Math.floor(h.hurtT * 30) % 2 === 0) run._heroSprite(true).over(r, hx, hy);
@@ -144,7 +165,6 @@ export function renderRun(run, r) {
       else {
         const e = en.e, s = e.sprite();
         s.over(r, Math.round(e.x) - 64 - cx, Math.round(e.y) - (e.isBoss ? 112 : 100) - cy);
-
       }
     }
     drawProjs(r, run.projs || [], cx, cy); // ن۴۴: تیرها و گوی‌های آتش
@@ -209,6 +229,7 @@ export function renderRun(run, r) {
     setThemeGrade(GRADE.off ? -1 : D.theme);                     // S4.3: گریدینگِ رنگیِ تم (LUT یک‌بار در هر تغییرِ تم)
     applyDarkness(r, run._dark, L, C, cx, cy); // S4.2: دوربین برای دیترِ جهانی
     glowDraw(r);                               // S4.6: هاله‌ها روی تاریکی (افزودنی + clamp)
+    for (const en of LIT) drawEnt(en);         // S9.2: موجوداتِ روشن روی تاریکی
     drawMotes(r, 'dungeon', D.theme, cx, cy, run.time, r.w, r.h); // S4.8: ذراتِ آرامِ تم (≤۶، ۱px)
     // افکت‌ها روی تاریکی (می‌درخشند)
     run.fx.render(r, cx, cy);

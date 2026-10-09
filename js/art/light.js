@@ -7,7 +7,7 @@ import { Q } from './quality.js'; // S8.2: Q.level=0 ⇒ بدونِ دیترِ �
 import { BAYER4 } from './dither.js'; // S4.2: کوانتیزه‌ی آلفای تاریکی با دیترِ ترتیبی
 
 let DARK_R = 13, DARK_G = 11, DARK_B = 26; // S4.3: رنگِ تاریکی per تم (گریدینگ)
-const DARK_A = 118;
+const DARK_A = 100; // S9.2: ۱۱۸→۱۰۰ — مهِ تاریکی نیمی از فاصله‌ی کف↔دیوار را می‌خورد
 
 // استامپ نور: cut = strength×(1−d²) از پیش‌محاسبه‌شده — کلید: rad×1000+strength
 const _lightSt = new Map();

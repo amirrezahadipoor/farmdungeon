@@ -173,7 +173,35 @@ function passSeam(cache, D) {
   }
 }
 
-export const FLOOR_PASSES = ['base', 'wallMass', 'floorPattern', 'AO', 'decals', 'seam', 'staticProps'];
+// ---------- ۸ — جدایی کف↔توده (S9.2) ----------
+// پیش از این پاس میانه‌ی روشنیِ کف و توده‌ی دیوار در ۶ تم فقط ۰–۷ واحد L* فاصله داشت ⇒ «همه‌چیز یک‌رنگ و تار».
+// توده تیره‌تر می‌شود (سقفِ دیوار در نمای بالا = سایه) تا فاصله‌ی میانه‌ها به READ_GAP برسد؛ اگر کف خودش
+// آن‌قدر تیره است که جا نیست، کف روشن‌تر می‌شود. ضربِ کانالی ⇒ بافت/نسبت‌ها حفظ؛ قفلِ پالتِ صحنه بعداً اسنپ می‌کند.
+export const READ_GAP = 50, READ_FLOOR = 78;
+function passReadable(cache, D) {
+  const d = cache.d, w = cache.w, fl = [], wl = [];
+  for (let ty = 0; ty < ROWS; ty++) for (let tx = 0; tx < COLS; tx++) {
+    const c = D.cell(tx, ty); const arr = c.kind === 'dfloor' ? fl : (c.kind === 'wall' || c.kind === 'pillar') ? wl : null; if (!arr) continue;
+    for (let y = 2; y < TILE; y += 3) for (let x = 2; x < TILE; x += 3) { const i = ((ty * TILE + y) * w + tx * TILE + x) * 4; arr.push(lum3([d[i], d[i + 1], d[i + 2]])); }
+  }
+  if (!fl.length || !wl.length) return;
+  const md = (a) => (a.sort((p, q) => p - q), a[a.length >> 1]);
+  const Lf = md(fl), Lw = md(wl);
+  // کف حداقل READ_FLOOR (تاریکی بعداً ~نصفِ فاصله را می‌خورد) و توده دست‌کم READ_GAP تیره‌تر، ولی نه زیرِ ۱۲ (سیاهیِ بی‌جزئیات)
+  const kf = Lf < READ_FLOOR ? READ_FLOOR / Math.max(1, Lf) : 1, Lf2 = Lf * kf;
+  const kw = Lw > Lf2 - READ_GAP ? Math.max(12, Lf2 - READ_GAP) / Math.max(1, Lw) : 1;
+  if (kw === 1 && kf === 1) return;
+  for (let ty = 0; ty < ROWS; ty++) for (let tx = 0; tx < COLS; tx++) {
+    const c = D.cell(tx, ty); const k = (c.kind === 'wall' || c.kind === 'pillar') ? kw : (c.kind === 'dfloor' || c.kind === 'decor' || c.kind === 'stairs') ? kf : 1;
+    if (k === 1) continue;
+    for (let y = 0; y < TILE; y++) for (let x = 0; x < TILE; x++) {
+      const i = ((ty * TILE + y) * w + tx * TILE + x) * 4;
+      d[i] = Math.min(255, d[i] * k); d[i + 1] = Math.min(255, d[i + 1] * k); d[i + 2] = Math.min(255, d[i + 2] * k);
+    }
+  }
+}
+
+export const FLOOR_PASSES = ['base', 'wallMass', 'floorPattern', 'AO', 'decals', 'readable', 'seam', 'staticProps'];
 
 export function bakeFloor(run) {
   const D = run.dungeon;
@@ -183,6 +211,7 @@ export function bakeFloor(run) {
   passFloorPattern(cache, D);    // ۳
   passAO(cache, D);              // ۴
   passDecals(cache, D);          // ۵
+  passReadable(cache, D);        // ۸ — جدایی کف↔توده (S9.2)
   passSeam(cache, D);            // ۷ — درزگیرِ مرزِ توده↔کف (S8.1)
   passStaticProps(cache, D);     // ۶
   return cache;

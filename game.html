@@ -2768,7 +2768,7 @@ return {MOTES, MOTE_INFO, MOTE_ALPHA, drawMotes};
 const {MOTES, MOTE_INFO, MOTE_ALPHA, drawMotes} = __m_art_motes;
 const __m_art_light = (() => {
 let DARK_R = 13, DARK_G = 11, DARK_B = 26; // S4.3: رنگِ تاریکی per تم (گریدینگ)
-const DARK_A = 118;
+const DARK_A = 100; // S9.2: ۱۱۸→۱۰۰ — مهِ تاریکی نیمی از فاصله‌ی کف↔دیوار را می‌خورد
 const _lightSt = new Map();
 function lightStamp(rad, strength) {
 const key = rad * 1000 + strength;
@@ -8649,7 +8649,29 @@ dit(x0 + 2 * dir, yy, 0.25, _pick(cand, (edge + 3 * Li) / 4 + (L(x0 + 2 * dir, y
 }
 }
 }
-const FLOOR_PASSES = ['base', 'wallMass', 'floorPattern', 'AO', 'decals', 'seam', 'staticProps'];
+const READ_GAP = 50, READ_FLOOR = 78;
+function passReadable(cache, D) {
+const d = cache.d, w = cache.w, fl = [], wl = [];
+for (let ty = 0; ty < ROWS; ty++) for (let tx = 0; tx < COLS; tx++) {
+const c = D.cell(tx, ty); const arr = c.kind === 'dfloor' ? fl : (c.kind === 'wall' || c.kind === 'pillar') ? wl : null; if (!arr) continue;
+for (let y = 2; y < TILE; y += 3) for (let x = 2; x < TILE; x += 3) { const i = ((ty * TILE + y) * w + tx * TILE + x) * 4; arr.push(lum3([d[i], d[i + 1], d[i + 2]])); }
+}
+if (!fl.length || !wl.length) return;
+const md = (a) => (a.sort((p, q) => p - q), a[a.length >> 1]);
+const Lf = md(fl), Lw = md(wl);
+const kf = Lf < READ_FLOOR ? READ_FLOOR / Math.max(1, Lf) : 1, Lf2 = Lf * kf;
+const kw = Lw > Lf2 - READ_GAP ? Math.max(12, Lf2 - READ_GAP) / Math.max(1, Lw) : 1;
+if (kw === 1 && kf === 1) return;
+for (let ty = 0; ty < ROWS; ty++) for (let tx = 0; tx < COLS; tx++) {
+const c = D.cell(tx, ty); const k = (c.kind === 'wall' || c.kind === 'pillar') ? kw : (c.kind === 'dfloor' || c.kind === 'decor' || c.kind === 'stairs') ? kf : 1;
+if (k === 1) continue;
+for (let y = 0; y < TILE; y++) for (let x = 0; x < TILE; x++) {
+const i = ((ty * TILE + y) * w + tx * TILE + x) * 4;
+d[i] = Math.min(255, d[i] * k); d[i + 1] = Math.min(255, d[i + 1] * k); d[i + 2] = Math.min(255, d[i + 2] * k);
+}
+}
+}
+const FLOOR_PASSES = ['base', 'wallMass', 'floorPattern', 'AO', 'decals', 'readable', 'seam', 'staticProps'];
 function bakeFloor(run) {
 const D = run.dungeon;
 const cache = new Raster(WORLD_W, WORLD_H);
@@ -8658,14 +8680,27 @@ passWallMass(cache, D);        // ۲
 passFloorPattern(cache, D);    // ۳
 passAO(cache, D);              // ۴
 passDecals(cache, D);          // ۵
+passReadable(cache, D);        // ۸ — جدایی کف↔توده (S9.2)
 passSeam(cache, D);            // ۷ — درزگیرِ مرزِ توده↔کف (S8.1)
 passStaticProps(cache, D);     // ۶
 return cache;
 }
-return {FLOOR_PASSES, bakeFloor};
+return {READ_GAP, READ_FLOOR, FLOOR_PASSES, bakeFloor};
 })();
-const {FLOOR_PASSES, bakeFloor} = __m_dungeon_bake;
+const {READ_GAP, READ_FLOOR, FLOOR_PASSES, bakeFloor} = __m_dungeon_bake;
 const __m_run_render = (() => {
+const _rims = new WeakMap(), RIM_C = [242, 239, 228, 210];
+function heroRim(spr) { // حلقه‌ی ۴-همسایه دورِ پیکسل‌های مات (α≥200؛ سایه‌ی پخته‌شده نادیده) — یک‌بار به‌ازای هر اسپرایت؛ فهرستِ اندیس (ارزان)
+let m = _rims.get(spr);
+if (m) return m;
+const w = spr.w, h = spr.h, d = spr.d; m = [];
+const op = (x, y) => x >= 0 && y >= 0 && x < w && y < h && d[(y * w + x) * 4 + 3] >= 200;
+for (let y = 0; y < h; y++) for (let x = 0; x < w; x++) if (!op(x, y) && (op(x - 1, y) || op(x + 1, y) || op(x, y - 1) || op(x, y + 1))) m.push(x, y);
+_rims.set(spr, m);
+return m;
+}
+function drawRim(r, m, ox, oy) { for (let i = 0; i < m.length; i += 2) r.px(ox + m[i], oy + m[i + 1], RIM_C); }
+const LIT = [], LIT_R2 = 92 * 92; // S9.2: شعاعِ «موجودِ روشن» ≈ هاله‌ی دیدِ قهرمان (۷۸) + حاشیه
 const _sprCache = new Map(); // کش اسپرایت قهرمان (LRU)
 const ENTS = []; // لیست موجودات قابل رندر — بازمصرف بین فریم‌ها
 const _lights = []; // لیست تخت نورها — بدون تخصیص آبجکت
@@ -8767,9 +8802,17 @@ if (!hp) hp = ENTS[ne] = { y: 0, e: null, hero: false };
 hp.y = h.y; hp.hero = true; hp.e = null; ne++;
 ENTS.length = ne;
 ENTS.sort(BY_Y);
+let nLit = 0;
 for (const en of ENTS) {
+if (!en.hero) { const e = en.e, dx = e.x - h.x, dy = e.y - h.y; if (dx * dx + dy * dy < LIT_R2) { LIT[nLit++] = en; continue; } }
+else { LIT[nLit++] = en; continue; }
+drawEnt(en);
+}
+LIT.length = nLit;
+function drawEnt(en) {
 if (en.hero) {
 const hx = Math.round(h.x) - HOX - cx, hy = Math.round(h.y) - HOY - cy;
+drawRim(r, heroRim(run._heroSprite()), hx, hy); // S9.2: حلقه‌ی روشنِ ۱px بیرونِ outline ⇒ قهرمان روی هر کف جدا
 run._heroSprite().over(r, hx, hy); // سایه داخل اسپرایت پخته شده (ن۳۵: دوبل حذف شد)
 if (h.hurtT > 0 && Math.floor(h.hurtT * 30) % 2 === 0) run._heroSprite(true).over(r, hx, hy);
 else if (h.iframe > 0 && Math.floor(h.iframe * 24) % 2 === 0) r.rect(hx + 14, hy + 14, 36, 36, IFRAME_BOX); // ن۳۵: بوم ۶۴px
@@ -8834,6 +8877,7 @@ else if (EYE_GLOW[e2.kind]) glowAdd(e2.x - cx, e2.y - (MHEAD[e2.kind] ?? 76) - c
 setThemeGrade(GRADE.off ? -1 : D.theme);                     // S4.3: گریدینگِ رنگیِ تم (LUT یک‌بار در هر تغییرِ تم)
 applyDarkness(r, run._dark, L, C, cx, cy); // S4.2: دوربین برای دیترِ جهانی
 glowDraw(r);                               // S4.6: هاله‌ها روی تاریکی (افزودنی + clamp)
+for (const en of LIT) drawEnt(en);         // S9.2: موجوداتِ روشن روی تاریکی
 drawMotes(r, 'dungeon', D.theme, cx, cy, run.time, r.w, r.h); // S4.8: ذراتِ آرامِ تم (≤۶، ۱px)
 run.fx.render(r, cx, cy);
 for (const e of D.enemies) {
