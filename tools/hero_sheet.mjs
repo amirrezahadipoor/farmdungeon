@@ -4,6 +4,7 @@ import { drawHeroFrame, halfSprite } from '../js/art/hero.js';
 import { Raster } from '../js/raster.js';
 import { savePNG } from './png.mjs';
 const out = process.argv[2] || new URL('../shots/hero_sheet.png', import.meta.url).pathname;
+(await import('node:fs')).mkdirSync(new URL('../shots/', import.meta.url), { recursive: true });
 const DIRS = ['down', 'right', 'up', 'left'];
 const ROWS = [];
 for (const dir of DIRS) {
