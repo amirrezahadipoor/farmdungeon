@@ -1985,285 +1985,171 @@ return s;
 return {CROP_STAGES, CROP_LIFT, cropSprite, cropIcon};
 })();
 const {CROP_STAGES, CROP_LIFT, cropSprite, cropIcon} = __m_art_crops;
-const __m_art_font2 = (() => {
-const GLYPHS = {
-"\u0628": "......./......./......./.#...#./.#...#./.#...#./.#####./......./.......",
-"\u067e": "......./......./......./.#...#./.#...#./.#...#./.#####./......./.#.#.#.",
-"\u062a": "..#.#../......./......./.#...#./.#...#./.#...#./.#####./......./.......",
-"\u062b": ".#.#.#./......./......./.#...#./.#...#./.#...#./.#####./......./.......",
-"\u062d": "......./......./...##../..#..#./..#..../.#...../#....../.#...../.......",
-"\u062c": "......./......./...##../..#..#./..#.#../.#...../#....../.#...../.......",
-"\u062e": "...#.../......./...##../..#..#./..#..../.#...../#....../.#...../.......",
-"\u0686": ".#.#.#./......./...##../..#..#./..#..../.#...../#....../.#...../.......",
-"\u0639": "......./...##../..#..#./..#..../..#..../.#...../#....../#....../.#.....",
-"\u063a": "...#.../...##../..#..#./..#..../..#..../.#...../#....../#....../.#.....",
-"\u062f": "......./......./...###./..##.../.#...../.#...../##...../......./.......",
-"\u0630": "...#.../......./...###./..##.../.#...../.#...../##...../......./.......",
-"\u0631": "......./......./....##./...#.../..#..../.#...../#....../......./.......",
-"\u0632": "......./..#..../....##./...#.../..#..../.#...../#....../......./.......",
-"\u0698": ".#.#.#./......./....##./...#.../..#..../.#...../#....../......./.......",
-"\u0633": "......./......./.#.#.#./.#.#.#./.#####./#.....#/#.....#/.#####./.......",
-"\u0634": ".#.#.#./......./.#.#.#./.#.#.#./.#####./#.....#/#.....#/.#####./.......",
-"\u0635": "......../......../.#.#.##./.#.#.##./.#######/#......#/#......#/.######./........",
-"\u0636": "...#..../......../.#.#.##./.#.#.##./.#######/#......#/#......#/.######./........",
-"\u0637": "..#...../..#...../..#...../..#...../..#####./..#...#./..#...#./..#####./........",
-"\u0638": "..#...../..#...../..#..#../..#...../..#####./..#...#./..#...#./..#####./........",
-"\u0641": "......./...#.../.#####./.#...#./.#..##./.#.#.../.##..../......./.......",
-"\u0642": "......./..#.#../.#####./.#...#./.#..##./.#.#.../.##..../.#...../..#....",
-"\u06a9": "....#../#....#./#...#../#..#.../##...../#.#..../#..#.../#...#../.......",
-"\u06af": "....#../#....#./#...#../#..#.../###..../#.##.../#..#.../#...#../.......",
-"\u0644": "..####./....##./....#../....#../....#../....#../#...#../.###.../.......",
-"\u0645": "......./......./..###../.#...#./.#...#./..###../...#.../...#.../...#...",
-"\u0646": "...#.../......./...#.../..###../..#.#../..#.#../..###../......./.......",
-"\u0648": "......./......./...##../..#..#./..#..#./...##../....#../....#../.......",
-"\u0647": "......./......./......./..###../.#...#./.#...#./..###../......./.......",
-"\u06cc": "......./......./......./..#.#../..#.#../..###../......./..#.#../.......",
-"\u0627": "..#/.##/.#./.#./.#./.#./.#./.#./...",
-"\u0622": ".###./..#../.##../..#../..#../..#../..#../..#../.....",
-"\u0623": ".#./#../..#/.##/.#./.#./.#./.#./...",
-"\u06f0": "......./......./......./...#.../..###../...#.../......./......./.......",
-"\u06f1": "...#.../..##.../..#..../..#..../..#..../..#..../..#..../..#..../.......",
-"\u06f2": "..###../.#...#./.....#./....#../...#.../..#..../..###../......./.......",
-"\u06f3": ".#.#.#./.#.#.#./.#####./.#...#./.#####./...#.../...#.../..#..../.......",
-"\u06f4": "...##../..##.../.##..../#####../....#../...#.../..##.../......./.......",
-"\u06f5": "..###../.#...#./.#...#./.#..##./.#.#.../.###.../......./......./.......",
-"\u06f6": "....##./...#.../..#..../.#####./.#...#./.#####./.#...../#....../.......",
-"\u06f7": "#.....#/#.....#/.#...#./.#...#./..#.#../..#.#../...#.../......./.......",
-"\u06f8": "...#.../...#.../..#.#../..#.#../.#...#./.#...#./#.....#/......./.......",
-"\u06f9": "..###../.#...#./.#...#./..###../....#../....#../....#../....#../.......",
-"0": "..###../.#...#./.#..##./.#.#.#./.##..#./.#...#./..###../......./.......",
-"1": "...#.../..##.../...#.../...#.../...#.../...#.../..###../......./.......",
-"2": ".#####./#.....#/......#/.....#./....#../...#.../#######/......./.......",
-"3": ".#####./#.....#/......#/..####./......#/#.....#/.#####./......./.......",
-"4": "....##./...#.#./..#..#./.#...#./#######/.....#./.....#./......./.......",
-"5": "#######/#....../######./......#/......#/#.....#/.#####./......./.......",
-"6": "....##./...#.../..#..../#....../######./#.....#/.#####./......./.......",
-"7": "#######/......#/.....#./....#../...#.../...#.../...#.../......./.......",
-"8": ".#####./#.....#/#.....#/.#####./#.....#/#.....#/.#####./......./.......",
-"9": ".#####./#.....#/.######/......#/.....#./....#../..##.../......./.......",
-"A": "...#.../..#.#../..#.#../.#...#./.#...#./#######/#.....#/#.....#/.......",
-"B": "######./#.....#/#.....#/######./#.....#/#.....#/######./......./.......",
-"C": "..####./.#....#/#....../#....../#....../.#....#/..####./......./.......",
-"D": "######./#.....#/#.....#/#.....#/#.....#/#.....#/######./......./.......",
-"E": "#######/#....../#....../######./#....../#....../#######/......./.......",
-"F": "#######/#....../#....../######./#....../#....../#....../......./.......",
-"G": "..####./.#....#/#....../#..###./#.....#/.#....#/..####./......./.......",
-"H": "#.....#/#.....#/#.....#/#######/#.....#/#.....#/#.....#/......./.......",
-"I": "..###../...#.../...#.../...#.../...#.../...#.../..###../......./.......",
-"J": "....###/......#/......#/......#/#.....#/#.....#/.#####./......./.......",
-"K": "#.....#/#....#./#...#../##.#.../.#..#../#...#../#....#./......./.......",
-"L": "#....../#....../#....../#....../#....../#....../#######/......./.......",
-"M": "#.....#/##...##/#.#.#.#/#..#..#/#.....#/#.....#/#.....#/......./.......",
-"N": "#.....#/##....#/#.#...#/#..#..#/#...#.#/#....##/#.....#/......./.......",
-"O": ".#####./#.....#/#.....#/#.....#/#.....#/#.....#/.#####./......./.......",
-"P": "######./#.....#/#.....#/######./#....../#....../#....../......./.......",
-"Q": ".#####./#.....#/#.....#/#.....#/#..#..#/#...#.#/.##.##./....#../.......",
-"R": "######./#.....#/#.....#/######./##...../.#..#../#....#./......./.......",
-"S": ".#####./#.....#/#....../.#####./......#/#.....#/.#####./......./.......",
-"T": "#######/...#.../...#.../...#.../...#.../...#.../...#.../......./.......",
-"U": "#.....#/#.....#/#.....#/#.....#/#.....#/#.....#/.#####./......./.......",
-"V": "#.....#/#.....#/#.....#/#.....#/.#...#./.#...#./..#.#../......./.......",
-"W": "#.....#/#.....#/#.....#/#..#..#/#.#.#.#/##...##/#.....#/......./.......",
-"X": "#.....#/.#...#./..#.#../...#.../..#.#../.#...#./#.....#/......./.......",
-"Y": "#.....#/.#...#./..#.#../...#.../...#.../...#.../...#.../......./.......",
-"Z": "#######/.....#./....#../...#.../..#..../.#...../#######/......./.......",
-" ": ".../.../.../.../.../.../.../.../...",
-"+": "......./...#.../...#.../.#####./...#.../...#.../......./......./.......",
-"-": "......./......./......./.#####./......./......./......./......./.......",
-".": ".../.../.../.../.../.../.../.#./.#.",
-",": ".../.../.../.../.../.../.#./.#./#..",
-"!": "..#/..#/..#/..#/..#/..#/.../..#/...",
-"\u061f": "..###../.#...#./..#..../.##..../..#..../......./..#..../......./.......",
-"?": "..###../.#...#./....#../...##../...#.../......./...#.../......./.......",
-"\u060c": ".../.../.../..#/.#./#../.../.../...",
-":": ".../.../.#./.../.../.../.#./.../...",
-"%": "##...#./##..#../...#.../..#..../.#...##/#....##/......./......./.......",
-"x": "......./......./.#...#./..#.#../...#.../..#.#../.#...#./......./.......",
-"\u00d7": "......./#.....#/.#...#./..#.#../...#.../..#.#../.#...#./#.....#/.......",
-"\u2014": "......./......./......./......./#######/......./......./......./.......",
-"\u066a": "....##./....##./...#.../..#..../.#...../##...../##...../......./.......",
-"\u2192": "......./......./.....#./....##./#######/....##./.....#./......./.......",
-"\u2726": "...#.../...#.../.#####./.#####./.#####./...#.../...#.../......./.......",
-"*": "...#.../..#.#../.#####./..#.#../...#.../......./......./......./.......",
-"/": ".....#./....#../....#../...#.../..#..../..#..../.#...../......./.......",
-"'": "..#/..#/..#/.../.../.../.../.../...",
-"(": "..#/.#./.#./#../#../#../.#./.#./..#",
-")": "#../.#./.#./..#/..#/..#/.#./.#./#..",
-"=": "......./......./......./.#####./......./.#####./......./......./.......",
-"\u00b7": ".../.../.../.../.#./.../.../.../..."
-};
-const ALIAS = { '\u0625': '\u0627', '\u0671': '\u0627', '\u064a': '\u06cc', '\u0649': '\u06cc', '\u0626': '\u06cc', '\u0643': '\u06a9', '\u0629': '\u0647', '\u0624': '\u0648', '\u2013': '\u2014', '\\': '/', '&': '+', '\u066b': '.' };
-const SKIP = /[\u200c\u200d\u200e\u200f\u0640\u064b-\u065f]/g; // نیم‌فاصله/کشیده/اعراب: عرض صفر
-const LTR_RUN = /[A-Za-z0-9\u06f0-\u06f9\u0660-\u0669]+(?:[.,:\/%\u00d7x-][A-Za-z0-9\u06f0-\u06f9\u0660-\u0669]+)*/g;
-const resolve = (ch) => {
-if (GLYPHS[ch]) return ch;
-if (ALIAS[ch]) return ALIAS[ch];
-const c = ch.charCodeAt(0);
-if (c >= 0x660 && c <= 0x669) return String.fromCharCode(0x6f0 + c - 0x660); // ارقام عربی-هندی → فارسی
-const u = ch.toUpperCase();
-return GLYPHS[u] ? u : ch;
-};
-const prep = (s) => {
-s = String(s).replace(SKIP, '');
-if (!FA.test(s)) return s;
-return [...s].reverse().join('').replace(LTR_RUN, (m) => [...m].reverse().join(''));
-};
-const H = 9;
-const _adv = new Map();
-const _mask = new Map();
-const _outl = new Map();
-const FA = /[؀-ۿ]/;
-function glyph(ch) {
-let m = _mask.get(ch);
-if (m === undefined) {
-const rows = (GLYPHS[resolve(ch)] || GLYPHS['?'] || '').split('/');
-const w = rows[0].length || 3;
-m = { w, a: new Uint8Array(w * H) };
-for (let y = 0; y < H; y++) for (let x = 0; x < w; x++) if (rows[y] && rows[y][x] === '#') m.a[y * w + x] = 1;
-_mask.set(ch, m);
-_adv.set(ch, w + 1);
+const __m_art_font_fa = (() => {
+const FA_H = 15, FA_BASE = 10;
+const B64 = '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';
+const TBL = [32,3,0,0,0,33,3,1,1,0,34,4,1,3,15,35,7,0,6,60,36,6,1,5,150,37,8,1,7,225,38,7,1,6,330,39,2,1,1,420,40,4,1,3,435,41,4,0,3,480,42,5,0,5,525,43,6,1,5,600,44,2,1,1,675,45,5,1,4,690,46,3,1,1,750,47,4,0,4,765,48,6,1,5,825,49,6,1,3,900,50,6,1,5,945,51,6,1,4,1020,52,6,1,6,1080,53,6,0,5,1170,54,6,1,5,1245,55,6,1,5,1320,56,6,1,5,1395,57,6,1,5,1470,58,3,1,1,1545,59,3,1,1,1560,60,6,1,5,1575,61,6,1,5,1650,62,6,1,5,1725,63,5,1,4,1800,64,10,1,9,1860,65,7,0,7,1995,66,7,1,5,2100,67,7,1,6,2175,68,7,1,6,2265,69,6,1,5,2355,70,6,1,5,2430,71,8,1,6,2505,72,8,1,6,2595,73,3,1,1,2685,74,6,1,5,2700,75,7,1,6,2775,76,6,1,5,2865,77,10,1,8,2940,78,8,1,6,3060,79,8,1,6,3150,80,7,1,6,3240,81,8,1,6,3330,82,7,1,5,3420,83,7,1,5,3495,84,7,1,6,3570,85,7,1,6,3660,86,7,0,7,3750,87,10,0,9,3855,88,7,0,6,3990,89,7,1,5,4080,90,7,1,6,4155,91,3,1,2,4245,92,5,0,5,4275,93,3,0,2,4350,94,5,0,4,4380,95,5,1,5,4440,96,4,0,2,4515,97,6,1,5,4545,98,6,1,5,4620,99,6,1,5,4695,100,6,1,5,4770,101,6,1,5,4845,102,4,0,3,4920,103,6,1,5,4965,104,6,1,5,5040,105,3,1,1,5115,106,3,-1,2,5130,107,6,1,4,5160,108,3,1,1,5220,109,10,1,9,5235,110,6,1,5,5370,111,6,1,5,5445,112,6,1,5,5520,113,6,1,5,5595,114,4,1,3,5670,115,6,1,4,5715,116,4,0,3,5775,117,6,1,5,5820,118,5,0,5,5895,119,8,0,8,5970,120,6,0,5,6090,121,5,1,5,6165,122,6,1,5,6240,123,4,-1,3,6315,124,3,1,1,6360,125,4,0,3,6375,126,7,1,6,6420,171,5,1,4,6510,183,3,1,1,6570,187,5,1,4,6585,215,6,1,4,6645,1548,3,1,1,6705,1563,3,1,1,6720,1567,5,0,4,6735,1569,5,1,4,6795,1570,3,-1,4,6855,1571,3,0,2,6915,1572,5,1,4,6945,1573,3,0,2,7005,1574,8,1,7,7035,1575,3,1,1,7140,1576,10,1,9,7155,1577,5,1,4,7290,1578,10,1,9,7350,1579,10,1,9,7485,1580,7,1,7,7620,1581,7,1,7,7725,1582,7,1,7,7830,1583,5,1,4,7935,1584,5,1,4,7995,1585,4,-1,3,8055,1586,4,-1,3,8100,1587,13,1,12,8145,1588,13,1,12,8325,1589,14,1,13,8505,1590,14,1,13,8700,1591,8,0,8,8895,1592,8,0,8,9015,1593,7,1,6,9135,1594,7,1,6,9225,1601,10,1,8,9315,1602,8,1,7,9435,1604,7,1,6,9540,1605,7,1,6,9630,1606,8,1,7,9720,1607,5,1,4,9825,1608,5,1,4,9885,1609,8,1,7,9945,1610,8,1,7,10050,1642,6,1,4,10155,1662,10,1,9,10215,1670,7,1,7,10350,1688,4,-1,3,10455,1705,10,1,9,10500,1711,10,1,9,10635,1740,8,1,7,10770,1776,5,1,3,10875,1777,3,0,2,10920,1778,6,0,5,10950,1779,7,0,6,11025,1780,6,0,6,11115,1781,7,1,6,11205,1782,5,1,4,11295,1783,7,0,6,11355,1784,7,0,6,11445,1785,5,1,4,11535,8212,9,1,7,11595,8230,8,1,7,11700,64342,10,1,9,11805,64343,10,1,10,11940,64344,3,-1,4,12090,64345,4,-1,5,12150,64378,7,1,7,12225,64379,8,1,7,12330,64380,7,0,7,12435,64381,8,0,8,12540,64394,4,-1,3,12660,64395,4,-1,4,12705,64398,10,1,9,12765,64399,10,1,10,12900,64400,5,-1,5,13050,64401,6,0,6,13125,64402,10,1,9,13215,64403,10,1,10,13350,64404,5,1,4,13500,64405,6,0,6,13560,64488,3,0,3,13650,64489,4,0,4,13695,64508,8,1,7,13755,64509,7,1,7,13860,64510,3,-1,4,13965,64511,4,-1,5,14025,65152,5,1,4,14100,65153,3,-1,4,14160,65154,3,0,3,14220,65155,3,0,2,14265,65156,3,0,3,14295,65157,5,1,4,14340,65158,5,1,5,14400,65159,3,0,2,14475,65160,3,1,2,14505,65161,8,1,7,14535,65162,7,1,7,14640,65163,3,0,3,14745,65164,4,0,4,14790,65165,3,1,1,14850,65166,3,1,2,14865,65167,10,1,9,14895,65168,10,1,10,15030,65169,3,0,3,15180,65170,4,0,4,15225,65171,5,1,4,15285,65172,6,1,6,15345,65173,10,1,9,15435,65174,10,1,10,15570,65175,3,-1,3,15720,65176,4,-1,4,15765,65177,10,1,9,15825,65178,10,1,10,15960,65179,3,-1,3,16110,65180,4,-1,4,16155,65181,7,1,7,16215,65182,8,1,7,16320,65183,7,0,7,16425,65184,8,0,8,16530,65185,7,1,7,16650,65186,8,1,7,16755,65187,7,0,7,16860,65188,8,0,8,16965,65189,7,1,7,17085,65190,8,1,7,17190,65191,7,0,7,17295,65192,8,0,8,17400,65193,5,1,4,17520,65194,6,1,6,17580,65195,5,1,4,17670,65196,6,1,6,17730,65197,4,-1,3,17820,65198,4,-1,4,17865,65199,4,-1,3,17925,65200,4,-1,4,17970,65201,13,1,12,18030,65202,14,1,13,18210,65203,9,0,9,18405,65204,9,0,10,18540,65205,13,1,12,18690,65206,14,1,13,18870,65207,9,0,9,19065,65208,9,0,10,19200,65209,14,1,13,19350,65210,14,1,14,19545,65211,9,0,9,19755,65212,9,0,10,19890,65213,14,1,13,20040,65214,14,1,14,20235,65215,9,0,9,20445,65216,9,0,10,20580,65217,8,0,8,20730,65218,8,1,8,20850,65219,7,0,7,20970,65220,7,0,8,21075,65221,8,0,8,21195,65222,8,1,8,21315,65223,7,0,7,21435,65224,7,0,8,21540,65225,7,1,6,21660,65226,7,1,7,21750,65227,6,0,5,21855,65228,6,0,7,21930,65229,7,1,6,22035,65230,7,1,7,22125,65231,6,0,5,22230,65232,6,0,7,22305,65233,10,1,8,22410,65234,10,1,10,22530,65235,5,0,4,22680,65236,5,0,6,22740,65237,8,1,7,22830,65238,8,1,8,22935,65239,5,0,4,23055,65240,5,0,6,23115,65245,7,1,6,23205,65246,7,1,7,23295,65247,3,0,3,23400,65248,4,0,4,23445,65249,7,1,6,23505,65250,7,1,7,23595,65251,6,-1,5,23700,65252,6,0,7,23775,65253,8,1,7,23880,65254,8,1,7,23985,65255,3,0,3,24090,65256,4,0,4,24135,65257,5,1,4,24195,65258,6,1,6,24255,65259,8,0,7,24345,65260,5,0,6,24450,65261,5,1,4,24540,65262,5,1,5,24600,65263,8,1,7,24675,65264,7,1,7,24780,65265,8,1,7,24885,65266,7,1,7,24990,65267,3,-1,4,25095,65268,4,-1,5,25155,65269,6,0,6,25230,65270,7,-1,7,25320,65271,6,0,6,25425,65272,7,1,7,25515,65273,6,1,5,25620,65274,7,1,6,25695,65275,6,1,5,25785,65276,7,0,7,25860];
+const FRM = [1569,65152,0,0,0,1570,65153,0,0,65154,1571,65155,0,0,65156,1572,65157,0,0,65158,1573,65159,0,0,65160,1574,65161,65163,65164,65162,1575,65165,0,0,65166,1576,65167,65169,65170,65168,1577,65171,0,0,65172,1578,65173,65175,65176,65174,1579,65177,65179,65180,65178,1580,65181,65183,65184,65182,1581,65185,65187,65188,65186,1582,65189,65191,65192,65190,1583,65193,0,0,65194,1584,65195,0,0,65196,1585,65197,0,0,65198,1586,65199,0,0,65200,1587,65201,65203,65204,65202,1588,65205,65207,65208,65206,1589,65209,65211,65212,65210,1590,65213,65215,65216,65214,1591,65217,65219,65220,65218,1592,65221,65223,65224,65222,1593,65225,65227,65228,65226,1594,65229,65231,65232,65230,1601,65233,65235,65236,65234,1602,65237,65239,65240,65238,1604,65245,65247,65248,65246,1605,65249,65251,65252,65250,1606,65253,65255,65256,65254,1607,65257,65259,65260,65258,1608,65261,0,0,65262,1609,65263,64488,64489,65264,1610,65265,65267,65268,65266,1662,64342,64344,64345,64343,1670,64378,64380,64381,64379,1688,64394,0,0,64395,1705,64398,64400,64401,64399,1711,64402,64404,64405,64403,1740,64508,64510,64511,64509,67106,65269,0,0,65270,67107,65271,0,0,65272,67109,65273,0,0,65274,67111,65275,0,0,65276];
+const _bin = typeof atob === 'function' ? atob(B64) : Buffer.from(B64, 'base64').toString('binary');
+const _bits = new Uint8Array(_bin.length * 8);
+for (let i = 0; i < _bin.length; i++) { const b = _bin.charCodeAt(i); for (let k = 0; k < 8; k++) _bits[i * 8 + k] = (b >> (7 - k)) & 1; }
+const GL = new Map(); // code → { adv, ox, w, a: Uint8Array(w*FA_H) }
+for (let i = 0; i < TBL.length; i += 5) {
+const w = TBL[i + 3], s = TBL[i + 4];
+GL.set(TBL[i], { adv: TBL[i + 1], ox: TBL[i + 2], w, a: _bits.subarray(s, s + w * FA_H) });
 }
+const EXTRA = { 0x2192: ['....#..', '.....#.', '#######', '.....#.', '....#..'], 0x2726: ['...#...', '..###..', '#######', '..###..', '...#...'] };
+for (const k in EXTRA) if (!GL.has(+k)) {
+const rows = EXTRA[k], w = rows[0].length, a = new Uint8Array(w * FA_H), top = FA_BASE - 6;
+rows.forEach((r, y) => { for (let x = 0; x < w; x++) if (r[x] === '#') a[(top + y) * w + x] = 1; });
+GL.set(+k, { adv: w + 1, ox: 0, w, a });
+}
+const FORMS = new Map(); // پایه (یا 0x10000+الف برای لام‌الف) → [iso, ini, med, fin]
+for (let i = 0; i < FRM.length; i += 5) FORMS.set(FRM[i], [FRM[i + 1], FRM[i + 2], FRM[i + 3], FRM[i + 4]]);
+const RJ = new Set([0x627, 0x622, 0x623, 0x625, 0x62F, 0x630, 0x631, 0x632, 0x698, 0x648, 0x624, 0x629]); // فقط به قبل می‌چسبند
+const ALEF = new Set([0x627, 0x622, 0x623, 0x625]);
+const ALIAS = { 0x64A: 0x6CC, 0x649: 0x6CC, 0x643: 0x6A9, 0x2013: 0x2014, 0x66B: 0x2E, 0x5C: 0x2F };
+const MIRROR = { 0x28: 0x29, 0x29: 0x28, 0xAB: 0xBB, 0xBB: 0xAB, 0x5B: 0x5D, 0x5D: 0x5B, 0x3C: 0x3E, 0x3E: 0x3C };
+const DROP = (c) => c === 0x200D || c === 0x200E || c === 0x200F || c === 0x640 || (c >= 0x64B && c <= 0x65F);
+const isFA = (c) => c >= 0x600 && c <= 0x6FF && !(c >= 0x6F0 && c <= 0x6F9) && !(c >= 0x660 && c <= 0x669);
+const joinsLeft = (c) => FORMS.has(c) && !RJ.has(c) && c !== 0x621; // می‌تواند به حرفِ بعدی بچسبد
+const isLTR = (c) => (c >= 0x30 && c <= 0x39) || (c >= 0x41 && c <= 0x5A) || (c >= 0x61 && c <= 0x7A) || (c >= 0x6F0 && c <= 0x6F9);
+const isSep = (c) => c === 0x2E || c === 0x2C || c === 0x3A || c === 0x2F || c === 0x25 || c === 0xD7 || c === 0x2D || c === 0x66A;
+const norm = (c) => { if (ALIAS[c]) return ALIAS[c]; if (c >= 0x660 && c <= 0x669) return c + 0x90; return c; };
+const glyphOf = (c) => GL.get(c) || GL.get(0x3F);
+function faShape(str) {
+const cs = [];
+for (const ch of String(str)) { const c = norm(ch.codePointAt(0)); if (!DROP(c)) cs.push(c); }
+const rtl = cs.some(isFA);
+const out = []; // { c, ltr }
+for (let i = 0; i < cs.length; i++) {
+const c = cs[i];
+if (c === 0x200C) continue;
+if (!FORMS.has(c)) { out.push({ c: rtl && MIRROR[c] ? MIRROR[c] : c, ltr: isLTR(c) }); continue; }
+const prev = i > 0 && joinsLeft(cs[i - 1]);
+let key = c, skip = 0;
+if (c === 0x644 && i + 1 < cs.length && ALEF.has(cs[i + 1])) { key = 0x10000 + cs[i + 1]; skip = 1; }
+const nx = cs[i + 1 + skip];
+const next = key < 0x10000 && joinsLeft(c) && nx !== undefined && FORMS.has(nx);
+const f = FORMS.get(key) || [c, 0, 0, 0];
+const form = prev && next ? f[2] : prev ? f[3] : next ? f[1] : f[0];
+out.push({ c: form || f[0] || c, ltr: false });
+i += skip;
+}
+if (rtl) {
+out.reverse();
+for (let i = 0; i < out.length;) {
+if (!out[i].ltr) { i++; continue; }
+let j = i;
+while (j + 1 < out.length && (out[j + 1].ltr || ((isSep(out[j + 1].c) || out[j + 1].c === 0x20) && j + 2 < out.length && out[j + 2].ltr))) j++;
+for (let a = i, b = j; a < b; a++, b--) { const t = out[a]; out[a] = out[b]; out[b] = t; }
+i = j + 1;
+}
+}
+return out.map((o) => glyphOf(o.c));
+}
+return {FA_H, FA_BASE, faShape};
+})();
+const {FA_H, FA_BASE, faShape} = __m_art_font_fa;
+const __m_art_font2 = (() => {
+const H = FA_H;
+const _mk = new Map();
+function maskOf(s) {
+let m = _mk.get(s);
+if (m) return m;
+const gs = faShape(s);
+let W = 0, minX = 0;
+{ let x = 0; for (const g of gs) { minX = Math.min(minX, x + g.ox); W = Math.max(W, x + g.ox + g.w, x + g.adv); x += g.adv; } }
+const sh = -minX; W += sh;
+const a = new Uint8Array(Math.max(1, W) * H);
+let x = sh;
+for (const g of gs) {
+for (let yy = 0; yy < H; yy++) for (let xx = 0; xx < g.w; xx++) if (g.a[yy * g.w + xx]) { const px = x + g.ox + xx; if (px >= 0 && px < W) a[yy * W + px] = 1; }
+x += g.adv;
+}
+let adv = sh; for (const g of gs) adv += g.adv;
+m = { W: Math.max(1, W), a, sh, adv };
+if (_mk.size > 256) _mk.clear();
+_mk.set(s, m);
 return m;
 }
-function outlineMask(ch) {
-let o = _outl.get(ch);
-if (o === undefined) {
-const g = glyph(ch), w = g.w, W2 = w + 2, H2 = H + 2;
-const a = new Uint8Array(W2 * H2);
-for (let y = 0; y < H; y++) for (let x = 0; x < w; x++) if (g.a[y * w + x]) a[(y + 1) * W2 + x + 1] = 2;
-const out = new Uint8Array(W2 * H2);
-const st = [];
-const seed = (i) => { if (!a[i] && !out[i]) { out[i] = 1; st.push(i); } };
-for (let x = 0; x < W2; x++) { seed(x); seed((H2 - 1) * W2 + x); }
-for (let y = 0; y < H2; y++) { seed(y * W2); seed(y * W2 + W2 - 1); }
-while (st.length) {
-const i = st.pop(), x = i % W2, y = (i - x) / W2;
-if (y > 0) seed(i - W2);
-if (y < H2 - 1) seed(i + W2);
-if (x > 0) seed(i - 1);
-if (x < W2 - 1) seed(i + 1);
-}
-for (let y = 0; y < H2; y++) for (let x = 0; x < W2; x++) {
-const i = y * W2 + x;
-if (a[i] || !out[i]) continue;
-if ((y > 0 && a[i - W2] === 2) || (y < H2 - 1 && a[i + W2] === 2)
-|| (x > 0 && a[i - 1] === 2) || (x < W2 - 1 && a[i + 1] === 2)) a[i] = 1;
-}
-o = { w: W2, a };
-_outl.set(ch, o);
-}
-return o;
-}
-function textW(s, sc = 1) {
-s = String(s).replace(SKIP, '');
-let w = 0;
-for (const ch of s) w += (_adv.get(ch) ?? glyph(ch).w + 1);
-return (w - 1) * sc;
-}
-const _oc = [20, 16, 33, 255];
-function drawText(r, s, x, y, col, sc = 1, o = null) {
-x = Math.round(x); y = Math.round(y);
-s = prep(s);
-const outline = !!(o && o.outline);
-const sh = !!(o && o.shadow);
-const oc = _oc;
-if (outline) oc[3] = col[3] ?? 255;
-let cx = x;
-for (const ch of s) {
-if (outline) {
-const m = outlineMask(ch), w2 = m.w;
-for (let yy = 0; yy < H + 2; yy++) for (let xx = 0; xx < w2; xx++) {
-if (m.a[yy * w2 + xx] === 1) {
-const px = cx - sc + xx * sc, py = y - sc + yy * sc;
-if (sc === 1) r.px(px, py, oc); else r.rect(px, py, sc, sc, oc);
-}
-}
-}
-const g = glyph(ch), w = g.w;
-for (let yy = 0; yy < H; yy++) for (let xx = 0; xx < w; xx++) if (g.a[yy * w + xx]) {
-const px = cx + xx * sc, py = y + yy * sc;
-if (sc === 1) r.px(px, py, col); else r.rect(px, py, sc, sc, col);
-}
-if (sh) for (let xx = 0; xx < w; xx++) {
-let yy = H - 1; while (yy >= 0 && !g.a[yy * w + xx]) yy--;
-if (yy >= 0) { const px = cx + xx * sc, py = y + (yy + 1) * sc; if (sc === 1) r.px(px, py, col); else r.rect(px, py, sc, sc, col); }
-}
-cx += (w + 1) * sc;
-}
-}
-function drawTextC(r, s, cx, y, col, sc = 1, o = null) { drawText(r, s, Math.round(cx - textW(s, sc) / 2), y, col, sc, o); }
-const _tm = new Map();
-function titleMask(s, thick) {
-const key = s + '|' + thick;
-let m = _tm.get(key);
-if (m) return m;
-const gs = [...prep(s)].map(glyph);
-const W = gs.reduce((a, g) => a + g.w + 1, 0) + 2 * (thick + 1);
-const Hh = H + 2 * (thick + 1) + 2; // ۲ ردیفِ اضافه برای سایه
+const _rg = new Map();
+function ringOf(s, thick, cheb) {
+const key = s + '|' + thick + (cheb ? 'c' : 'p');
+let r = _rg.get(key);
+if (r) return r;
+const m = maskOf(s), p = thick + 1, W = m.W + 2 * p, Hh = H + 2 * p;
 const core = new Uint8Array(W * Hh);
-let cx = thick + 1;
-for (const g of gs) {
-for (let y = 0; y < H; y++) for (let x = 0; x < g.w; x++) if (g.a[y * g.w + x]) core[(y + thick + 1) * W + cx + x] = 1;
-cx += g.w + 1;
-}
-const out = new Uint8Array(W * Hh);
-const st = [];
+for (let y = 0; y < H; y++) for (let x = 0; x < m.W; x++) if (m.a[y * m.W + x]) core[(y + p) * W + x + p] = 1;
+const out = new Uint8Array(W * Hh), st = [];
 const seed = (i) => { if (!core[i] && !out[i]) { out[i] = 1; st.push(i); } };
 for (let x = 0; x < W; x++) { seed(x); seed((Hh - 1) * W + x); }
 for (let y = 0; y < Hh; y++) { seed(y * W); seed(y * W + W - 1); }
 while (st.length) {
 const i = st.pop(), x = i % W, y = (i - x) / W;
-if (y > 0) seed(i - W);
-if (y < Hh - 1) seed(i + W);
-if (x > 0) seed(i - 1);
-if (x < W - 1) seed(i + 1);
+if (y > 0) seed(i - W); if (y < Hh - 1) seed(i + W); if (x > 0) seed(i - 1); if (x < W - 1) seed(i + 1);
 }
-const a = new Uint8Array(W * Hh); // ۳ = هسته، ۲ = حاشیه، ۱ = سایه (همه از جنسِ سیلhouette)
+const a = new Uint8Array(W * Hh);
 for (let y = 0; y < Hh; y++) for (let x = 0; x < W; x++) {
 const i = y * W + x;
 if (core[i]) { a[i] = 3; continue; }
 if (!out[i]) continue;
-let d = 9;
-for (let dy = -thick; dy <= thick; dy++) for (let dx = -thick; dx <= thick; dx++) {
+let hit = false;
+for (let dy = -thick; dy <= thick && !hit; dy++) for (let dx = -thick; dx <= thick; dx++) {
+if (!cheb && Math.abs(dx) + Math.abs(dy) > thick) continue;
 const yy = y + dy, xx = x + dx;
-if (yy < 0 || yy >= Hh || xx < 0 || xx >= W) continue;
-if (core[yy * W + xx]) { const t = Math.max(Math.abs(dx), Math.abs(dy)); if (t < d) d = t; }
+if (yy >= 0 && yy < Hh && xx >= 0 && xx < W && core[yy * W + xx]) { hit = true; break; }
 }
-if (d <= thick) a[i] = 2;
+if (hit) a[i] = 2;
 }
-m = { W, H: Hh, a };
-if (_tm.size > 96) _tm.clear(); // تیترها کم‌تعدادند؛ نشت نداریم
-_tm.set(key, m);
-return m;
+r = { W, H: Hh, a, p };
+if (_rg.size > 256) _rg.clear();
+_rg.set(key, r);
+return r;
 }
+function textW(s, sc = 1) { return maskOf(String(s)).adv * sc; }
+const dot = (r, x, y, sc, c) => { if (sc === 1) r.px(x, y, c); else r.rect(x, y, sc, sc, c); };
+const _oc = [20, 16, 33, 255];
+function drawText(r, s, x, y, col, sc = 1, o = null) {
+s = String(s);
+x = Math.round(x); y = Math.round(y);
+const m = maskOf(s);
+const x0 = x - m.sh * sc;
+if (o && o.outline) {
+_oc[3] = col[3] ?? 255;
+const g = ringOf(s, 1, false);
+for (let yy = 0; yy < g.H; yy++) for (let xx = 0; xx < g.W; xx++) if (g.a[yy * g.W + xx] === 2) dot(r, x0 + (xx - g.p) * sc, y + (yy - g.p) * sc, sc, _oc);
+}
+if (o && o.shadow) for (let yy = 0; yy < H; yy++) for (let xx = 0; xx < m.W; xx++) {
+if (m.a[yy * m.W + xx] && (yy === H - 1 || !m.a[(yy + 1) * m.W + xx])) dot(r, x0 + xx * sc, y + (yy + 1) * sc, sc, col);
+}
+for (let yy = 0; yy < H; yy++) for (let xx = 0; xx < m.W; xx++) if (m.a[yy * m.W + xx]) dot(r, x0 + xx * sc, y + yy * sc, sc, col);
+}
+function drawTextC(r, s, cx, y, col, sc = 1, o = null) { drawText(r, s, Math.round(cx - textW(s, sc) / 2), y, col, sc, o); }
 function drawTitle(r, s, x, y, col, sc = 2, o = null) {
+s = String(s);
 const thick = Math.max(1, Math.min(2, (o && o.thick) || 1));
-const m = titleMask(String(s), thick);
+const g = ringOf(s, thick, true), m = maskOf(s);
 const oc = (o && o.oc) || [20, 16, 33, 255];
 const shc = (o && o.shc) || [0, 0, 0, 130];
 const hi = (o && o.hi) || null;
 const dy = (o && o.sh === 0) ? 0 : Math.max(0, (o && o.sh) || 2);
-x = Math.round(x) - (thick + 1) * sc; y = Math.round(y) - (thick + 1) * sc;
-if (dy) for (let yy = 0; yy < m.H; yy++) for (let xx = 0; xx < m.W; xx++) if (m.a[yy * m.W + xx]) {
-const px = x + xx * sc, py = y + (yy + dy) * sc;
-if (sc === 1) r.px(px, py, shc); else r.rect(px, py, sc, sc, shc);
-}
-for (let yy = 0; yy < m.H; yy++) for (let xx = 0; xx < m.W; xx++) {
-const v = m.a[yy * m.W + xx];
+const X = Math.round(x) - (g.p + m.sh) * sc, Y = Math.round(y) - g.p * sc;
+if (dy) for (let yy = 0; yy < g.H; yy++) for (let xx = 0; xx < g.W; xx++) if (g.a[yy * g.W + xx]) dot(r, X + xx * sc, Y + (yy + dy) * sc, sc, shc);
+for (let yy = 0; yy < g.H; yy++) for (let xx = 0; xx < g.W; xx++) {
+const v = g.a[yy * g.W + xx];
 if (!v) continue;
-const px = x + xx * sc, py = y + yy * sc;
-let c = col;
-if (v === 2) c = oc;
-else if (hi && m.a[(yy - 1) * m.W + xx] !== 3) c = hi; // لبه‌ی بالای هر ضربه
-if (sc === 1) r.px(px, py, c); else r.rect(px, py, sc, sc, c);
+let c = v === 2 ? oc : col;
+if (v === 3 && hi && g.a[(yy - 1) * g.W + xx] !== 3) c = hi;
+dot(r, X + xx * sc, Y + yy * sc, sc, c);
 }
 }
 function drawTitleC(r, s, cx, y, col, sc = 2, o = null) {
 drawTitle(r, s, Math.round(cx - textW(s, sc) / 2), y, col, sc, o);
 }
-return {GLYPHS, textW, drawText, drawTextC, drawTitle, drawTitleC};
+return {textW, drawText, drawTextC, drawTitle, drawTitleC};
 })();
-const {GLYPHS, textW, drawText, drawTextC, drawTitle, drawTitleC} = __m_art_font2;
+const {textW, drawText, drawTextC, drawTitle, drawTitleC} = __m_art_font2;
 const __m_art_farm_decor = (() => {
 const hash = (x, y) => { let h = (x * 374761393 + y * 668265263) | 0; h = (h ^ (h >> 13)) * 1274126177; return ((h ^ (h >> 16)) >>> 0) / 4294967295; };
 const _gC = [...rp('gold', 6).slice(0, 3), 0]; // اسپارکل طلایی — نفس‌کش (S1.3: رنگ از رمپ)
