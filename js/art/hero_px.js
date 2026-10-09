@@ -137,6 +137,22 @@ function limb(r, a, b, cL, cD, cEnd) {
     r.px(x, y, cL); r.px(x + 1, y, k === n && cEnd ? cEnd : cD);
   }
 }
+function sideLeg(r, a, k, b, cL, cD) {
+  const seg = (p, q) => {
+    const y0 = Math.round(p[1]), y1 = Math.round(q[1]), n = Math.max(1, y1 - y0);
+    let px = Math.round(p[0] - 0.5);
+    for (let y = y0; y <= y1; y++) {
+      const tx = Math.round(p[0] + (q[0] - p[0]) * (y - y0) / n - 0.5);
+      px += Math.sign(tx - px);                       // حداکثر ۱px جابه‌جایی در هر ردیف
+      r.px(px, y, cL); r.px(px + 1, y, cD);
+    }
+    return px;
+  };
+  seg(a, k);
+  const kx = Math.round(k[0] - 0.5), ky = Math.round(k[1]);
+  r.px(kx, ky, cL); r.px(kx + 1, ky, cL); r.px(kx, ky + 1, cL); r.px(kx + 1, ky + 1, cD);
+  seg(k, b);
+}
 const half = (p) => [p[0] / 2, p[1] / 2];
 
 // P = نقاطِ پوز در مقیاسِ ۱۲۸ (mapPts) · layer: 'back' (بازو/پای دور + تنه) یا 'front' (پای نزدیک + سر + کلاه + بازوی نزدیک)
@@ -146,11 +162,12 @@ export function drawHeroPx(r, dir, P, layer, o = {}) {
   const leg = (L, near) => {
     const hip = half(L.hip), knee = half(L.knee), an = half(L.ankle);
     if (!side) { // جلو/پشت: پای صاف (زانوی بیرون‌زده حلقه‌ی «O» می‌ساخت)
-      limb(r, hip, [an[0], an[1] - 1], near ? C.pantsHi : C.pants, near ? C.pants : C.pantsSh, C.pantsSh);
-      blit(r, BOOT.front, Math.round(an[0] - 0.5), Math.round(an[1]), flip); return;
+      const ax = hip[0] + Math.max(-1, Math.min(1, an[0] - hip[0])); // S9.9: ساق تقریباً عمودی ⇒ پاها به هم نمی‌رسند (حلقه‌ی «O» در راه‌رفتنِ جلو)
+      limb(r, hip, [ax, an[1] - 1], near ? C.pantsHi : C.pants, near ? C.pants : C.pantsSh, C.pantsSh);
+      blit(r, BOOT.front, Math.round(ax - 0.5), Math.round(an[1]), flip); return;
     }
-    limb(r, hip, knee, near ? C.pantsHi : C.pants, near ? C.pants : C.pantsSh);
-    limb(r, knee, [an[0], an[1] - 1], near ? C.pantsHi : C.pants, near ? C.pants : C.pantsSh, C.pantsSh);
+    // S9.9: پای کنار — ستونِ ۲px با گامِ حداکثر ۱px در هر ردیف (بی‌دندانه) + کاسه‌ی زانوی ۲×۲ پرکننده
+    sideLeg(r, hip, knee, [an[0], an[1] - 1], near ? C.pantsHi : C.pants, near ? C.pants : C.pantsSh);
     blit(r, side ? BOOT.side : BOOT.front, Math.round(an[0] - 0.5), Math.round(an[1]), flip);
   };
   const arm = (A, near) => {

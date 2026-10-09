@@ -13,7 +13,9 @@ import { heroSprite } from '../js/run_render.js';
 import { groundSprite } from '../js/art/ground.js';
 import { cropSprite, cropIcon, CROP_STAGES } from '../js/art/crops.js';
 import { MONSTER_KINDS, MOX, MOY } from '../js/art/monster_parts.js';
-import { HOY } from '../js/art/hero_pose.js'; // S1.6: خط پای قهرمان (بوم ۶۴px)
+import { HOX, HOY } from '../js/art/hero_pose.js';
+import { WORLD_W, WORLD_H, TILE } from '../js/tiles.js';
+import { HOUSE } from '../js/farm_layout.js'; // S1.6: خط پای قهرمان (بوم ۶۴px)
 import { drawText } from '../js/art/font2.js';
 import { PM_SIZE, PM_COVER, inPM } from '../js/art/palette_master.js';
 import { iconGrid, iconCellRGB } from '../js/art/icons.js'; // S7.1: سنجه‌ی آیکون‌های UI
@@ -95,6 +97,21 @@ function farmSceneReal(dayT = 100) {
   g.view = { w: 240, h: 160 }; g.dayT = dayT;
   const r = new Raster(240, 160);
   g.render(r);
+  // S9.9: ماسکِ «فقط زمین» برای M8 — پیکسل‌های اسپرایتِ قهرمان + جعبه‌ی خانه (M8 درزِ تایل را می‌سنجد، نه لبه‌ی موجودات)
+  const cl = (v, a, b) => Math.max(a, Math.min(b, v));
+  const cx = Math.round(cl(g.cam.x, Math.min(0, (WORLD_W - 240) / 2), Math.max(0, WORLD_W - 240)));
+  const cy = Math.round(cl(g.cam.y, Math.min(0, (WORLD_H - 160) / 2), Math.max(0, WORLD_H - 160)));
+  const mask = new Uint8Array(240 * 160), hs = g._heroSprite();
+  const ox = Math.round(g.hero.x) - HOX - cx, oy = Math.round(g.hero.y) - HOY - cy;
+  for (let y = 0; y < hs.h; y++) for (let x = 0; x < hs.w; x++) {
+    const X = ox + x, Y = oy + y;
+    if (X >= 0 && Y >= 0 && X < 240 && Y < 160 && hs.d[(y * hs.w + x) * 4 + 3] > 0) mask[Y * 240 + X] = 1;
+  }
+  const hx = HOUSE.x * TILE - cx - 12, hy = HOUSE.y * TILE - cy - 28;
+  for (let y = Math.max(0, hy); y < Math.min(160, hy + 64); y++) for (let x = Math.max(0, hx); x < Math.min(240, hx + 59); x++) mask[y * 240 + x] = 1;
+  for (const wk of g.workers) { const wx = Math.round(wk.x) - cx, wy = Math.round(wk.y) - cy; // کارگرها هم موجودند
+    for (let y = Math.max(0, wy - 36); y < Math.min(160, wy + 4); y++) for (let x = Math.max(0, wx - 14); x < Math.min(240, wx + 14); x++) mask[y * 240 + x] = 1; }
+  r.groundMask = mask;
   return r;
 }
 function dungeonSceneReal(seed = 13, f = 1) {
@@ -126,7 +143,7 @@ function sceneMetrics(sc) {
   let hard = 0;
   for (let x = 16; x < w; x += 16) {
     let jump = 0, n = 0;
-    for (let y = 0; y < h; y++) if (op(x, y) && op(x - 1, y)) { n++; if (Math.abs(Lc(x, y) - Lc(x - 1, y)) > 15) jump++; }
+    for (let y = 0; y < h; y++) if (op(x, y) && op(x - 1, y) && !(sc.groundMask && (sc.groundMask[y * w + x] || sc.groundMask[y * w + x - 1]))) { n++; if (Math.abs(Lc(x, y) - Lc(x - 1, y)) > 15) jump++; }
     if (n && jump / n > 0.25) hard++;
   }
   // M7: جفت‌تایل همسایه‌ی همسان (بایت‌به‌بایت، شامل آلفا)
