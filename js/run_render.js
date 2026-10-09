@@ -1,4 +1,5 @@
 // run_render.js — رندر دورِ دانجن: تایل‌ها، قطره‌ها/صندوق‌ها، تاریکی + منابع نور، مینی‌مپ، اسپرایت قهرمان
+import { drawExtras } from './floor_extras.js';
 import { drawTextC, drawText, drawTitleC, textW, E, TILE, COLS, ROWS, WORLD_W, WORLD_H } from './tiles.js'; // S3.1: groundSprite دیگر اینجا استفاده نمی‌شود (رفت به dungeon_bake)
 import { Raster } from './raster.js';
 import { drawHeroFrame, frameKey, framePhase, halfSprite } from './art/hero.js';
@@ -102,6 +103,7 @@ export function renderRun(run, r) {
     const DT = run._dtv || (run._dtv = { torches: null }); DT.torches = TV;
     if (Object.getPrototypeOf(DT) !== D) Object.setPrototypeOf(DT, D);
     drawTorches(r, DT, cx, cy, run.time);
+    drawExtras(r, run, cx, cy); // ن۱۵۰: تله/چشمه
     drawChests(r, D, cx, cy, run.time);
     drawShrines(r, D, cx, cy, run.time);
     // هاله‌ی تهدید باس (نبض قرمز زیر پا)

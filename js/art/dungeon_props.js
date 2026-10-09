@@ -42,7 +42,7 @@ const WF = rp('wood', 4), WL = rp('wood', 6), WS = rp('wood', 2), INK1 = rp('ink
 export function drawChests(r, D, cx, cy, time) {
   for (const c of D.chests) {
     const sx = c.x * TILE - cx, sy = c.y * TILE - cy;
-    if (sx < -TILE || sy < -TILE || sx > r.w || sy > r.h) continue;
+    if (sx < -TILE || sy < -TILE || sx > r.w || sy > r.h || (D.visible && !D.visible(c.x, c.y))) continue;
     r.rect(sx + 3, sy + 6, 10, 7, WF);            // بدنه
     r.rect(sx + 4, sy + 7, 8, 1, WS);             // رگه‌ی چوب
     r.rect(sx + 3, sy + 12, 10, 1, WS);           // لبه‌ی پایین

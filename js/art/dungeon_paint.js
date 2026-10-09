@@ -52,9 +52,10 @@ export function paintRows(r, D, y0, y1) {
         r.rect(ox, oy + TILE - 1, TILE, 1, BRSH);
         if (c && c.v === 3 && hash(x, y, 11) < 0.7) for (let i = 0; i < 5; i++) r.rect(ox + Math.floor(hash(x, y, 20 + i) * 14), oy + 8 + Math.floor(hash(x, y, 30 + i) * 7), 2, 1, ACC); // خزه/رگه
         if (c && c.v === 2) r.rect(ox + 4 + Math.floor(hash(x, y, 12) * 6), oy + 5, 4, 3, MOR); // آجرِ افتاده
-        { const dd = DM.get(y * W + x); if (dd && dd.t === 'banner') paintBanner(r, ox, oy, dd.v, D.theme | 0); }
+        { const dd = DM.get(y * W + x); if (dd && dd.t === 'banner') paintBanner(r, ox, oy, dd.v, D.theme | 0); if (dd && dd.t === 'secret') crackW(r, ox, oy, MOR); }
       } else {
         r.rect(ox, oy, TILE, TILE, CAP);
+        { const dd = DM.get(y * W + x); if (dd && dd.t === 'secret') crackW(r, ox, oy, CAPSH); }
         if (hash(x, y, 9) < 0.3) r.rect(ox + 4 + Math.floor(hash(x, y, 2) * 6), oy + 5, 3, 1, CAPSH);
         if (!isW(x, y - 1)) r.rect(ox, oy, TILE, 2, OUT);
         if (!isW(x - 1, y) && !fl(x - 1, y)) r.rect(ox, oy, 2, TILE, OUT);
@@ -150,3 +151,6 @@ function paintCentreBig(r, x, y, v, P) {
     const X = x + i, Y = y + j; if (X < 0 || Y < 0 || X >= r.w || Y >= r.h) continue; const o = (Y * r.w + X) * 4, k = a / 255;
     r.d[o] = r.d[o] * (1 - k) + T.d[s] * k; r.d[o + 1] = r.d[o + 1] * (1 - k) + T.d[s + 1] * k; r.d[o + 2] = r.d[o + 2] * (1 - k) + T.d[s + 2] * k; }
 }
+
+// ن۱۵۰: ترکِ دیوارِ مخفی (زیگزاگِ تیره + لبه‌ی روشن)
+function crackW(r, ox, oy, c) { const p = [[7, 2], [8, 3], [8, 4], [7, 5], [6, 6], [7, 7], [8, 8], [9, 9], [9, 10], [8, 11], [7, 12], [4, 7], [5, 7], [10, 6], [11, 5], [12, 5]]; for (const [x, y] of p) { r.rect(ox + x, oy + y, 1, 1, [16, 12, 14, 255]); r.rect(ox + x + 1, oy + y, 1, 1, c); } }

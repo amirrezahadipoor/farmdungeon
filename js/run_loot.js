@@ -20,7 +20,7 @@ export function lootKill(run, e) {
     const h2 = run.hero;
     if (h2.iframe <= 0 && !h2.dead && Math.hypot(h2.x - e.x, h2.y - 10 - e.y) < 34) run._hooks.onHit(e, Math.max(1, Math.round(e.dmg * 0.6)));
   }
-  const mul = 1 + run.floor / 10;
+  const mul = (1 + run.floor / 10) * (run.dungeon.event && run.dungeon.event.k === 'greed' ? 1.6 : 1); // ن۱۵۰: طبقه‌ی طمع
   let n = e.isBoss ? Math.round(18 * mul) : Math.round(Math.random() * 1.4 * mul) + (run.greedBonus || 0); // ن۱۴۰: گوهر هم ممکن است صفر باشد
   if (e.isElite) { n = Math.round(n * 2.2) + 2; D.drops.push({ x: e.x, y: e.y - 4, kind: 'heart', t: 0 }); } // نخبه: غنیمت×۲٫۲ + قلب تضمینی
   for (let j = 0; j < n; j++) D.drops.push({ x: e.x + (Math.random() - 0.5) * 12, y: e.y + (Math.random() - 0.5) * 12, kind: Math.random() < 0.06 ? 'heart' : 'essence', t: Math.random() * 6 });

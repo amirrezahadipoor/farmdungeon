@@ -15,6 +15,7 @@ import { Q } from './art/quality.js';
 import { $, toast, showBanner } from './ui.js';
 import { playSfx, setAmbient, setRain, unlockAudio } from './sfx/sounds.js';
 import { isRaining } from './art/weather.js';
+import { setMusic } from './sfx/music.js';
 import { questLabel } from './quests.js';
 import { initAppUI } from './app_ui.js';
 import { initScenes } from './main_scene.js';
@@ -158,6 +159,7 @@ function frame(now) {
       else if (e.k === 'bossIntro') showBanner();
       else if (e.k === 'bossDown') { toast(t('bossDown')); showBanner(t('bossDown'), true); }
       else if (e.k === 'chest') toast(t('chest'));
+      else if (e.k === 'event') { toast(t('ev_' + e.id)); playSfx(e.id === 'spring' ? 'shrine' : e.id === 'ambush' ? 'boss' : 'chest'); }
       else if (e.k === 'gotItem') toast(t('gotItem') + ' ' + ((ITEMS[e.id] || {}).name ? ITEMS[e.id].name[getLang()] : e.id));
       else if (e.k === 'died') {
         app.s.stats.deaths++;
@@ -186,6 +188,9 @@ function frame(now) {
   {
     const wantScene = scene === 'farm' ? 'farm' : 'dungeon';
     if (wantScene !== _ambScene) { _ambScene = wantScene; setAmbient(wantScene); }
+    { let mk = wantScene; // ن۱۵۰: موسیقیِ پیکسلی — باس وقتی باسِ زنده در اتاقِ دیده‌شده است
+      if (run && run.dungeon) { const D = run.dungeon, b = D.enemies.find((e) => e.isBoss && e.state !== 'die'); if (b && (b.room === undefined || D.seen.has(b.room))) mk = 'boss'; }
+      setMusic(mk); }
     const raining = scene === 'farm' && isRaining(farmScene.dayT);
     if (raining !== _ambRain) { _ambRain = raining; setRain(raining); }
   }

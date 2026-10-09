@@ -10,6 +10,7 @@ import { Locomotion, GAITS } from './skeleton.js';
 import { ACT_DUR } from './art/hero_pose.js';
 import { groundSprite, E, TILE, COLS, ROWS, WORLD_W, WORLD_H } from './tiles.js';
 import { Raster } from './raster.js';
+import { genExtras, pickEvent } from './floor_extras.js';
 import { FX } from './fx.js';
 
 export const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
@@ -31,6 +32,7 @@ export class Dungeon {
     this.rng = mulberry32(seed * 7919 + floor * 104729);
     this.spec = specFor(floor); this.tier = tierOf(floor);
     const g = generate(this.spec, floor * 92821 + 17);
+    genExtras(g, this.spec, floor, this.rng); // ن۱۵۰: تله + اتاقِ مخفی
     this.cols = g.cols; this.rows = g.rows; this.gen = g;
     this.rooms = g.rooms; this.roomMap = g.room;
     this.theme = this.tier.theme;
@@ -49,7 +51,10 @@ export class Dungeon {
     this.dress = g.dress; // ن۱۴۰: آرایشِ نقاشی‌شده (فرش/طلا/موزاییک/آوار/پرچم)
     // مه
     this.seen = new Set(); this.vis = new Uint8Array(g.cols * g.rows); this.visVer = 0;
+    this.traps = g.traps || []; this.secret = g.secret;
     this._spawnAll();
+    this.event = pickEvent(this, R); // ن۱۵۰: رویدادِ تصادفیِ طبقه
+    if (this.event && this.event.k === 'greed') for (const e of this.enemies) { e.hp *= 1.25; if (e.maxHp) e.maxHp *= 1.25; }
     this.reveal(g.startId);
   }
   cell(x, y) { return (x < 0 || y < 0 || x >= this.cols || y >= this.rows) ? null : this.grid[y * this.cols + x]; }

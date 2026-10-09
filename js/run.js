@@ -15,6 +15,7 @@ import { lootKill, lootUpdate, lootChests } from './run_loot.js';
 import { runAttack, runSkillSpin, separateEnemies } from './run_combat.js';
 import { equipStats, equipSig } from './items.js';
 import { Monster } from './monster.js';
+import { extrasUpdate, onRoomReveal } from './floor_extras.js';
 
 export class Run {
   constructor(seed, opts = {}) {
@@ -102,7 +103,7 @@ export class Run {
     h.x = this.dungeon.spawn.x * TILE + 8; h.y = this.dungeon.spawn.y * TILE + 8;
     h.skillCd = 0; h.dashCd = 0;
     if (!floor10(f)) h.hp = Math.min(this.maxHp, h.hp + 25);
-    this.log.push({ k: 'floor', n: f, boss: floor10(f) });
+    this.log.push({ k: 'floor', n: f, boss: floor10(f) }); if (this.dungeon.event && this.dungeon.event.k === 'greed') this.log.push({ k: 'event', id: 'greed' });
     if (floor10(f)) { this.log.push({ k: 'bossIntro' }); this.fx.shake(3, 0.5); }
   }
   get isBossFloor() { return floor10(this.floor); }
@@ -209,7 +210,8 @@ export class Run {
 
     // ---- دشمن‌ها ----
     this._tgt.x = h.x; this._tgt.y = h.y - 10; // بازنویسی همان شیء — صفر تخصیص
-    { const rm = D.roomAt(Math.floor(h.x / TILE), Math.floor(h.y / TILE)); if (rm >= 0 && D.reveal(rm)) this.log.push({ k: 'room' }); } // ن۱۳۹: ورود به اتاق ⇒ کشف
+    { const rm = D.roomAt(Math.floor(h.x / TILE), Math.floor(h.y / TILE)); if (rm >= 0 && D.reveal(rm)) { this.log.push({ k: 'room' }); onRoomReveal(this, rm); } }
+    extrasUpdate(this, dt); // ن۱۳۹: ورود به اتاق ⇒ کشف
     for (let i = D.enemies.length - 1; i >= 0; i--) {
       const e = D.enemies[i];
       // ن۱۳۹: هیولای اتاقِ ندیده خواب است؛ بیدار شد ⇒ فقط در بُردِ دید/پس از زخم دنبال می‌کند

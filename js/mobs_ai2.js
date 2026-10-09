@@ -45,11 +45,11 @@ function skeleton(m, dt, t, hooks, s, spd) {
 }
 // روح: از دیوار رد می‌شود، دور که باشد محو است، گاهی کنارِ قهرمان ظاهر می‌شود
 function ghost(m, dt, t, hooks, s, spd) {
-  if (!t) return false; const [ux, uy, d] = vec(m, t); m.alpha = d > 60 ? 0.45 : 1; m._c = (m._c || 2) - dt;
+  if (!t) return false; const [ux, uy, d] = vec(m, t); m.alpha = d > 60 ? 0.45 : 1; m._c = (m._c || 2) - dt; if (m._hx === undefined) { m._hx = m.x; m._hy = m.y; } // ن۱۵۰: باسِ روح در میدانش می‌ماند
   if (busy(m)) return false;
-  if (m._c <= 0 && d > 50 && d < 140) { m._c = 4.5; const a = Math.random() * 6.283; const nx = t.x + Math.cos(a) * 26, ny = t.y + Math.sin(a) * 18; if (!(hooks.solid || (() => false))(nx, ny)) { m.x = nx; m.y = ny; m.flash = 0.2; } return true; }
+  if (m._c <= 0 && d > 50 && d < 140) { m._c = 4.5; const a = Math.random() * 6.283; const nx = t.x + Math.cos(a) * 26, ny = t.y + Math.sin(a) * 18; if (!(hooks.solid || (() => false))(nx, ny) && (!m.lord || Math.hypot(nx - m._hx, ny - m._hy) < 110)) { m.x = nx; m.y = ny; m.flash = 0.2; } return true; }
   if (d <= s.range) return false;
-  walk(m, step(m, ux, uy, spd, dt, hooks, true), s); return true;
+  walk(m, step(m, ux, uy, spd, dt, hooks, !m.lord), s); return true;
 }
 // گرگ: دورِ قهرمان می‌چرخد (گله‌ای) و ناگهان می‌پرد
 function wolf(m, dt, t, hooks, s, spd) {
