@@ -1,9 +1,10 @@
 // floors/index.js — رجیستریِ ۱۰۰ طبقه (ن۱۳۹). طبقه‌های طراحی‌شده از فایل‌های fXXX_YYY.js می‌آیند؛
 // طبقه‌هایی که هنوز طراحیِ دستی ندارند spec موقتِ قطعی (بر اساسِ شماره‌ی طبقه) می‌گیرند تا بازی همیشه کامل باشد.
 import { F001_010 } from './f001_010.js';
+import { F011_020 } from './f011_020.js';
 import { isBossFloor } from './tiers.js';
 
-export const DESIGNED = { ...F001_010 };
+export const DESIGNED = { ...F001_010, ...F011_020 };
 export const MAX_FLOOR = 100;
 const LAYOUTS = ['scatter', 'chain', 'hub', 'grid', 'twin', 'ring'];
 

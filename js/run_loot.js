@@ -21,9 +21,9 @@ export function lootKill(run, e) {
     if (h2.iframe <= 0 && !h2.dead && Math.hypot(h2.x - e.x, h2.y - 10 - e.y) < 34) run._hooks.onHit(e, Math.max(1, Math.round(e.dmg * 0.6)));
   }
   const mul = 1 + run.floor / 10;
-  let n = e.isBoss ? Math.round(25 * mul) : Math.max(1, Math.round((1 + Math.random()) * mul)) + run.greedBonus;
+  let n = e.isBoss ? Math.round(18 * mul) : Math.round(Math.random() * 1.4 * mul) + (run.greedBonus || 0); // ن۱۴۰: گوهر هم ممکن است صفر باشد
   if (e.isElite) { n = Math.round(n * 2.2) + 2; D.drops.push({ x: e.x, y: e.y - 4, kind: 'heart', t: 0 }); } // نخبه: غنیمت×۲٫۲ + قلب تضمینی
-  for (let j = 0; j < n; j++) D.drops.push({ x: e.x + (Math.random() - 0.5) * 12, y: e.y + (Math.random() - 0.5) * 12, kind: Math.random() < 0.1 ? 'heart' : 'essence', t: Math.random() * 6 });
+  for (let j = 0; j < n; j++) D.drops.push({ x: e.x + (Math.random() - 0.5) * 12, y: e.y + (Math.random() - 0.5) * 12, kind: Math.random() < 0.06 ? 'heart' : 'essence', t: Math.random() * 6 });
   if (e.isBoss) run._bossKills = (run._bossKills || 0) + 1; // RPG: XP باس
   const pw = powerOf(run.floor, e.isElite, e.isBoss); // ن۱۳۹: دراپ بر اساسِ قدرتِ هیولا — ممکن است هیچ نیندازد (فقط EXP)
   let seedN = seedCount(pw, e.isElite, e.isBoss); if (seedN && Math.random() < (run.seedP || 0)) seedN++; // RPG: بذریابی

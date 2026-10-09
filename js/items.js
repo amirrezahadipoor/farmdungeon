@@ -57,9 +57,9 @@ export function rollSeedDrop(floor, isElite, isBoss) {
 
 // ---------- دراپ سکه (کوچک — درآمد جانبی دانجن) ----------
 export function rollCoinDrop(floor, isElite, isBoss) {
-  if (isBoss) return 40 + 8 * floor;
+  if (isBoss) return Math.random() < 0.85 ? 30 + 5 * floor : 0;
   if (isElite) return 6 + 2 * floor;
-  return Math.random() < 0.22 ? 2 + (floor >> 1) : 0;
+  return Math.random() < 0.12 ? 2 + (floor >> 2) : 0; // ن۱۴۰: کم‌یاب‌تر
 }
 
 // ---------- جمع آمار تجهیزشده‌ها ----------

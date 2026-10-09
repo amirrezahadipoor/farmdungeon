@@ -5835,7 +5835,7 @@ for (const k in MC_RAMP) { const m = MC_RAMP[k]; MC[k] = m[0] === '__w' ? PM_W.s
 MC.ghost = [...MC.ghost.slice(0, 3), 200]; MC.ghostHi = [...MC.ghostHi.slice(0, 3), 225]; MC.ghostVeil = [...MC.ghostVeil.slice(0, 3), 168];
 MC.ghostSh = [...MC.ghostSh.slice(0, 3), 150]; MC.ghostMid = [...MC.ghostMid.slice(0, 3), 138]; MC.ghostDe2 = [...MC.ghostDe2.slice(0, 3), 126]; MC.ghostDeep = [...MC.ghostDeep.slice(0, 3), 114];
 const MONSTER_KINDS = ['slime', 'bat', 'wolf', 'skeleton', 'golem', 'spider', 'ghost',
-'mummy', 'archer', 'ram', 'yeti', 'imp', 'bandit', 'hare']; // ن۴۴: +۷ هیولا
+'mummy', 'archer', 'ram', 'yeti', 'imp', 'bandit', 'hare', 'zombie', 'scorpion', 'shroom', 'lizard', 'knight', 'demon']; // ن۴۴: +۷ · ن۱۴۰: +۶
 const DEATH_COLORS = {
 slime: [MC.slimeHi, MC.slime, MC.slimeSh], bat: [MC.batHi, MC.bat, MC.batSh],
 wolf: [MC.wolfHi, MC.wolf, MC.wolfSh], skeleton: [MC.boneHi, MC.bone, MC.boneSh],
@@ -7017,10 +7017,214 @@ const MBODY_PX2 = { bat: dBat, spider: dSpider, bandit: dBandit, archer: dArcher
 return {MBODY_PX2};
 })();
 const {MBODY_PX2} = __m_art_mob_px2;
+const __m_art_mob_px3 = (() => {
+const sin = Math.sin, PI = Math.PI;
+const hex = (h) => { const c = nearestPM(parseInt(h.slice(1, 3), 16), parseInt(h.slice(3, 5), 16), parseInt(h.slice(5, 7), 16)); return [c[0], c[1], c[2], 255]; };
+const pal = (o) => { const p = {}; for (const k in o) p[k] = hex(o[k]); return p; };
+function blit(g, rows, p, x, y, fade = 1) {
+for (let j = 0; j < rows.length; j++) for (let i = 0; i < rows[j].length; i++) {
+const c = p[rows[j][i]]; if (!c) continue;
+g.px(Math.round(x) + i, Math.round(y) + j, fade < 1 ? [c[0], c[1], c[2], Math.round(255 * fade)] : c);
+}
+}
+const fadeOf = (f) => (f.state === 'die' ? Math.max(0, 1 - Math.max(0, f.t - 0.5) * 2) : 1);
+function pose(f, lunge = 4) {
+let bob = 0, step = 0, dx = 0, dead = 0;
+if (f.state === 'idle') bob = sin(f.time * 2.2) > 0.4 ? 1 : 0;
+if (f.state === 'move') { step = Math.round(sin(f.ph * PI * 2)); bob = -Math.abs(step); }
+if (f.state === 'attack') dx = f.t < 0.5 ? -Math.round(wind(f.t, 0.5) * 2) : f.t < 0.7 ? lunge : 0;
+if (f.state === 'die') dead = Math.min(1, f.t * 1.6);
+return { bob, step, dx, dead };
+}
+const ZP = pal({ 1: '#b7c79a', 2: '#8fa572', 3: '#62784f', 4: '#3f4f36', s: '#5a7fa8', S: '#3c5778', t: '#2a3d58', p: '#6b5a48', P: '#4a3e32', e: '#ffe082', k: '#141021', r: '#a83a3a' });
+const Z_BODY = [
+'...1111....',
+'..122221...',
+'..12k2k3...',
+'..12e2e3...',
+'..22222r...',
+'...3rr3....',
+'....33.....',
+'..ssssss...',
+'.sSssssS1..',
+'.sSsstsS...',
+'..SstsS....',
+'..sSssS....',
+'..SsStS....',
+'..pppppp...',
+'..pPppPp...',
+'..pp..pp...',
+'..pp..pp...',
+'..PP..PP...',
+'..33..33...',
+'.444..444..',
+];
+const Z_ARM = ['11222', '23333', '3...4'];
+function dZombie(r, f) {
+const g = lm(r, f.face), fade = fadeOf(f), p = pose(f, 5);
+const top = MOY - 20 + p.bob + Math.round(p.dead * 9), x = -5 + p.dx;
+blit(g, Z_BODY, ZP, x, top, fade);
+const ay = top + 8 + (f.state === 'attack' && f.t > 0.5 && f.t < 0.7 ? 1 : 0);
+if (p.dead < 0.5) { blit(g, Z_ARM, ZP, x + 8, ay, fade); blit(g, Z_ARM, ZP, x + 7, ay + 2, fade); }
+if (p.step) g.px(x + 3 + p.step, MOY - 1, ZP[4]);
+}
+const SC = pal({ 1: '#f0c07a', 2: '#d0884a', 3: '#a0582e', 4: '#6a3420', y: '#ffe082', k: '#141021', w: '#f2efe4' });
+const SC_BODY = [
+'......1111111......',
+'....11222222211....',
+'..1122223322222....',
+'.122233332233322...',
+'yk222332222332223..',
+'kk333333333333334..',
+'.3443443443443444..',
+'.4.4.4.4.4.4.4.....',
+];
+const SC_CLAW = ['.111', '1223', '2.33', '.34.'];
+function dScorpion(r, f) {
+const g = lm(r, f.face), fade = fadeOf(f);
+let bob = 0, tailUp = 0, dx = 0, dead = 0;
+if (f.state === 'idle') bob = sin(f.time * 3) > 0.6 ? 1 : 0;
+if (f.state === 'move') bob = Math.round(sin(f.ph * PI * 4) * 0.6);
+if (f.state === 'attack') { tailUp = f.t < 0.5 ? Math.round(wind(f.t, 0.5) * 3) : f.t < 0.7 ? -4 : 0; dx = f.t > 0.5 && f.t < 0.7 ? 2 : 0; }
+if (f.state === 'die') dead = Math.min(1, f.t * 1.6);
+const by = MOY - 9 + bob, x = -10 + dx;
+blit(g, SC_BODY, SC, x, by, fade);
+if (dead < 0.6) {
+blit(g, SC_CLAW, SC, x - 4, by + 2, fade); blit(g, SC_CLAW, SC, x - 3, by + 4, fade);
+const seg = [[16, 2], [18, 0], [19, -2], [19, -4], [18, -6], [16, -7 - tailUp], [14, -7 - tailUp]];
+for (const [sx, sy] of seg) { g.px(x + sx, by + sy, SC[2]); g.px(x + sx + 1, by + sy, SC[3]); g.px(x + sx, by + sy - 1, SC[1]); }
+const [nx, ny] = seg[seg.length - 1];
+g.px(x + nx - 1, by + ny, SC.k); g.px(x + nx - 2, by + ny + 1, SC.w); g.px(x + nx - 1, by + ny + 1, SC.y);
+}
+}
+const SH = pal({ 1: '#f08070', 2: '#d04848', 3: '#a03038', 4: '#6a2030', w: '#f2efe4', b: '#e9dfc6', B: '#b9ac8c', D: '#7d6e55', k: '#141021', e: '#9fe870' });
+const SH_CAP = [
+'....111111....',
+'..1122w22211..',
+'.12ww222w2221.',
+'122w2222222w23',
+'1222223ww22233',
+'33333333333344',
+'..4444444444..',
+];
+const SH_STEM = ['...bbbbb...', '..bkebkeb..', '..bbbbbbB..', '...bbbbB...', '...bbBBB...', '..bb.B.BB..', '..DD...DD..'];
+function dShroom(r, f) {
+const g = lm(r, f.face), fade = fadeOf(f), p = pose(f, 3);
+let squash = 0;
+if (f.state === 'attack') squash = f.t < 0.5 ? Math.round(wind(f.t, 0.5) * 2) : 0;
+const top = MOY - 17 + p.bob + squash + Math.round(p.dead * 6), x = -7 + p.dx;
+blit(g, SH_STEM, SH, x + 1, top + 7 - squash, fade);
+blit(g, SH_CAP, SH, x - 1, top, fade);
+if (f.state === 'attack' && f.t > 0.5 && f.t < 0.8) for (let i = 0; i < 5; i++) g.px(x + 2 + i * 3, top - 2 - (i % 2) * 2, SH.e); // ابرِ هاگ
+}
+const LZ = pal({ 1: '#a8e07a', 2: '#6fb04e', 3: '#4a8040', 4: '#2e5634', y: '#ffe9a8', Y: '#d8b860', e: '#ff6a3a', k: '#141021', w: '#94643a', s: '#cfd8e0', l: '#8a5a36' });
+const LZ_BODY = [
+'....1111....',
+'...122221...',
+'...12ke22111',
+'...1222222y.',
+'....33222Y..',
+'.....3322...',
+'....l1222...',
+'...ll2yy23..',
+'...l22yY23..',
+'....2yyY3...',
+'....2yY23...',
+'....33233...',
+'....2..2....',
+'...22..23...',
+'...3....3...',
+'..44....44..',
+];
+const LZ_TAIL = ['...', '..3', '.34', '34.'];
+function dLizard(r, f) {
+const g = lm(r, f.face), fade = fadeOf(f), p = pose(f, 6);
+const top = MOY - 16 + p.bob + Math.round(p.dead * 8), x = -6 + p.dx;
+blit(g, LZ_TAIL, LZ, x + 1, top + 10, fade);
+blit(g, LZ_BODY, LZ, x, top, fade);
+if (p.dead < 0.4) { // نیزه: عقب‌کشیدن ⇒ فرو کردن
+const thr = f.state === 'attack' ? (f.t < 0.5 ? -Math.round(wind(f.t, 0.5) * 3) : f.t < 0.7 ? 5 : 0) : 0, sy = top + 8;
+for (let i = -3; i < 12; i++) g.px(x + 4 + i + thr, sy, LZ.w);
+g.px(x + 16 + thr, sy, LZ.s); g.px(x + 17 + thr, sy, LZ.s); g.px(x + 16 + thr, sy - 1, LZ.s); g.px(x + 16 + thr, sy + 1, LZ.s);
+}
+if (p.step) g.px(x + 4 + p.step, MOY - 1, LZ[4]);
+}
+const KN = pal({ 1: '#8a90a8', 2: '#5a6078', 3: '#3a3e52', 4: '#22232f', r: '#c94f4f', R: '#8a2f2f', e: '#ff5a4a', s: '#dfe6ee', S: '#9aa4b2', g: '#e6c54a' });
+const KN_BODY = [
+'....rR....',
+'...rRR....',
+'...1111...',
+'..122221..',
+'..12eee3..',
+'..1222233.',
+'..3233233.',
+'.112222211',
+'1122g22223',
+'1222g22233',
+'.32222223.',
+'..322223..',
+'..133331..',
+'..2333332.',
+'..23..32..',
+'..23..32..',
+'..12..12..',
+'.333..333.',
+];
+function dKnight(r, f) {
+const g = lm(r, f.face), fade = fadeOf(f), p = pose(f, 4);
+const top = MOY - 18 + p.bob + Math.round(p.dead * 9), x = -5 + p.dx;
+blit(g, KN_BODY, KN, x, top, fade);
+if (p.dead < 0.4) { // شمشیرِ بلند: بالا ⇒ فرود
+const sw = f.state === 'attack' ? (f.t < 0.5 ? wind(f.t, 0.5) : f.t < 0.7 ? -1 : 0) : 0.2;
+const hx = x + 10, hy = top + 9;
+const tx = hx + Math.round(3 + 8 * (1 - Math.abs(sw))), ty = sw < 0 ? hy + 5 : hy - Math.round(12 * sw);
+g.line(hx, hy, tx, ty, KN.s); g.line(hx, hy + 1, tx, ty + 1, KN.S); g.px(hx - 1, hy, KN.g); g.px(hx, hy - 1, KN.g);
+}
+}
+const DM = pal({ 1: '#f07858', 2: '#c8402e', 3: '#902828', 4: '#5a1a22', h: '#e9dfc6', H: '#b9ac8c', y: '#ffe082', k: '#141021', w: '#6b2a3a', W: '#3e1826', f: '#ffb040' });
+const DM_BODY = [
+'.h......h.',
+'.hH....Hh.',
+'..H1111H..',
+'..122221..',
+'..1yk2yk3.',
+'..1222223.',
+'...3kk33..',
+'...2222...',
+'..122223..',
+'.11222233.',
+'.12f22233.',
+'.122f2233.',
+'..222233..',
+'..32..23..',
+'..32..23..',
+'..33..33..',
+'.444..444.',
+];
+const DM_WING = ['.......w', '.....wwW', '...wwWW.', '.wwWWW..', 'wWWW....', 'WW......'];
+function dDemon(r, f) {
+const g = lm(r, f.face), fade = fadeOf(f), p = pose(f, 5);
+const flap = Math.round(sin(f.time * 6) * 1);
+const top = MOY - 17 + p.bob + Math.round(p.dead * 9), x = -5 + p.dx;
+blit(g, DM_WING.map((s) => [...s].reverse().join('')), DM, x - 6, top + 4 + flap, fade);
+blit(g, DM_WING, DM, x + 8, top + 4 + flap, fade);
+blit(g, DM_BODY, DM, x, top, fade);
+if (f.state === 'attack' && f.t > 0.45 && f.t < 0.75) for (let i = 0; i < 4; i++) g.px(x + 10 + i, top + 9 - (i & 1), DM.f); // پنجه‌ی آتشین
+}
+Object.assign(MHEAD, { zombie: 22, scorpion: 18, shroom: 19, lizard: 18, knight: 20, demon: 19 });
+Object.assign(DEATH_COLORS, {
+zombie: [ZP[1], ZP[2], ZP[3]], scorpion: [SC[1], SC[2], SC[3]], shroom: [SH[1], SH[2], SH.b],
+lizard: [LZ[1], LZ[2], LZ[3]], knight: [KN[1], KN[2], KN[3]], demon: [DM[1], DM[2], DM[3]],
+});
+const MBODY_PX3 = { zombie: dZombie, scorpion: dScorpion, shroom: dShroom, lizard: dLizard, knight: dKnight, demon: dDemon };
+const MSHW_PX3 = { zombie: [9, 3], scorpion: [14, 3], shroom: [9, 3], lizard: [9, 3], knight: [10, 3], demon: [11, 3] };
+return {MBODY_PX3, MSHW_PX3};
+})();
+const {MBODY_PX3, MSHW_PX3} = __m_art_mob_px3;
 const __m_art_monster_registry = (() => {
-const MBODY = Object.assign({}, MBODY_A, MBODY2, MBODY_PX, MBODY_PX2);
+const MBODY = Object.assign({}, MBODY_A, MBODY2, MBODY_PX, MBODY_PX2, MBODY_PX3);
 const MOUT = Object.assign({}, MOUT_A, MOUT2);
-const MSHW = Object.assign({}, MSHW_A, MSHW2);
+const MSHW = Object.assign({}, MSHW_A, MSHW2, MSHW_PX3);
 return {MBODY, MOUT, MSHW};
 })();
 const {MBODY, MOUT, MSHW} = __m_art_monster_registry;
@@ -7590,6 +7794,12 @@ yeti:     { hp: 40,  speed: 21, range: 19, windup: 0.48, dmg: 7,  stride: 14, co
 imp:      { hp: 16,  speed: 36, range: 15, windup: 0.42, dmg: 4,  stride: 12, cool: 1.6 },  // گلوله‌ی آتش
 bandit:   { hp: 22,  speed: 46, range: 15, windup: 0.35, dmg: 3,  stride: 16, cool: 1.0 },  // دزد سکه
 hare:     { hp: 14,  speed: 60, range: 15, windup: 0.30, dmg: 4,  stride: 18, cool: 0.9 },  // جهش‌گر
+zombie:   { hp: 40,  speed: 16, range: 17, windup: 0.50, dmg: 8,  stride: 12, cool: 1.3 },  // ن۱۴۰: کند و پرجان
+scorpion: { hp: 22,  speed: 40, range: 17, windup: 0.36, dmg: 6,  stride: 14, cool: 1.0 },  // سریع، نیش
+shroom:   { hp: 26,  speed: 20, range: 18, windup: 0.45, dmg: 5,  stride: 10, cool: 1.2 },  // هاگ
+lizard:   { hp: 30,  speed: 34, range: 22, windup: 0.40, dmg: 7,  stride: 14, cool: 1.1 },  // نیزه‌ی بلند
+knight:   { hp: 52,  speed: 22, range: 20, windup: 0.52, dmg: 11, stride: 14, cool: 1.4 },  // زره‌پوش
+demon:    { hp: 44,  speed: 30, range: 19, windup: 0.42, dmg: 10, stride: 14, cool: 1.1 },  // اهریمن
 boss:     { hp: 250, speed: 16, range: 26, windup: 0.48, dmg: 16, stride: 22, cool: 1.8 },
 };
 const MSTATS = STATS; // ن۱۳۹: برای هم‌ترازیِ خانواده‌ها در dungeon.js
@@ -7599,6 +7809,17 @@ const LORD_SCALE = 1.6;
 function scaleUp(s, k) { // نزدیک‌ترین همسایه — پیکسل‌آرتِ درشت‌تر برای باسِ خانواده
 const W = Math.round(s.w * k), H = Math.round(s.h * k), t = new s.constructor(W, H);
 for (let y = 0; y < H; y++) { const sy = Math.min(s.h - 1, (y / k) | 0); for (let x = 0; x < W; x++) { const si = (sy * s.w + Math.min(s.w - 1, (x / k) | 0)) * 4, di = (y * W + x) * 4; t.d[di] = s.d[si]; t.d[di + 1] = s.d[si + 1]; t.d[di + 2] = s.d[si + 2]; t.d[di + 3] = s.d[si + 3]; } }
+const d = t.d, A = new Uint8Array(W * H);
+for (let i = 0; i < W * H; i++) if (d[i * 4 + 3] > 220) { A[i] = 1; const r = d[i * 4], g = d[i * 4 + 1], b = d[i * 4 + 2]; d[i * 4] = Math.min(255, r * 0.9 + 18); d[i * 4 + 1] = g * 0.78; d[i * 4 + 2] = b * 0.8; }
+const near = (x, y, rr) => { for (let j = -rr; j <= rr; j++) for (let i = -rr; i <= rr; i++) { const X = x + i, Y = y + j; if (X >= 0 && Y >= 0 && X < W && Y < H && A[Y * W + X]) return true; } return false; };
+for (let y = 0; y < H; y++) for (let x = 0; x < W; x++) { const i = y * W + x; if (A[i] || d[i * 4 + 3] > 220) continue;
+if (near(x, y, 1)) { d[i * 4] = 255; d[i * 4 + 1] = 120; d[i * 4 + 2] = 60; d[i * 4 + 3] = 230; } else if (near(x, y, 2)) { d[i * 4] = 200; d[i * 4 + 1] = 60; d[i * 4 + 2] = 50; d[i * 4 + 3] = 110; } }
+let top = -1, sx = 0, n = 0; for (let y = 0; y < H && top < 0; y++) for (let x = 0; x < W; x++) if (A[y * W + x]) { if (top < 0) top = y; if (y === top) { sx += x; n++; } }
+if (top > 8) { const cx = Math.round(sx / n), G = [236, 200, 72, 255], GD = [176, 128, 40, 255], R = [220, 60, 60, 255];
+const px = (x, y, c) => { if (x >= 0 && y >= 0 && x < W && y < H) { const i = (y * W + x) * 4; d[i] = c[0]; d[i + 1] = c[1]; d[i + 2] = c[2]; d[i + 3] = 255; } };
+for (let x = -6; x <= 6; x++) { px(cx + x, top - 1, GD); px(cx + x, top - 2, G); }
+for (const [ox, h] of [[-6, 3], [-3, 4], [0, 6], [3, 4], [6, 3]]) for (let k = 0; k < h; k++) px(cx + ox, top - 3 - k, k === h - 1 ? [255, 236, 150, 255] : G);
+px(cx, top - 2, R); px(cx - 3, top - 2, R); px(cx + 3, top - 2, R); }
 return t;
 }
 const ALL_KINDS = [...MONSTER_KINDS, 'boss'];
@@ -7722,12 +7943,12 @@ const TIERS = [
 { mobs: ['yeti'],              theme: 3, name: { fa: 'یخچالِ ژرف',       en: 'Deep Glacier' },      lord: { fa: 'یتیِ کهن',          en: 'Ancient Yeti' } },
 { mobs: ['mummy'],             theme: 4, name: { fa: 'مقبره‌های غرق',    en: 'Sunken Tombs' },      lord: { fa: 'فرعونِ باتلاق',     en: 'Bog Pharaoh' } },
 { mobs: ['golem'],             theme: 2, name: { fa: 'قلبِ مذاب',        en: 'Molten Core' },       lord: { fa: 'غولِ گدازه',        en: 'Magma Colossus' } },
-{ mobs: ['skeleton', 'archer'], theme: 0, name: { fa: 'لشکرِ مردگان',    en: 'Legion of the Dead' }, lord: { fa: 'سردارِ استخوان',    en: 'Bone General' } },
-{ mobs: ['ghost', 'bat'],      theme: 3, name: { fa: 'شبِ بی‌پایان',     en: 'Endless Night' },     lord: { fa: 'شبحِ سپید',         en: 'Pale Wraith' } },
-{ mobs: ['imp', 'golem'],      theme: 2, name: { fa: 'آتشفشانِ خفته',    en: 'Sleeping Volcano' },  lord: { fa: 'غولِ گدازه',        en: 'Magma Colossus' } },
-{ mobs: ['wolf', 'yeti'],      theme: 3, name: { fa: 'کولاکِ وحشی',      en: 'Wild Blizzard' },     lord: { fa: 'یتیِ کهن',          en: 'Ancient Yeti' } },
-{ mobs: ['mummy', 'spider'],   theme: 4, name: { fa: 'باتلاقِ نفرین',    en: 'Cursed Bog' },        lord: { fa: 'ملکه‌ی تار',        en: 'Web Queen' } },
-{ mobs: ['golem', 'ghost', 'imp', 'mummy'], theme: 2, name: { fa: 'دروازه‌ی اهریمن', en: 'Demon Gate' }, lord: { fa: 'اهریمن', en: 'The Demon' }, final: true },
+{ mobs: ['zombie'],   theme: 4, name: { fa: 'گورهای بیدار',     en: 'Restless Graves' },   lord: { fa: 'زامبیِ سلطان',      en: 'Zombie Sultan' } },
+{ mobs: ['scorpion'], theme: 5, name: { fa: 'تونل‌های نیش',      en: 'Sting Tunnels' },     lord: { fa: 'عقربِ امپراتور',    en: 'Emperor Scorpion' } },
+{ mobs: ['shroom'],   theme: 1, name: { fa: 'جنگلِ هاگ',         en: 'Spore Grove' },       lord: { fa: 'مادرِ قارچ‌ها',      en: 'Mother Mycel' } },
+{ mobs: ['lizard'],   theme: 4, name: { fa: 'معبدِ خزندگان',     en: 'Reptile Temple' },    lord: { fa: 'شاه‌مارمولک',        en: 'Lizard King' } },
+{ mobs: ['knight'],   theme: 0, name: { fa: 'دژِ شوالیه‌های سیاه', en: 'Black Knight Citadel' }, lord: { fa: 'شوالیه‌ی بی‌سر', en: 'Headless Knight' } },
+{ mobs: ['demon'],    theme: 2, name: { fa: 'دروازه‌ی اهریمن',    en: 'Demon Gate' },        lord: { fa: 'اهریمنِ اعظم',      en: 'Arch Demon' } },
 ];
 const tierOf = (f) => TIERS[Math.min(TIERS.length - 1, Math.floor((f - 1) / 5))];
 const isBossFloor = (f) => f % 5 === 0;
@@ -7737,32 +7958,58 @@ return {TIERS, tierOf, isBossFloor, floorInTier};
 const {TIERS, tierOf, isBossFloor, floorInTier} = __m_floors_tiers;
 const __m_floors_f001_010 = (() => {
 const F001_010 = {
-1: { name: { fa: 'ورودیِ نمور', en: 'Damp Entrance' }, layout: 'scatter', cols: 96, rows: 72, rooms: 10, rw: [12, 18], rh: [9, 13],
+1: { shapes: ['rect','oval'], dress: ['puddle','moss'], name: { fa: 'ورودیِ نمور', en: 'Damp Entrance' }, layout: 'scatter', cols: 96, rows: 72, rooms: 10, rw: [12, 18], rh: [9, 13],
 round: 2, loops: 0.03, treasure: 1, empty: 0.35, dens: 0.7, startAt: 'left' },
-2: { name: { fa: 'راهروهای چکه', en: 'Dripping Passages' }, layout: 'chain', cols: 96, rows: 72, rooms: 12, chainCols: 4, rw: [12, 17], rh: [9, 12],
+2: { dress: ['puddle','rubble'], name: { fa: 'راهروهای چکه', en: 'Dripping Passages' }, layout: 'chain', cols: 96, rows: 72, rooms: 12, chainCols: 4, rw: [12, 17], rh: [9, 12],
 winding: true, treasure: 2, empty: 0.3, dens: 0.8, startAt: 'top' },
-3: { name: { fa: 'تالارِ ستون‌ها', en: 'Hall of Pillars' }, layout: 'hub', cols: 112, rows: 84, rooms: 13, rw: [12, 18], rh: [9, 13],
+3: { shapes: ['ring','rect'], dress: ['rubble'], banners: 0.4, name: { fa: 'تالارِ ستون‌ها', en: 'Hall of Pillars' }, layout: 'hub', cols: 112, rows: 84, rooms: 13, rw: [12, 18], rh: [9, 13],
 pillars: 0.8, round: 1, treasure: 2, empty: 0.25, dens: 0.9 },
-4: { name: { fa: 'حوضچه‌های لجن', en: 'Ooze Pools' }, layout: 'scatter', cols: 112, rows: 84, rooms: 15, rw: [13, 20], rh: [10, 14],
+4: { shapes: ['oval'], dress: ['puddle','moss'], dressN: 0.13, name: { fa: 'حوضچه‌های لجن', en: 'Ooze Pools' }, layout: 'scatter', cols: 112, rows: 84, rooms: 15, rw: [13, 20], rh: [10, 14],
 pools: 0.7, loops: 0.12, round: 3, treasure: 2, empty: 0.25, dens: 1 },
-5: { name: { fa: 'تختِ شاه‌لجن', en: 'Throne of the Slime King' }, layout: 'ring', cols: 112, rows: 84, rooms: 12, spokes: 3, rw: [12, 17], rh: [9, 12],
+5: { shapes: ['oval','rect'], dress: ['puddle','bones'], banners: 0.5, name: { fa: 'تختِ شاه‌لجن', en: 'Throne of the Slime King' }, layout: 'ring', cols: 112, rows: 84, rooms: 12, spokes: 3, rw: [12, 17], rh: [9, 12],
 round: 2, pools: 0.4, treasure: 2, empty: 0.2, dens: 1, boss: true },
-6: { name: { fa: 'دهانه‌ی دوقلو', en: 'Twin Mouths' }, layout: 'twin', cols: 112, rows: 84, rooms: 14, rw: [12, 18], rh: [9, 13],
+6: { shapes: ['L','rect'], dress: ['bones','rubble'], name: { fa: 'دهانه‌ی دوقلو', en: 'Twin Mouths' }, layout: 'twin', cols: 112, rows: 84, rooms: 14, rw: [12, 18], rh: [9, 13],
 round: 3, loops: 0.08, treasure: 2, empty: 0.3, dens: 0.9, startAt: 'left' },
-7: { name: { fa: 'سقف‌های بلند', en: 'High Vaults' }, layout: 'grid', cols: 112, rows: 84, gridCols: 5, gridRows: 4, holes: 0.15, rw: [12, 16], rh: [9, 12],
+7: { shapes: ['ring','rect'], dress: ['rubble','bones'], banners: 0.4, name: { fa: 'سقف‌های بلند', en: 'High Vaults' }, layout: 'grid', cols: 112, rows: 84, gridCols: 5, gridRows: 4, holes: 0.15, rw: [12, 16], rh: [9, 12],
 pillars: 0.45, round: 1, treasure: 3, empty: 0.25, dens: 1 },
-8: { name: { fa: 'پیچ‌وتابِ تاریک', en: 'Dark Coils' }, layout: 'chain', cols: 120, rows: 90, rooms: 15, chainCols: 5, rw: [12, 17], rh: [9, 13],
+8: { shapes: ['L','oval'], dress: ['bones','moss'], name: { fa: 'پیچ‌وتابِ تاریک', en: 'Dark Coils' }, layout: 'chain', cols: 120, rows: 90, rooms: 15, chainCols: 5, rw: [12, 17], rh: [9, 13],
 winding: true, cross: 0.4, treasure: 2, empty: 0.2, dens: 1.1, startAt: 'top' },
-9: { name: { fa: 'چاه‌های آب', en: 'Cistern Wells' }, layout: 'hub', cols: 120, rows: 90, rooms: 15, rw: [13, 19], rh: [10, 14],
+9: { shapes: ['oval','ring'], dress: ['puddle','moss'], dressN: 0.13, name: { fa: 'چاه‌های آب', en: 'Cistern Wells' }, layout: 'hub', cols: 120, rows: 90, rooms: 15, rw: [13, 19], rh: [10, 14],
 pools: 0.6, cross: 0.5, loops: 0.1, treasure: 2, empty: 0.2, dens: 1.1 },
-10: { name: { fa: 'آشیانه‌ی مادر', en: 'The Matriarch Roost' }, layout: 'ring', cols: 120, rows: 90, rooms: 14, spokes: 4, rw: [12, 18], rh: [9, 13],
+10: { shapes: ['oval','L'], dress: ['bones','bones','rubble'], banners: 0.5, name: { fa: 'آشیانه‌ی مادر', en: 'The Matriarch Roost' }, layout: 'ring', cols: 120, rows: 90, rooms: 14, spokes: 4, rw: [12, 18], rh: [9, 13],
 round: 3, pillars: 0.35, treasure: 2, empty: 0.15, dens: 1.2, boss: true },
 };
 return {F001_010};
 })();
 const {F001_010} = __m_floors_f001_010;
+const __m_floors_f011_020 = (() => {
+const F011_020 = {
+11: { name: { fa: 'لانه‌های علفی', en: 'Grassy Burrows' }, layout: 'scatter', cols: 112, rows: 84, rooms: 14, rw: [12, 18], rh: [10, 14],
+shapes: ['oval', 'oval', 'rect'], dress: ['moss', 'moss', 'rubble'], dressN: 0.14, round: 2, loops: 0.06, treasure: 2, empty: 0.3, dens: 0.9, startAt: 'left' },
+12: { name: { fa: 'تونل‌های جهش', en: 'Leaping Tunnels' }, layout: 'chain', cols: 120, rows: 84, rooms: 15, chainCols: 5, rw: [12, 16], rh: [9, 12],
+winding: true, shapes: ['oval', 'L'], dress: ['moss', 'bones'], treasure: 2, empty: 0.25, dens: 1, startAt: 'top' },
+13: { name: { fa: 'حیاطِ ریشه‌ها', en: 'Root Courtyards' }, layout: 'grid', cols: 120, rows: 90, gridCols: 5, gridRows: 4, holes: 0.2, rw: [13, 17], rh: [10, 13],
+shapes: ['ring', 'rect', 'oval'], dress: ['moss', 'puddle'], dressN: 0.12, treasure: 3, empty: 0.25, dens: 1 },
+14: { name: { fa: 'انبارِ هویج‌های گمشده', en: 'Lost Carrot Stores' }, layout: 'hub', cols: 120, rows: 90, rooms: 15, rw: [13, 19], rh: [10, 14],
+shapes: ['L', 'rect'], dress: ['rubble', 'bones', 'moss'], banners: 0.4, pillars: 0.4, treasure: 3, empty: 0.2, dens: 1.1 },
+15: { name: { fa: 'میدانِ خرگوشِ غول', en: 'Giant Hare Arena' }, layout: 'ring', cols: 128, rows: 96, rooms: 13, spokes: 3, rw: [12, 18], rh: [10, 13],
+shapes: ['oval'], dress: ['moss', 'bones'], banners: 0.5, round: 3, treasure: 2, empty: 0.15, dens: 1.1, boss: true },
+16: { name: { fa: 'مردابِ تار', en: 'Web Mire' }, layout: 'scatter', cols: 120, rows: 90, rooms: 15, rw: [13, 19], rh: [10, 14],
+shapes: ['oval', 'rect'], dress: ['web', 'puddle', 'web'], dressN: 0.12, pools: 0.6, loops: 0.08, treasure: 2, empty: 0.25, dens: 1, startAt: 'left' },
+17: { name: { fa: 'پیله‌خانه', en: 'Cocoon Halls' }, layout: 'twin', cols: 128, rows: 90, rooms: 16, rw: [12, 18], rh: [10, 13],
+shapes: ['ring', 'L'], dress: ['web', 'bones'], banners: 0.2, treasure: 2, empty: 0.2, dens: 1.1 },
+18: { name: { fa: 'گذرگاهِ نیش', en: 'Fang Passage' }, layout: 'chain', cols: 128, rows: 96, rooms: 16, chainCols: 4, rw: [12, 17], rh: [10, 13],
+winding: true, cross: 0.4, shapes: ['rect', 'oval'], dress: ['web', 'rubble'], treasure: 2, empty: 0.2, dens: 1.2, startAt: 'top' },
+19: { name: { fa: 'ستون‌های تنیده', en: 'Woven Pillars' }, layout: 'grid', cols: 128, rows: 96, gridCols: 5, gridRows: 4, holes: 0.1, rw: [13, 18], rh: [10, 13],
+pillars: 0.6, shapes: ['ring', 'rect'], dress: ['web', 'web', 'bones'], dressN: 0.13, treasure: 3, empty: 0.2, dens: 1.2 },
+20: { name: { fa: 'تختِ ملکه‌ی تار', en: 'Throne of the Web Queen' }, layout: 'ring', cols: 128, rows: 96, rooms: 14, spokes: 4, rw: [12, 18], rh: [10, 13],
+shapes: ['oval', 'ring'], dress: ['web', 'bones'], dressN: 0.14, banners: 0.5, round: 3, treasure: 2, empty: 0.1, dens: 1.3, boss: true },
+};
+return {F011_020};
+})();
+const {F011_020} = __m_floors_f011_020;
 const __m_floors_index = (() => {
-const DESIGNED = { ...F001_010 };
+const DESIGNED = { ...F001_010, ...F011_020 };
 const MAX_FLOOR = 100;
 const LAYOUTS = ['scatter', 'chain', 'hub', 'grid', 'twin', 'ring'];
 function specFor(f) {
@@ -7857,10 +8104,14 @@ const kind = new Uint8Array(W * H), room = new Int16Array(W * H).fill(-1);
 for (const o of rooms) {
 const cut = spec.round != null ? spec.round : ri(0, 3);
 const cross = spec.cross && R() < spec.cross; // اتاقِ صلیبی: چهار گوشه‌ی بزرگِ بریده
+const SH = spec.shapes || ['rect'], shp = o.shape = SH[Math.floor(R() * SH.length)], q = Math.floor(R() * 4); // ن۱۴۰: شکلِ اتاق
 for (let y = o.y; y < o.y + o.h; y++) for (let x = o.x; x < o.x + o.w; x++) {
 const dx = Math.min(x - o.x, o.x + o.w - 1 - x), dy = Math.min(y - o.y, o.y + o.h - 1 - y);
 if (dx + dy < cut) continue;
 if (cross && dx < (o.w / 4 | 0) && dy < (o.h / 4 | 0)) continue;
+if (shp === 'oval' && ((x + 0.5 - o.x - o.w / 2) / (o.w / 2)) ** 2 + ((y + 0.5 - o.y - o.h / 2) / (o.h / 2)) ** 2 > 1.02) continue;
+if (shp === 'L' && (x - o.x < o.w / 2) === (q & 1 ? true : false) && (y - o.y < o.h / 2) === (q & 2 ? true : false) && x !== o.cx && y !== o.cy) continue;
+if (shp === 'ring' && Math.abs(x - o.cx) < o.w / 4 - 1 && Math.abs(y - o.cy) < o.h / 4 - 1 && Math.abs(x - o.cx) > 0) { kind[y * W + x] = K_PILLAR; room[y * W + x] = o.id; continue; } // حیاط: هسته‌ی ستون‌دار
 kind[y * W + x] = K_FLOOR; room[y * W + x] = o.id;
 }
 }
@@ -7879,7 +8130,16 @@ const start = spec.startAt === 'left' ? rooms.reduce((a, b) => (a.cx < b.cx ? a 
 const dist = bfs(kind, W, H, start.cy * W + start.cx);
 const dOf = (o) => dist[o.cy * W + o.cx];
 const end = rooms.reduce((a, b) => (dOf(a) >= dOf(b) ? a : b));
+{ const ok = bfs(kind, W, H, start.cy * W + start.cx); for (let k = 0; k < W * H; k++) if (kind[k] === K_FLOOR && ok[k] < 0) { kind[k] = K_WALL; room[k] = -1; } } // ن۱۴۰: جیب‌های جدا (شکل‌های L/حیاط) → دیوار
 start.role = 'start'; end.role = spec.boss ? 'boss' : 'stairs';
+if (spec.boss) for (let g = 6; g >= 2; g--) { // ن۱۴۰: تالارِ باس بزرگ‌تر — تا جایی که به اتاقِ دیگری نخورد
+const nx = end.x - g, ny = end.y - g, nw = end.w + 2 * g, nh = end.h + 2 * g;
+if (nx < 2 || ny < 3 || nx + nw > W - 3 || ny + nh > H - 3) continue;
+if (rooms.some((o) => o !== end && nx < o.x + o.w + 2 && nx + nw + 2 > o.x && ny < o.y + o.h + 2 && ny + nh + 2 > o.y)) continue;
+Object.assign(end, { x: nx, y: ny, w: nw, h: nh });
+for (let y = ny; y < ny + nh; y++) for (let x = nx; x < nx + nw; x++) { const dx = Math.min(x - nx, nx + nw - 1 - x), dy = Math.min(y - ny, ny + nh - 1 - y); if (dx + dy < 3) continue; const k = y * W + x; if (room[k] === -1 || room[k] === -2 || room[k] === end.id) { kind[k] = K_FLOOR; room[k] = end.id; } }
+break;
+}
 const deadEnds = rooms.filter((o) => !o.role && deg[o.id] === 1).sort((a, b) => dOf(b) - dOf(a));
 const nT = spec.treasure ?? 2;
 for (let i = 0; i < nT && i < deadEnds.length; i++) deadEnds[i].role = 'treasure';
@@ -7918,7 +8178,32 @@ for (let i = 0; i < n; i++) g.spots.push(floorAt(o, 0.25 + 0.5 * R(), 0.25 + 0.5
 groups.push(g);
 }
 const bossAt = spec.boss ? floorAt(end, 0.5, 0.45) : null;
-return { cols: W, rows: H, kind, room, rooms, links, lt, spawn, stairs, chests, shrine, torches, decor, groups, bossAt, startId: start.id, endId: end.id, dist: dOf(end) };
+const dress = [], isF = (x, y) => kind[y * W + x] === K_FLOOR, rid = (x, y) => room[y * W + x];
+const put = (x, y, t, v = 0) => { if (x > 0 && y > 0 && x < W && y < H && isF(x, y)) dress.push({ x, y, t, v }); };
+const banners = (o, every) => { for (let x = o.x; x < o.x + o.w; x++) { const y = topY(o, x); if (y > 0 && kind[(y - 1) * W + x] === K_WALL && (x - o.x) % every === 2) dress.push({ x, y: y - 1, t: 'banner', v: o.id % 3 }); } };
+const topY = (o, x) => { for (let y = o.y; y < o.y + o.h; y++) if (rid(x, y) === o.id) return y; return -1; };
+const DR = spec.dress || ['rubble', 'bones', 'moss'];
+for (const o of rooms) {
+if (o.role === 'boss') { // فرشِ قرمز از ورودی تا تخت + پرچم + جمجمه‌ها
+for (let y = o.y; y < o.y + o.h; y++) for (let x = o.cx - 1; x <= o.cx + 1; x++) if (rid(x, y) === o.id) put(x, y, 'rug', x === o.cx ? 1 : 0);
+banners(o, 3); for (let i = 0; i < 6; i++) { const p = floorAt(o, R(), R() < 0.5 ? 0.05 : 0.95); put(p.x, p.y, 'skull'); }
+} else if (o.role === 'treasure') {
+for (let i = 0; i < 4; i++) { const p = floorAt(o, 0.2 + R() * 0.6, 0.3 + R() * 0.5); put(p.x, p.y, 'gold', i); }
+for (let y = o.cy - 1; y <= o.cy + 1; y++) for (let x = o.cx - 3; x <= o.cx + 3; x++) if (rid(x, y) === o.id) put(x, y, 'rug', y === o.cy ? 1 : 0);
+banners(o, 4);
+} else if (o.role === 'shrine') {
+for (let y = o.cy - 3; y <= o.cy + 3; y++) for (let x = o.cx - 4; x <= o.cx + 4; x++) { const d = Math.hypot((x - o.cx) / 4.2, (y - o.cy) / 3.2); if (d <= 1 && rid(x, y) === o.id) put(x, y, 'mosaic', d < 0.45 ? 1 : 0); }
+} else if (o.role !== 'start' || R() < 0.5) {
+const t = DR[Math.floor(R() * DR.length)], n = Math.round(o.w * o.h * (spec.dressN ?? 0.1));
+for (let i = 0; i < n; i++) { // ۷۰٪ کنارِ دیوارها (طبیعی‌تر)، بقیه پراکنده
+const e = R() < 0.7, side = Math.floor(R() * 4), a = R(), b = R() * 0.1;
+const fx = !e ? R() : side === 0 ? b : side === 1 ? 1 - b : a, fy = !e ? R() : side === 2 ? b : side === 3 ? 1 - b : a;
+const p = floorAt(o, fx, fy); put(p.x, p.y, t, Math.floor(R() * 4)); }
+if (o.feat !== 'pool' && R() < (spec.banners ?? 0.25)) banners(o, 5);
+}
+}
+{ const ok = bfs(kind, W, H, spawn.y * W + spawn.x); for (let k = 0; k < W * H; k++) if (kind[k] === K_FLOOR && ok[k] < 0) kind[k] = K_PILLAR; } // جیبِ محصور میانِ ستون‌ها → ستون
+return { cols: W, rows: H, kind, room, rooms, links, lt, spawn, stairs, chests, shrine, torches, decor, groups, bossAt, dress, startId: start.id, endId: end.id, dist: dOf(end) };
 }
 function bfs(kind, W, H, s) {
 const d = new Int32Array(W * H).fill(-1), q = new Int32Array(W * H); let h = 0, t = 0;
@@ -7947,6 +8232,8 @@ function newCache(D) { const r = new Raster(D.cols * TILE, D.rows * TILE); const
 function paintRows(r, D, y0, y1) {
 const P = TH[(D.theme | 0) % 6], [, CAP, CAPHI, CAPSH, OUT, BR, BRHI, BRSH, MOR, F1, F2, F3, FMOR, FSH, ACC] = P, FL = [F1, F2, F3];
 const W = D.cols, H = D.rows;
+if (!D._dressMap) { D._dressMap = new Map(); for (const d of D.dress || []) D._dressMap.set(d.y * W + d.x, d); }
+const DM = D._dressMap;
 const fl = (x, y) => { const c = D.cell(x, y); return !!c && isFloorK(c.kind); };
 const near = (x, y) => { for (let j = -1; j <= 1; j++) for (let i = -1; i <= 1; i++) if (fl(x + i, y + j)) return true; return false; };
 const face = (x, y) => !fl(x, y) && fl(x, y + 1);
@@ -7958,6 +8245,7 @@ r.rect(ox, oy, TILE, TILE, FL[Math.floor(hash(x >> 1, y >> 1) * 3)]);
 if (x % 2 === 0) r.rect(ox, oy, 1, TILE, FMOR); if (y % 2 === 0) r.rect(ox, oy, TILE, 1, FMOR);
 if (hash(x, y, 3) < 0.1) { let cx = ox + 3 + Math.floor(hash(x, y, 4) * 8), cy = oy + 3; for (let k = 0; k < 8; k++) { r.rect(cx, cy, 1, 1, FMOR); cx += hash(x, y, k) < 0.5 ? 1 : 0; cy++; } }
 if (!fl(x, y - 1)) r.rect(ox, oy, TILE, 3, FSH); if (!fl(x - 1, y)) r.rect(ox, oy, 2, TILE, FSH);
+{ const dd = DM.get(y * W + x); if (dd) paintDress(r, ox, oy, dd, P, x, y, DM, W); }
 if (c.kind === 'decor') paintDecor(r, ox, oy, c.v | 0, ACC, FMOR, CAPHI, x, y);
 else if (c.kind === 'stairs') for (let i = 0; i < 4; i++) { r.rect(ox + 1, oy + 1 + i * 4, TILE - 2, 4, [CAPHI, CAP, CAPSH, OUT][i]); r.rect(ox + 1, oy + 1 + i * 4, TILE - 2, 1, i ? CAPSH : CAPHI); }
 else if (c.kind === 'pillar') { r.ellipse(ox + 8, oy + 13, 7, 3, FSH); r.rect(ox + 3, oy + 2, 10, 12, BR); r.rect(ox + 3, oy + 2, 2, 12, BRHI); r.rect(ox + 11, oy + 2, 2, 12, BRSH); r.rect(ox + 3, oy + 7, 10, 1, MOR); }
@@ -7970,6 +8258,7 @@ if (s < 0.25) r.rect(ox + x0, by + 1, w, 1, BRHI); else if (s > 0.8) r.rect(ox +
 r.rect(ox, oy + TILE - 1, TILE, 1, BRSH);
 if (c && c.v === 3 && hash(x, y, 11) < 0.7) for (let i = 0; i < 5; i++) r.rect(ox + Math.floor(hash(x, y, 20 + i) * 14), oy + 8 + Math.floor(hash(x, y, 30 + i) * 7), 2, 1, ACC); // خزه/رگه
 if (c && c.v === 2) r.rect(ox + 4 + Math.floor(hash(x, y, 12) * 6), oy + 5, 4, 3, MOR); // آجرِ افتاده
+{ const dd = DM.get(y * W + x); if (dd && dd.t === 'banner') paintBanner(r, ox, oy, dd.v, D.theme | 0); }
 } else {
 r.rect(ox, oy, TILE, TILE, CAP);
 if (hash(x, y, 9) < 0.3) r.rect(ox + 4 + Math.floor(hash(x, y, 2) * 6), oy + 5, 3, 1, CAPSH);
@@ -7990,6 +8279,33 @@ else if (v <= 4) { r.rect(ox + 5 + j, oy + 7, 4, 2, ACC); r.rect(ox + 6 + j, oy 
 else if (v === 5) { for (let i = 0; i < 4; i++) r.rect(ox + 3 + i * 3, oy + 6 + (i % 2) * 3, 2, 2, DK); } // سنگریزه
 else { r.rect(ox + 2, oy + 2, 12, 1, HI); r.rect(ox + 2, oy + 2, 1, 12, HI); r.rect(ox + 3, oy + 3, 8, 8, null || [HI[0], HI[1], HI[2], 60]); } // تار
 }
+const RUG = [[132, 40, 52], [176, 64, 64], [214, 170, 82]]; // تیره/اصلی/حاشیه‌ی طلایی
+const BAN = [[[150, 44, 56], [200, 72, 72]], [[52, 70, 130], [84, 108, 176]], [[60, 104, 64], [92, 150, 88]]];
+const c4 = (c, a = 255) => [c[0], c[1], c[2], a];
+function paintDress(r, ox, oy, d, P, x, y, DM, W) {
+const has = (X, Y, t) => { const e = DM.get(Y * W + X); return e && e.t === t; };
+if (d.t === 'rug') { // فرش با حاشیه‌ی طلایی فقط روی لبه‌های بیرونی
+r.rect(ox, oy, 16, 16, c4(d.v ? RUG[1] : RUG[0]));
+if (!has(x - 1, y, 'rug')) r.rect(ox, oy, 2, 16, c4(RUG[2])); if (!has(x + 1, y, 'rug')) r.rect(ox + 14, oy, 2, 16, c4(RUG[2]));
+if (!has(x, y - 1, 'rug')) r.rect(ox, oy, 16, 2, c4(RUG[2])); if (!has(x, y + 1, 'rug')) r.rect(ox, oy + 14, 16, 2, c4(RUG[2]));
+if (d.v && (x + y) % 2 === 0) { r.rect(ox + 7, oy + 5, 2, 6, c4(RUG[2], 200)); r.rect(ox + 5, oy + 7, 6, 2, c4(RUG[2], 200)); } // نقشِ لوزی
+} else if (d.t === 'mosaic') { // کاشیِ دایره‌ای محراب (فیروزه‌ای/کرم)
+for (let j = 0; j < 4; j++) for (let i = 0; i < 4; i++) r.rect(ox + i * 4 + 1, oy + j * 4 + 1, 3, 3, ((i + j + x + y) & 1) ? c4(d.v ? [96, 196, 200] : [70, 140, 160]) : c4([214, 204, 176]));
+} else if (d.t === 'gold') { const j = (d.v * 3) % 6; r.ellipse(ox + 8, oy + 12, 5, 2, c4([120, 84, 30], 160)); r.rect(ox + 4 + j / 2, oy + 9, 6, 3, c4([232, 190, 70])); r.rect(ox + 5 + j / 2, oy + 8, 4, 1, c4([255, 236, 150])); r.rect(ox + 9, oy + 11, 3, 2, c4([200, 150, 50])); }
+else if (d.t === 'skull') { r.rect(ox + 5, oy + 7, 6, 5, c4([222, 214, 192])); r.rect(ox + 6, oy + 12, 4, 2, c4([180, 172, 150])); r.rect(ox + 6, oy + 9, 1, 1, c4([30, 24, 34])); r.rect(ox + 9, oy + 9, 1, 1, c4([30, 24, 34])); }
+else if (d.t === 'rubble') { const k = P[1], kd = P[3]; for (let i = 0; i < 4; i++) { const ax = ox + 2 + ((d.v * 5 + i * 4) % 11), ay = oy + 4 + ((d.v * 3 + i * 5) % 9); r.rect(ax, ay, 3, 2, k); r.rect(ax, ay + 2, 3, 1, kd); } }
+else if (d.t === 'moss') { const a = P[14]; for (let i = 0; i < 7; i++) r.rect(ox + ((d.v * 7 + i * 5) % 14), oy + ((d.v * 3 + i * 7) % 14), 2, 1, c4(a, 170)); }
+else if (d.t === 'bones') { const b = [214, 206, 184]; r.rect(ox + 3, oy + 8 + d.v % 3, 8, 1, c4(b)); r.rect(ox + 2, oy + 7 + d.v % 3, 2, 3, c4(b)); r.rect(ox + 10, oy + 7 + d.v % 3, 2, 3, c4(b)); r.rect(ox + 8, oy + 3, 2, 6, c4(b, 220)); }
+else if (d.t === 'puddle') { r.ellipse(ox + 8, oy + 9, 6, 3, c4([40, 70, 96], 170)); r.rect(ox + 5, oy + 8, 3, 1, c4([140, 190, 220], 160)); }
+else if (d.t === 'web') { const w = c4([220, 220, 230], 120); r.line?.(ox, oy, ox + 15, oy + 15, w); r.rect(ox + 2, oy + 2, 12, 1, w); r.rect(ox + 2, oy + 2, 1, 12, w); for (let i = 3; i < 14; i += 4) r.rect(ox + 2, oy + i, i, 1, w); }
+else if (d.t === 'ember') { for (let i = 0; i < 3; i++) r.rect(ox + 3 + ((d.v + i) * 5) % 10, oy + 4 + i * 4, 2, 1, c4([255, 140, 60], 200)); }
+else if (d.t === 'ice') { r.rect(ox + 1, oy + 1, 14, 14, c4([190, 230, 255], 60)); r.rect(ox + 3, oy + 4, 5, 1, c4([240, 250, 255], 150)); }
+}
+function paintBanner(r, ox, oy, v, theme) { // پرچمِ آویخته روی نمای آجری
+const [dk, mid] = BAN[v % 3];
+r.rect(ox + 3, oy, 10, 1, c4([70, 50, 40])); r.rect(ox + 4, oy + 1, 8, 12, c4(mid)); r.rect(ox + 4, oy + 1, 2, 12, c4(dk));
+r.rect(ox + 4, oy + 13, 3, 2, c4(mid)); r.rect(ox + 9, oy + 13, 3, 2, c4(mid)); r.rect(ox + 7, oy + 5, 2, 3, c4([230, 196, 80]));
+}
 return {voidCol, newCache, paintRows};
 })();
 const {voidCol, newCache, paintRows} = __m_art_dungeon_paint;
@@ -8000,8 +8316,8 @@ const softW = (lvl, p, k) => (p >= lvl ? 1 : Math.exp(-(lvl - p) / k)); // زی�
 const powerOf = (floor, elite, boss) => floor + (elite ? 8 : 0) + (boss ? 20 : 0);
 function pickW(w, R) { let s = 0; for (const k in w) s += w[k]; let r = R() * s; for (const k in w) { r -= w[k]; if (r <= 0) return k; } return null; }
 function seedCount(p, elite, boss, R = Math.random) {
-if (boss) return 2;
-const ch = Math.min(0.9, (0.18 + 0.24 * Math.min(1, p / 100)) * (elite ? 2 : 1));
+if (boss) return R() < 0.7 ? 1 + (R() < 0.3 ? 1 : 0) : 0; // ن۱۴۰: حتی باس ممکن است پوچ باشد
+const ch = Math.min(0.6, (0.08 + 0.12 * Math.min(1, p / 100)) * (elite ? 1.8 : 1));
 return R() < ch ? 1 : 0;
 }
 function rollSeed(p, R = Math.random) {
@@ -8009,7 +8325,7 @@ const w = {}; for (const k in SEED_LVL) w[k] = softW(SEED_LVL[k], p, 3.5) * (SEE
 return pickW(w, R);
 }
 function rollItem(p, elite, boss, R = Math.random) {
-const ch = boss ? 1 : Math.min(0.6, (0.03 + 0.06 * Math.min(1, p / 100)) * (elite ? 3 : 1));
+const ch = boss ? 0.4 : Math.min(0.3, (0.012 + 0.03 * Math.min(1, p / 100)) * (elite ? 2.5 : 1)); // ن۱۴۰: کم‌یاب
 if (R() >= ch) return null;
 const w = {}; for (const id in ITEMS) w[id] = softW(ITEM_LVL[ITEMS[id].tier] || 1, p, 5);
 return pickW(w, R);
@@ -8229,9 +8545,9 @@ for (const k in w) { r -= w[k]; if (r <= 0) return k; }
 return 'carrot';
 }
 function rollCoinDrop(floor, isElite, isBoss) {
-if (isBoss) return 40 + 8 * floor;
+if (isBoss) return Math.random() < 0.85 ? 30 + 5 * floor : 0;
 if (isElite) return 6 + 2 * floor;
-return Math.random() < 0.22 ? 2 + (floor >> 1) : 0;
+return Math.random() < 0.12 ? 2 + (floor >> 2) : 0; // ن۱۴۰: کم‌یاب‌تر
 }
 function equipStats(equipped) {
 const s = { dmg: 0, hp: 0, speed: 0, crit: 0 };
@@ -9499,6 +9815,7 @@ this.cell(g.stairs.x, g.stairs.y).kind = 'stairs';
 for (const c of g.chests) this.chests.push({ x: c.x, y: c.y, open: false });
 this.shrine = g.shrine && floor >= 2 ? { x: g.shrine.x * TILE + 8, y: g.shrine.y * TILE + 8, used: false } : null;
 for (const d of g.decor) { const c = this.cell(d.x, d.y); if (c.kind === 'dfloor') { c.kind = 'decor'; c.v = d.v; } }
+this.dress = g.dress; // ن۱۴۰: آرایشِ نقاشی‌شده (فرش/طلا/موزاییک/آوار/پرچم)
 this.seen = new Set(); this.vis = new Uint8Array(g.cols * g.rows); this.visVer = 0;
 this._spawnAll();
 this.reveal(g.startId);
@@ -9537,8 +9854,8 @@ m.room = grp.room; this.enemies.push(m);
 }
 }
 if (g.bossAt) { // باسِ مخصوصِ خانواده‌ی همین فصل (طبقه‌ی ۱۰۰: اهریمنِ نهایی)
-const final = T.final && f >= 100, kind = final ? 'boss' : T.mobs[0], n = final ? { hp: 1, dmg: 1 } : norm(kind);
-const b = new Monster(kind, g.bossAt.x * TILE + 8, g.bossAt.y * TILE + 8, 1 + (final ? 1 : 0), { hpMul: hpMul * n.hp * (final ? 1 : 11), dmgMul: dmgMul * n.dmg * (final ? 1 : 1.9), lord: !final });
+const final = f >= 100, kind = T.mobs[0], n = norm(kind); // ن۱۴۰: همیشه باسِ غول‌پیکرِ همان خانواده (۱۰۰: سخت‌تر)
+const b = new Monster(kind, g.bossAt.x * TILE + 8, g.bossAt.y * TILE + 8, 1 + (final ? 1 : 0), { hpMul: hpMul * n.hp * (final ? 16 : 11), dmgMul: dmgMul * n.dmg * (final ? 2.3 : 1.9), lord: true });
 b.room = g.endId; this.enemies.push(b);
 for (let i = 0; i < 2; i++) { const k = T.mobs[i % T.mobs.length], nn = norm(k); const e = new Monster(k, g.bossAt.x * TILE + 8 + (i ? 30 : -30), g.bossAt.y * TILE + 20, 1, { hpMul: hpMul * nn.hp, dmgMul: dmgMul * nn.dmg }); e.room = g.endId; this.enemies.push(e); }
 }
@@ -9563,9 +9880,9 @@ const h2 = run.hero;
 if (h2.iframe <= 0 && !h2.dead && Math.hypot(h2.x - e.x, h2.y - 10 - e.y) < 34) run._hooks.onHit(e, Math.max(1, Math.round(e.dmg * 0.6)));
 }
 const mul = 1 + run.floor / 10;
-let n = e.isBoss ? Math.round(25 * mul) : Math.max(1, Math.round((1 + Math.random()) * mul)) + run.greedBonus;
+let n = e.isBoss ? Math.round(18 * mul) : Math.round(Math.random() * 1.4 * mul) + (run.greedBonus || 0); // ن۱۴۰: گوهر هم ممکن است صفر باشد
 if (e.isElite) { n = Math.round(n * 2.2) + 2; D.drops.push({ x: e.x, y: e.y - 4, kind: 'heart', t: 0 }); } // نخبه: غنیمت×۲٫۲ + قلب تضمینی
-for (let j = 0; j < n; j++) D.drops.push({ x: e.x + (Math.random() - 0.5) * 12, y: e.y + (Math.random() - 0.5) * 12, kind: Math.random() < 0.1 ? 'heart' : 'essence', t: Math.random() * 6 });
+for (let j = 0; j < n; j++) D.drops.push({ x: e.x + (Math.random() - 0.5) * 12, y: e.y + (Math.random() - 0.5) * 12, kind: Math.random() < 0.06 ? 'heart' : 'essence', t: Math.random() * 6 });
 if (e.isBoss) run._bossKills = (run._bossKills || 0) + 1; // RPG: XP باس
 const pw = powerOf(run.floor, e.isElite, e.isBoss); // ن۱۳۹: دراپ بر اساسِ قدرتِ هیولا — ممکن است هیچ نیندازد (فقط EXP)
 let seedN = seedCount(pw, e.isElite, e.isBoss); if (seedN && Math.random() < (run.seedP || 0)) seedN++; // RPG: بذریابی

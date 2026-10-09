@@ -62,7 +62,7 @@ MC.ghost = [...MC.ghost.slice(0, 3), 200]; MC.ghostHi = [...MC.ghostHi.slice(0, 
 MC.ghostSh = [...MC.ghostSh.slice(0, 3), 150]; MC.ghostMid = [...MC.ghostMid.slice(0, 3), 138]; MC.ghostDe2 = [...MC.ghostDe2.slice(0, 3), 126]; MC.ghostDeep = [...MC.ghostDeep.slice(0, 3), 114];
 
 export const MONSTER_KINDS = ['slime', 'bat', 'wolf', 'skeleton', 'golem', 'spider', 'ghost',
-  'mummy', 'archer', 'ram', 'yeti', 'imp', 'bandit', 'hare']; // ن۴۴: +۷ هیولا
+  'mummy', 'archer', 'ram', 'yeti', 'imp', 'bandit', 'hare', 'zombie', 'scorpion', 'shroom', 'lizard', 'knight', 'demon']; // ن۴۴: +۷ · ن۱۴۰: +۶
 // رنگ‌های بدنه برای ذرات مرگ/ضربه
 export const DEATH_COLORS = {
   slime: [MC.slimeHi, MC.slime, MC.slimeSh], bat: [MC.batHi, MC.bat, MC.batSh],

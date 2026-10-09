@@ -12,19 +12,19 @@ export const powerOf = (floor, elite, boss) => floor + (elite ? 8 : 0) + (boss ?
 
 function pickW(w, R) { let s = 0; for (const k in w) s += w[k]; let r = R() * s; for (const k in w) { r -= w[k]; if (r <= 0) return k; } return null; }
 
-// چند بذر؟ (۰ = هیچ) — هیولای معمولیِ طبقه‌ی ۱: ~۱۸٪ ؛ طبقه‌ی ۱۰۰: ~۴۲٪ ؛ نخبه ×۲ ؛ باس ۲ تضمینی
+// چند بذر؟ (۰ = هیچ) — معمولیِ طبقه‌ی ۱: ۸٪ ؛ طبقه‌ی ۱۰۰: ۲۰٪ ؛ نخبه ×۱٫۸ ؛ باس ۷۰٪ (۱ یا ۲)
 export function seedCount(p, elite, boss, R = Math.random) {
-  if (boss) return 2;
-  const ch = Math.min(0.9, (0.18 + 0.24 * Math.min(1, p / 100)) * (elite ? 2 : 1));
+  if (boss) return R() < 0.7 ? 1 + (R() < 0.3 ? 1 : 0) : 0; // ن۱۴۰: حتی باس ممکن است پوچ باشد
+  const ch = Math.min(0.6, (0.08 + 0.12 * Math.min(1, p / 100)) * (elite ? 1.8 : 1));
   return R() < ch ? 1 : 0;
 }
 export function rollSeed(p, R = Math.random) {
   const w = {}; for (const k in SEED_LVL) w[k] = softW(SEED_LVL[k], p, 3.5) * (SEED_LVL[k] <= p ? 1 + SEED_LVL[k] / 30 : 1); // بالای سطح: کمی ترجیحِ بهترین‌ها
   return pickW(w, R);
 }
-// آیتم: معمولی ۳٪→۹٪، نخبه ×۳، باس تضمینی
+// آیتم: معمولی ۱٫۲٪→۴٫۲٪، نخبه ×۲٫۵، باس ۴۰٪
 export function rollItem(p, elite, boss, R = Math.random) {
-  const ch = boss ? 1 : Math.min(0.6, (0.03 + 0.06 * Math.min(1, p / 100)) * (elite ? 3 : 1));
+  const ch = boss ? 0.4 : Math.min(0.3, (0.012 + 0.03 * Math.min(1, p / 100)) * (elite ? 2.5 : 1)); // ن۱۴۰: کم‌یاب
   if (R() >= ch) return null;
   const w = {}; for (const id in ITEMS) w[id] = softW(ITEM_LVL[ITEMS[id].tier] || 1, p, 5);
   return pickW(w, R);

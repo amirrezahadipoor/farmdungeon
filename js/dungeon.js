@@ -46,6 +46,7 @@ export class Dungeon {
     for (const c of g.chests) this.chests.push({ x: c.x, y: c.y, open: false });
     this.shrine = g.shrine && floor >= 2 ? { x: g.shrine.x * TILE + 8, y: g.shrine.y * TILE + 8, used: false } : null;
     for (const d of g.decor) { const c = this.cell(d.x, d.y); if (c.kind === 'dfloor') { c.kind = 'decor'; c.v = d.v; } }
+    this.dress = g.dress; // ن۱۴۰: آرایشِ نقاشی‌شده (فرش/طلا/موزاییک/آوار/پرچم)
     // مه
     this.seen = new Set(); this.vis = new Uint8Array(g.cols * g.rows); this.visVer = 0;
     this._spawnAll();
@@ -87,8 +88,8 @@ export class Dungeon {
       }
     }
     if (g.bossAt) { // باسِ مخصوصِ خانواده‌ی همین فصل (طبقه‌ی ۱۰۰: اهریمنِ نهایی)
-      const final = T.final && f >= 100, kind = final ? 'boss' : T.mobs[0], n = final ? { hp: 1, dmg: 1 } : norm(kind);
-      const b = new Monster(kind, g.bossAt.x * TILE + 8, g.bossAt.y * TILE + 8, 1 + (final ? 1 : 0), { hpMul: hpMul * n.hp * (final ? 1 : 11), dmgMul: dmgMul * n.dmg * (final ? 1 : 1.9), lord: !final });
+      const final = f >= 100, kind = T.mobs[0], n = norm(kind); // ن۱۴۰: همیشه باسِ غول‌پیکرِ همان خانواده (۱۰۰: سخت‌تر)
+      const b = new Monster(kind, g.bossAt.x * TILE + 8, g.bossAt.y * TILE + 8, 1 + (final ? 1 : 0), { hpMul: hpMul * n.hp * (final ? 16 : 11), dmgMul: dmgMul * n.dmg * (final ? 2.3 : 1.9), lord: true });
       b.room = g.endId; this.enemies.push(b);
       for (let i = 0; i < 2; i++) { const k = T.mobs[i % T.mobs.length], nn = norm(k); const e = new Monster(k, g.bossAt.x * TILE + 8 + (i ? 30 : -30), g.bossAt.y * TILE + 20, 1, { hpMul: hpMul * nn.hp, dmgMul: dmgMul * nn.dmg }); e.room = g.endId; this.enemies.push(e); }
     }

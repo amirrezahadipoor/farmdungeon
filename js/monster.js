@@ -21,6 +21,12 @@ const STATS = {
   imp:      { hp: 16,  speed: 36, range: 15, windup: 0.42, dmg: 4,  stride: 12, cool: 1.6 },  // گلوله‌ی آتش
   bandit:   { hp: 22,  speed: 46, range: 15, windup: 0.35, dmg: 3,  stride: 16, cool: 1.0 },  // دزد سکه
   hare:     { hp: 14,  speed: 60, range: 15, windup: 0.30, dmg: 4,  stride: 18, cool: 0.9 },  // جهش‌گر
+  zombie:   { hp: 40,  speed: 16, range: 17, windup: 0.50, dmg: 8,  stride: 12, cool: 1.3 },  // ن۱۴۰: کند و پرجان
+  scorpion: { hp: 22,  speed: 40, range: 17, windup: 0.36, dmg: 6,  stride: 14, cool: 1.0 },  // سریع، نیش
+  shroom:   { hp: 26,  speed: 20, range: 18, windup: 0.45, dmg: 5,  stride: 10, cool: 1.2 },  // هاگ
+  lizard:   { hp: 30,  speed: 34, range: 22, windup: 0.40, dmg: 7,  stride: 14, cool: 1.1 },  // نیزه‌ی بلند
+  knight:   { hp: 52,  speed: 22, range: 20, windup: 0.52, dmg: 11, stride: 14, cool: 1.4 },  // زره‌پوش
+  demon:    { hp: 44,  speed: 30, range: 19, windup: 0.42, dmg: 10, stride: 14, cool: 1.1 },  // اهریمن
   boss:     { hp: 250, speed: 16, range: 26, windup: 0.48, dmg: 16, stride: 22, cool: 1.8 },
 };
 export const MSTATS = STATS; // ن۱۳۹: برای هم‌ترازیِ خانواده‌ها در dungeon.js
@@ -30,6 +36,18 @@ export const LORD_SCALE = 1.6;
 function scaleUp(s, k) { // نزدیک‌ترین همسایه — پیکسل‌آرتِ درشت‌تر برای باسِ خانواده
   const W = Math.round(s.w * k), H = Math.round(s.h * k), t = new s.constructor(W, H);
   for (let y = 0; y < H; y++) { const sy = Math.min(s.h - 1, (y / k) | 0); for (let x = 0; x < W; x++) { const si = (sy * s.w + Math.min(s.w - 1, (x / k) | 0)) * 4, di = (y * W + x) * 4; t.d[di] = s.d[si]; t.d[di + 1] = s.d[si + 1]; t.d[di + 2] = s.d[si + 2]; t.d[di + 3] = s.d[si + 3]; } }
+  // ظاهرِ «باس»: بدنِ تیره‌تر و گرم‌تر + هاله‌ی دوپیکسلیِ آتشین دورِ سیلوئت + تاجِ طلاییِ خاردار روی سر
+  const d = t.d, A = new Uint8Array(W * H);
+  for (let i = 0; i < W * H; i++) if (d[i * 4 + 3] > 220) { A[i] = 1; const r = d[i * 4], g = d[i * 4 + 1], b = d[i * 4 + 2]; d[i * 4] = Math.min(255, r * 0.9 + 18); d[i * 4 + 1] = g * 0.78; d[i * 4 + 2] = b * 0.8; }
+  const near = (x, y, rr) => { for (let j = -rr; j <= rr; j++) for (let i = -rr; i <= rr; i++) { const X = x + i, Y = y + j; if (X >= 0 && Y >= 0 && X < W && Y < H && A[Y * W + X]) return true; } return false; };
+  for (let y = 0; y < H; y++) for (let x = 0; x < W; x++) { const i = y * W + x; if (A[i] || d[i * 4 + 3] > 220) continue;
+    if (near(x, y, 1)) { d[i * 4] = 255; d[i * 4 + 1] = 120; d[i * 4 + 2] = 60; d[i * 4 + 3] = 230; } else if (near(x, y, 2)) { d[i * 4] = 200; d[i * 4 + 1] = 60; d[i * 4 + 2] = 50; d[i * 4 + 3] = 110; } }
+  let top = -1, sx = 0, n = 0; for (let y = 0; y < H && top < 0; y++) for (let x = 0; x < W; x++) if (A[y * W + x]) { if (top < 0) top = y; if (y === top) { sx += x; n++; } }
+  if (top > 8) { const cx = Math.round(sx / n), G = [236, 200, 72, 255], GD = [176, 128, 40, 255], R = [220, 60, 60, 255];
+    const px = (x, y, c) => { if (x >= 0 && y >= 0 && x < W && y < H) { const i = (y * W + x) * 4; d[i] = c[0]; d[i + 1] = c[1]; d[i + 2] = c[2]; d[i + 3] = 255; } };
+    for (let x = -6; x <= 6; x++) { px(cx + x, top - 1, GD); px(cx + x, top - 2, G); }
+    for (const [ox, h] of [[-6, 3], [-3, 4], [0, 6], [3, 4], [6, 3]]) for (let k = 0; k < h; k++) px(cx + ox, top - 3 - k, k === h - 1 ? [255, 236, 150, 255] : G);
+    px(cx, top - 2, R); px(cx - 3, top - 2, R); px(cx + 3, top - 2, R); }
   return t;
 }
 export const ALL_KINDS = [...MONSTER_KINDS, 'boss'];

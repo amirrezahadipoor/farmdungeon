@@ -88,10 +88,14 @@ export function generate(spec, seed) {
   for (const o of rooms) {
     const cut = spec.round != null ? spec.round : ri(0, 3);
     const cross = spec.cross && R() < spec.cross; // اتاقِ صلیبی: چهار گوشه‌ی بزرگِ بریده
+    const SH = spec.shapes || ['rect'], shp = o.shape = SH[Math.floor(R() * SH.length)], q = Math.floor(R() * 4); // ن۱۴۰: شکلِ اتاق
     for (let y = o.y; y < o.y + o.h; y++) for (let x = o.x; x < o.x + o.w; x++) {
       const dx = Math.min(x - o.x, o.x + o.w - 1 - x), dy = Math.min(y - o.y, o.y + o.h - 1 - y);
       if (dx + dy < cut) continue;
       if (cross && dx < (o.w / 4 | 0) && dy < (o.h / 4 | 0)) continue;
+      if (shp === 'oval' && ((x + 0.5 - o.x - o.w / 2) / (o.w / 2)) ** 2 + ((y + 0.5 - o.y - o.h / 2) / (o.h / 2)) ** 2 > 1.02) continue;
+      if (shp === 'L' && (x - o.x < o.w / 2) === (q & 1 ? true : false) && (y - o.y < o.h / 2) === (q & 2 ? true : false) && x !== o.cx && y !== o.cy) continue;
+      if (shp === 'ring' && Math.abs(x - o.cx) < o.w / 4 - 1 && Math.abs(y - o.cy) < o.h / 4 - 1 && Math.abs(x - o.cx) > 0) { kind[y * W + x] = K_PILLAR; room[y * W + x] = o.id; continue; } // حیاط: هسته‌ی ستون‌دار
       kind[y * W + x] = K_FLOOR; room[y * W + x] = o.id;
     }
   }
@@ -111,7 +115,16 @@ export function generate(spec, seed) {
   const dist = bfs(kind, W, H, start.cy * W + start.cx);
   const dOf = (o) => dist[o.cy * W + o.cx];
   const end = rooms.reduce((a, b) => (dOf(a) >= dOf(b) ? a : b));
+  { const ok = bfs(kind, W, H, start.cy * W + start.cx); for (let k = 0; k < W * H; k++) if (kind[k] === K_FLOOR && ok[k] < 0) { kind[k] = K_WALL; room[k] = -1; } } // ن۱۴۰: جیب‌های جدا (شکل‌های L/حیاط) → دیوار
   start.role = 'start'; end.role = spec.boss ? 'boss' : 'stairs';
+  if (spec.boss) for (let g = 6; g >= 2; g--) { // ن۱۴۰: تالارِ باس بزرگ‌تر — تا جایی که به اتاقِ دیگری نخورد
+    const nx = end.x - g, ny = end.y - g, nw = end.w + 2 * g, nh = end.h + 2 * g;
+    if (nx < 2 || ny < 3 || nx + nw > W - 3 || ny + nh > H - 3) continue;
+    if (rooms.some((o) => o !== end && nx < o.x + o.w + 2 && nx + nw + 2 > o.x && ny < o.y + o.h + 2 && ny + nh + 2 > o.y)) continue;
+    Object.assign(end, { x: nx, y: ny, w: nw, h: nh });
+    for (let y = ny; y < ny + nh; y++) for (let x = nx; x < nx + nw; x++) { const dx = Math.min(x - nx, nx + nw - 1 - x), dy = Math.min(y - ny, ny + nh - 1 - y); if (dx + dy < 3) continue; const k = y * W + x; if (room[k] === -1 || room[k] === -2 || room[k] === end.id) { kind[k] = K_FLOOR; room[k] = end.id; } }
+    break;
+  }
   const deadEnds = rooms.filter((o) => !o.role && deg[o.id] === 1).sort((a, b) => dOf(b) - dOf(a));
   const nT = spec.treasure ?? 2;
   for (let i = 0; i < nT && i < deadEnds.length; i++) deadEnds[i].role = 'treasure';
@@ -153,7 +166,33 @@ export function generate(spec, seed) {
     groups.push(g);
   }
   const bossAt = spec.boss ? floorAt(end, 0.5, 0.45) : null;
-  return { cols: W, rows: H, kind, room, rooms, links, lt, spawn, stairs, chests, shrine, torches, decor, groups, bossAt, startId: start.id, endId: end.id, dist: dOf(end) };
+  // ---------- آرایشِ اتاق‌ها (فقط نقاشی، روی راه‌رفتن اثر ندارد): فرش، موزاییک، طلا، آوار، خزه، استخوان، چاله‌آب، پرچم ----------
+  const dress = [], isF = (x, y) => kind[y * W + x] === K_FLOOR, rid = (x, y) => room[y * W + x];
+  const put = (x, y, t, v = 0) => { if (x > 0 && y > 0 && x < W && y < H && isF(x, y)) dress.push({ x, y, t, v }); };
+  const banners = (o, every) => { for (let x = o.x; x < o.x + o.w; x++) { const y = topY(o, x); if (y > 0 && kind[(y - 1) * W + x] === K_WALL && (x - o.x) % every === 2) dress.push({ x, y: y - 1, t: 'banner', v: o.id % 3 }); } };
+  const topY = (o, x) => { for (let y = o.y; y < o.y + o.h; y++) if (rid(x, y) === o.id) return y; return -1; };
+  const DR = spec.dress || ['rubble', 'bones', 'moss'];
+  for (const o of rooms) {
+    if (o.role === 'boss') { // فرشِ قرمز از ورودی تا تخت + پرچم + جمجمه‌ها
+      for (let y = o.y; y < o.y + o.h; y++) for (let x = o.cx - 1; x <= o.cx + 1; x++) if (rid(x, y) === o.id) put(x, y, 'rug', x === o.cx ? 1 : 0);
+      banners(o, 3); for (let i = 0; i < 6; i++) { const p = floorAt(o, R(), R() < 0.5 ? 0.05 : 0.95); put(p.x, p.y, 'skull'); }
+    } else if (o.role === 'treasure') {
+      for (let i = 0; i < 4; i++) { const p = floorAt(o, 0.2 + R() * 0.6, 0.3 + R() * 0.5); put(p.x, p.y, 'gold', i); }
+      for (let y = o.cy - 1; y <= o.cy + 1; y++) for (let x = o.cx - 3; x <= o.cx + 3; x++) if (rid(x, y) === o.id) put(x, y, 'rug', y === o.cy ? 1 : 0);
+      banners(o, 4);
+    } else if (o.role === 'shrine') {
+      for (let y = o.cy - 3; y <= o.cy + 3; y++) for (let x = o.cx - 4; x <= o.cx + 4; x++) { const d = Math.hypot((x - o.cx) / 4.2, (y - o.cy) / 3.2); if (d <= 1 && rid(x, y) === o.id) put(x, y, 'mosaic', d < 0.45 ? 1 : 0); }
+    } else if (o.role !== 'start' || R() < 0.5) {
+      const t = DR[Math.floor(R() * DR.length)], n = Math.round(o.w * o.h * (spec.dressN ?? 0.1));
+      for (let i = 0; i < n; i++) { // ۷۰٪ کنارِ دیوارها (طبیعی‌تر)، بقیه پراکنده
+        const e = R() < 0.7, side = Math.floor(R() * 4), a = R(), b = R() * 0.1;
+        const fx = !e ? R() : side === 0 ? b : side === 1 ? 1 - b : a, fy = !e ? R() : side === 2 ? b : side === 3 ? 1 - b : a;
+        const p = floorAt(o, fx, fy); put(p.x, p.y, t, Math.floor(R() * 4)); }
+      if (o.feat !== 'pool' && R() < (spec.banners ?? 0.25)) banners(o, 5);
+    }
+  }
+  { const ok = bfs(kind, W, H, spawn.y * W + spawn.x); for (let k = 0; k < W * H; k++) if (kind[k] === K_FLOOR && ok[k] < 0) kind[k] = K_PILLAR; } // جیبِ محصور میانِ ستون‌ها → ستون
+  return { cols: W, rows: H, kind, room, rooms, links, lt, spawn, stairs, chests, shrine, torches, decor, groups, bossAt, dress, startId: start.id, endId: end.id, dist: dOf(end) };
 }
 
 function bfs(kind, W, H, s) {
