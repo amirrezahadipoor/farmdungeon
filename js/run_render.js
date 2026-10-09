@@ -1,5 +1,5 @@
 // run_render.js — رندر دورِ دانجن: تایل‌ها، قطره‌ها/صندوق‌ها، تاریکی + منابع نور، مینی‌مپ، اسپرایت قهرمان
-import { drawTextC, drawText, textW, E, TILE, COLS, ROWS, WORLD_W, WORLD_H } from './tiles.js'; // S3.1: groundSprite دیگر اینجا استفاده نمی‌شود (رفت به dungeon_bake)
+import { drawTextC, drawText, drawTitleC, textW, E, TILE, COLS, ROWS, WORLD_W, WORLD_H } from './tiles.js'; // S3.1: groundSprite دیگر اینجا استفاده نمی‌شود (رفت به dungeon_bake)
 import { Raster } from './raster.js';
 import { drawHeroFrame, frameKey, framePhase, halfSprite } from './art/hero.js';
 import { HOX, HOY } from './art/hero_pose.js';
@@ -115,7 +115,8 @@ export function renderRun(run, r) {
         const al = Math.round(255 * Math.min(aIn, aOut));
         if (al > 6) {
           _spC2[3] = al;
-          drawTextC(r, t('floor') + ' ' + faNum(run._splash.n) + (run._splash.boss ? ' — ' + t('bossFloor') : ''), r.w / 2, 30, run._splash.boss ? _bossC : _spC2, 2, { outline: true });
+          // ن۵۰: تیترِ طبقه با حاشیه‌ی دوپیکسله + سایه (دورِ کلِ رشته، نه تک‌تکِ حروف)
+          drawTitleC(r, t('floor') + ' ' + faNum(run._splash.n) + (run._splash.boss ? ' — ' + t('bossFloor') : ''), r.w / 2, 30, run._splash.boss ? _bossC : _spC2, 2);
         }
       }
     }
