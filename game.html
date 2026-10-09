@@ -127,7 +127,7 @@ body.inDungeon #hpWrap2 { display: block; }
 .modalBox { background: #221d38; border: 1px solid #45406a; border-radius: 16px; padding: 18px; width: min(420px, 94vw); max-height: 84vh; overflow-y: auto; display: flex; flex-direction: column; gap: 10px; }
 .modalHead { display: flex; justify-content: space-between; align-items: center; }
 .modalHead h3 { font-size: 17px; }
-.btn.x { min-width: 44px; min-height: 44px; }
+.btn.x { min-width: 48px; min-height: 48px; } /* S10.3: هدفِ لمسی ≥ ۴۸px */
 .upgRow { display: flex; justify-content: space-between; align-items: center; gap: 10px; background: #2b2742; border: 1px solid #45406a; border-radius: 10px; padding: 8px 12px; }
 .upgInfo { display: flex; flex-direction: column; gap: 2px; }
 .upgInfo b { font-size: 14px; }
@@ -11041,12 +11041,14 @@ const dpr = window.devicePixelRatio || 1;
 if (innerWidth < 2 || innerHeight < 2) return; // ن۴۰: iframe با اندازه‌ی صفر (پیش‌نمایش سندباکس) — بعداً که سایز گرفت پایش دوره‌ای می‌گیردش
 canvas.width = Math.round(innerWidth * dpr); canvas.height = Math.round(innerHeight * dpr);
 canvas.style.width = innerWidth + 'px'; canvas.style.height = innerHeight + 'px';
-const zoomCss = Math.max(2, Math.floor(Math.min(innerWidth, innerHeight) / 150));
-scale = Math.max(2, Math.round(zoomCss * dpr));
-let fs = 0; try { fs = +(new URLSearchParams(location.search).get('scale') || localStorage.getItem('fd_scale') || 0); } catch (e) { fs = 0; }
-if (fs >= 2 && fs <= 12) scale = Math.round(fs);
 const dockEl = document.querySelector('body.inDungeon #dockDungeon') || document.getElementById('dockFarm');
 _dockH = dockEl ? Math.round(dockEl.offsetHeight) : 0;
+const zoomCss = Math.max(2, Math.floor(Math.min(innerWidth, innerHeight) / 150));
+scale = Math.max(2, Math.round(zoomCss * dpr));
+let fq = ''; try { fq = new URLSearchParams(location.search).get('scale') || localStorage.getItem('fd_scale') || ''; } catch (e) { fq = ''; }
+const fs = +fq, fitH = Math.max(64, canvas.height - _dockH * dpr);
+if (fs >= 2 && fs <= 12) scale = Math.round(fs);
+else if (fq !== 'auto') scale = Math.max(4, Math.min(Math.ceil(canvas.width / WORLD_W), Math.ceil(fitH / WORLD_H)));
 const availH = Math.max(64, canvas.height - _dockH * dpr);
 const vw = Math.min(WORLD_W, Math.ceil(canvas.width / scale)), vh = Math.min(WORLD_H, Math.ceil(availH / scale));
 _ox = Math.max(0, (canvas.width - vw * scale) >> 1); _oy = Math.max(0, (availH - vh * scale) >> 1);

@@ -48,14 +48,17 @@ function resize() {
   if (innerWidth < 2 || innerHeight < 2) return; // ن۴۰: iframe با اندازه‌ی صفر (پیش‌نمایش سندباکس) — بعداً که سایز گرفت پایش دوره‌ای می‌گیردش
   canvas.width = Math.round(innerWidth * dpr); canvas.height = Math.round(innerHeight * dpr);
   canvas.style.width = innerWidth + 'px'; canvas.style.height = innerHeight + 'px';
-  const zoomCss = Math.max(2, Math.floor(Math.min(innerWidth, innerHeight) / 150));
-  scale = Math.max(2, Math.round(zoomCss * dpr));
-  // S10.3 A/B: «?scale=4» یا localStorage.fd_scale=4 ⇒ مقیاسِ صحیحِ ثابت بر حسبِ پیکسلِ دستگاه (B)؛ بدونِ پرچم = A (بالا)
-  let fs = 0; try { fs = +(new URLSearchParams(location.search).get('scale') || localStorage.getItem('fd_scale') || 0); } catch (e) { fs = 0; }
-  if (fs >= 2 && fs <= 12) scale = Math.round(fs);
-  // ن۴۰: ارتفاع داک از نما کسر می‌شود — زمین مزرعه/راهروی دانجن دیگر زیر داک پنهان نمی‌شود
   const dockEl = document.querySelector('body.inDungeon #dockDungeon') || document.getElementById('dockFarm');
   _dockH = dockEl ? Math.round(dockEl.offsetHeight) : 0;
+  const zoomCss = Math.max(2, Math.floor(Math.min(innerWidth, innerHeight) / 150));
+  scale = Math.max(2, Math.round(zoomCss * dpr));
+  // S10.3 تصمیمِ کاربر = B پیش‌فرض: ۴ پیکسلِ دستگاه، مگر نمای ۴ در هر دو بُعد بزرگ‌تر از دنیا شود (کوچک‌ترین صحیحی که یک بُعد را پر کند).
+  // «?scale=auto» = حالتِ قدیمِ A؛ «?scale=N» یا localStorage.fd_scale = عددِ ثابت (۲..۱۲).
+  let fq = ''; try { fq = new URLSearchParams(location.search).get('scale') || localStorage.getItem('fd_scale') || ''; } catch (e) { fq = ''; }
+  const fs = +fq, fitH = Math.max(64, canvas.height - _dockH * dpr);
+  if (fs >= 2 && fs <= 12) scale = Math.round(fs);
+  else if (fq !== 'auto') scale = Math.max(4, Math.min(Math.ceil(canvas.width / WORLD_W), Math.ceil(fitH / WORLD_H)));
+  // ن۴۰: ارتفاع داک از نما کسر می‌شود — زمین مزرعه/راهروی دانجن دیگر زیر داک پنهان نمی‌شود
   // S10.3 (درسِ ن۱۲۵): نما هرگز بزرگ‌تر از دنیا نمی‌شود — اضافه = حاشیه‌ی وسط‌چین (_ox/_oy پیکسلِ دستگاه)
   const availH = Math.max(64, canvas.height - _dockH * dpr);
   const vw = Math.min(WORLD_W, Math.ceil(canvas.width / scale)), vh = Math.min(WORLD_H, Math.ceil(availH / scale));
