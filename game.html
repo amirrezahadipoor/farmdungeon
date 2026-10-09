@@ -3426,6 +3426,142 @@ d[o] = nr > 255 ? 255 : nr; d[o + 1] = ng > 255 ? 255 : ng; d[o + 2] = nb > 255 
 return {GLOW, GLOW_DEBUG, GCOL, glowBegin, glowCount, glowAdd, glowDraw};
 })();
 const {GLOW, GLOW_DEBUG, GCOL, glowBegin, glowCount, glowAdd, glowDraw} = __m_art_glow;
+const __m_art_farm_px = (() => {
+const hex = (h) => { const c = nearestPM(parseInt(h.slice(1, 3), 16), parseInt(h.slice(3, 5), 16), parseInt(h.slice(5, 7), 16)); return [c[0], c[1], c[2], 255]; };
+const mk = (o) => { const p = {}; for (const k in o) p[k] = hex(o[k]); return p; };
+const HP = mk({
+a: '#efa477', r: '#c94f4f', R: '#8a2f2f', d: '#741723',
+w: '#f2efe4', W: '#e9dfc6', v: '#b9ac8c', b: '#7a5532', B: '#51401f',
+s: '#aeb9c8', S: '#727e96', x: '#455257', o: '#94643a', O: '#6d4627',
+g: '#6fa3d8', G: '#3e6fae', h: '#eef2f7', y: '#ffe082', Y: '#e6b34d',
+f: '#ffe082', p: '#c94f4f', q: '#efa477', l: '#477029', L: '#38631e', n: '#141021', k: '#2f353f',
+});
+const NIGHT = { g: 'y', G: 'Y', h: 'y' };
+function blit(r, rows, p, x, y, sub) {
+for (let j = 0; j < rows.length; j++) for (let i = 0; i < rows[j].length; i++) {
+let ch = rows[j][i]; if (sub && sub[ch]) ch = sub[ch];
+const c = p[ch]; if (c) r.px(x + i, y + j, c);
+}
+}
+const CHIMNEY = ['.ssss.', 'sSSSSx', 'SSxSSx', 'SSSSxx', 'SxSSSx', 'SSSSxx', 'SSSxSx', 'SSSSxx', 'xxxxxx'];
+const WINDOW = [
+'BBBBBBBBB',
+'BbbbbbbbB',
+'BbhhGhgbB',
+'BbhgGggbB',
+'BbGGGGGbB',
+'BbhgGggbB',
+'BbggGggbB',
+'BbbbbbbbB',
+'BBBBBBBBB',
+'OooooooOO',
+'OpflqfplO',
+'.lLlLlLl.',
+];
+const ATTIC = ['..BBB..', '.BbhbB.', 'BbhgGbB', 'BbGGGbB', 'BBBBBBB'];
+const DOOR = [
+'..BBBBBBBB..',
+'.BboooooobB.',
+'BboOoooOoobB',
+'BboOoooOoobB',
+'BboOoooOoobB',
+'BbooooooooBB',
+'BboOoooOoobB',
+'BboOoooOyobB',
+'BboOoooOoobB',
+'BboOoooOoobB',
+'BbooooooooBB',
+'BboOoooOoobB',
+'BboOoooOoobB',
+'BboOoooOoobB',
+'BBBBBBBBBBBB',
+];
+const LANTERN = ['.k.', 'kyk', 'yYy', 'kyk'];
+const STEPS = ['.ssssssssssssss.', 'sSSSSSSSSSSSSSSx', 'xxxxxxxxxxxxxxxx'];
+function drawHousePx(r, sx, sy, time, night) {
+const X = sx - 10, Y = sy - 26, lit = night > 0.45;
+const P = HP, put = (x, y, c) => r.px(X + x, Y + y, P[c]);
+blit(r, CHIMNEY, P, X + 35, Y + 3);
+for (let j = 0; j <= 22; j++) {
+const half = Math.round(4 + j * 1.05), x0 = 27 - half, x1 = 26 + half;
+for (let x = x0; x <= x1; x++) {
+const edge = x === x0 || x === x1, ridge = j < 2;
+let c = (j & 1) ? 'r' : ((x + j * 3) % 8 === 0 ? 'R' : 'r'); // کاشیِ پراکنده (درزِ ستونیِ M8 نسازد)
+if (x < 27 && x - x0 < 2) c = 'a';                       // لبه‌ی روشنِ چپ (نور از بالا-چپ)
+if (x > 26 && x1 - x < 3) c = 'R';                       // سایه‌ی شیبِ راست
+if (ridge) c = 'a';
+if (edge) c = 'd';
+if (j === 22) c = x % 3 ? 'd' : 'R';                     // لبه‌ی بام
+put(x, j + 6, c);
+}
+}
+blit(r, ATTIC, P, X + 24, Y + 14, lit ? NIGHT : null);
+for (let j = 29; j < 53; j++) for (let x = 5; x < 49; x++) {
+let c = x < 7 ? 'v' : x > 46 ? 'v' : 'w';
+if (j === 29 || j === 30) c = 'v';                         // سایه‌ی پیش‌آمدگیِ بام
+if (x === 5 || x === 6 || x === 47 || x === 48) c = x === 6 ? 'B' : 'b';
+if (j === 39 && (x < 14 || x > 40)) c = 'b';               // تیرِ افقی
+if (c === 'w' && ((x * 7 + j * 3) % 23 === 0)) c = 'W';    // بافتِ گچ
+if (j >= 49) c = ((x + (j & 1) * 3) % 6 === 0) ? 'x' : (j === 49 ? 's' : 'S'); // پایه‌ی سنگی
+put(x, j, c);
+}
+blit(r, WINDOW, P, X + 10, Y + 34, lit ? NIGHT : null);
+blit(r, WINDOW, P, X + 35, Y + 34, lit ? NIGHT : null);
+blit(r, DOOR, P, X + 22, Y + 38);
+const lf = Math.floor(time * 2) % 2;
+blit(r, LANTERN, P, X + 33, Y + 39 + 0);
+if (lit && lf) put(34, 43, 'y');
+blit(r, STEPS, P, X + 20, Y + 53);
+const sf = Math.floor(time * 1.2) % 3;
+for (let k = 0; k < 3; k++) { const up = sf * 3 + k * 5; put(37 + ((k + sf) & 1), 2 - up, 'v'); put(38 + ((k + sf) & 1), 3 - up, 'W'); }
+}
+function drawHouseGlowPx(r, sx, sy, time, k) {
+if (k <= 0.45) return;
+const a = Math.round(Math.min(1, (k - 0.45) / 0.55) * 255), fl = 0.85 + 0.15 * Math.round(Math.sin(time * 2.1) + 1);
+const X = sx - 10, Y = sy - 26, c = [255, 214, 110, Math.round(a * fl)];
+for (const wx of [10, 35]) r.rect(X + wx + 2, Y + 36, 5, 5, c);
+r.rect(X + 26, Y + 16, 3, 2, c);
+r.px(X + 34, Y + 41, [255, 234, 150, Math.round(a * 0.8)]);
+r.rect(X + 22, Y + 53, 10, 1, [255, 234, 150, Math.round(a * 0.25)]);
+}
+const HOUSE_BOX = { ox: -10, oy: -26, w: 54, h: 60, base: 58 };
+const FP = mk({
+y: '#ffe082', Y: '#e6b34d', w: '#f2efe4', W: '#e9dfc6', p: '#c94f4f', q: '#efa477', b: '#6fa3d8', u: '#753378',
+g: '#477029', G: '#38631e', h: '#87975c', s: '#aeb9c8', S: '#727e96', x: '#455257', m: '#c94f4f', c: '#e9dfc6', t: '#94643a',
+});
+const FLORA = [
+['.w.', 'wyw', '.w.', '.g.'],                 // مینای سفید
+['.p.', 'pqp', '.p.', '.g.'],                 // گلِ سرخ
+['.b..', 'bwb.', '.b.u', '.guW', '..g.'],     // گلِ آبی + بنفش
+['y.y', '.g.', 'Gg.'],                         // دو گلِ زردِ ریز
+['g...g', '.g.g.', 'hGgGh'],                   // تافتِ بلند
+['.h.g', 'g.g.', 'GgGg'],                      // تافتِ کوتاه
+['.ss.', 'sSSx', '.xx.'],                      // سنگ
+['.s', 'Sx'],                                  // ریگ
+['.mm.', 'mcmm', '.ct.'],                      // قارچ
+['g.g', 'GgG', '.G.'],                         // شبدر
+];
+function bakeFlora(r, tx, ty, sx, sy, field) {
+const cx = tx >> 2, cy = ty >> 2, fx = (tx & 3) / 4, fy = (ty & 3) / 4;
+const lerp = (a, b, t) => a + (b - a) * t;
+const dens = lerp(lerp(hash2(cx, cy, 76), hash2(cx + 1, cy, 76), fx), lerp(hash2(cx, cy + 1, 76), hash2(cx + 1, cy + 1, 76), fx), fy);
+const kind = (hash2(cx, cy, 77) * 4) | 0;                       // ۰..۳ گلِ غالبِ لکه
+let n = field ? 1 + (hash2(tx, ty, 71) < 0.5 ? 1 : 0) : dens > 0.62 ? 3 : dens > 0.45 ? 2 : 1;
+for (let k = 0; k < n; k++) {
+const h = hash2(tx * 3 + k, ty * 5 - k, 73);
+let id;
+if (field) id = [4, 5, 9][(h * 3) | 0];                       // داخلِ کشت فقط سبزه
+else if (dens > 0.62 && h < 0.7) id = kind;                   // قلبِ لکه: گلِ غالب
+else id = [4, 5, 6, 7, 8, 9][(h * 6) | 0];
+const m = FLORA[id];
+const x = sx + 1 + ((hash2(tx, ty + k * 7, 74) * (14 - m[0].length)) | 0);
+const y = sy + 1 + ((hash2(tx + k * 7, ty, 75) * (14 - m.length)) | 0);
+blit(r, m, FP, x, y);
+}
+}
+return {HOUSE_BOX, drawHousePx, drawHouseGlowPx, bakeFlora};
+})();
+const {HOUSE_BOX, drawHousePx, drawHouseGlowPx, bakeFlora} = __m_art_farm_px;
 const __m_art_farm_buildings = (() => {
 const C = {                                   // نگاشتِ سازه‌ها به پله‌های رمپ (منبعِ واحد رنگ)
 wall: rp('bone', 6), wallHi: rp('bone', 6), wallSh: rp('bone', 5), wallDeep: rp('bone', 3),
@@ -3443,48 +3579,8 @@ glassDay: rp('water', 4), glassHi: rp('water', 5),
 warm: E.gold, warmHi: rp('gold', 6),
 };
 const fl = (t, fps, n) => Math.floor(t * fps) % n;            // پلهٔ زمانیِ کوانتیزه (قاعدهٔ آرامش)
-function drawFarmhouse(r, sx, sy, time, night) {
-return bakeOutline(r, sx + (-1), sy + (-13), 38, 48, (r) => {
-for (let i = 0; i < 7; i++) {
-const w = 30 - i * 4, x = sx + 1 + i * 2, y = sy + 12 - i * 2;
-r.rect(x, y, w, 2, i % 2 ? C.roof : C.roofHi);
-for (let k = (i % 2 ? 0 : 2); k < w; k += 3) r.px(x + k, y + 1, C.roofSh); // درزِ کاشی (offset یک‌درمیان)
-r.px(x, y + 1, C.roofDeep); r.px(x + w - 1, y + 1, C.roofDeep);
-if (i > 0) { r.px(x - 1, y + 1, C.roofDeep); r.px(x + w, y + 1, C.roofDeep); } // لبهٔ سایه‌ی شیب
-}
-r.rect(sx + 12, sy - 1, 8, 2, C.roofHi);                                       // خطِ ستیغ
-r.rect(sx + 13, sy - 1, 6, 1, rp('bone', 6));
-r.rect(sx + 1, sy + 13, 30, 1, C.roofDeep);                                    // سایهٔ زیرِ پیش‌آمدگی
-r.rect(sx + 2, sy + 14, 28, 17, C.wall);
-r.rect(sx + 2, sy + 14, 28, 1, C.wallHi);
-r.rect(sx + 2, sy + 14, 1, 17, C.wallSh); r.rect(sx + 29, sy + 14, 1, 17, C.wallSh);
-r.rect(sx + 2, sy + 14, 2, 17, C.beam); r.rect(sx + 28, sy + 14, 2, 17, C.beam); r.px(sx + 3, sy + 15, C.beamHi);
-r.rect(sx + 15, sy + 15, 2, 16, C.beam); r.px(sx + 15, sy + 15, C.beamHi);      // تیرِ میانی
-r.rect(sx + 2, sy + 29, 28, 2, C.stone);                                        // پایهٔ سنگی
-r.rect(sx + 2, sy + 29, 28, 1, C.stoneHi);
-for (let k = 4; k < 28; k += 5) { r.px(sx + k, sy + 30, C.stoneSh); r.px(sx + k + 2, sy + 29, C.stoneSh); }
-r.rect(sx + 2, sy + 31, 28, 1, C.stoneSh); r.rect(sx + 3, sy + 31, 26, 1, C.stone);
-r.rect(sx + 12, sy + 20, 8, 12, C.doorSh);                                      // قاب
-r.rect(sx + 13, sy + 21, 6, 10, C.door);
-r.rect(sx + 13, sy + 21, 6, 1, C.doorHi); r.px(sx + 13, sy + 25, C.doorSh); r.px(sx + 18, sy + 26, C.doorSh);
-r.px(sx + 17, sy + 26, C.inkMid);                                               // دستگیره
-const lit = night > 0.45;
-for (const wx of [5, 21]) {
-r.rect(sx + wx, sy + 18, 7, 7, C.beam);                                       // قابِ چوبی
-r.rect(sx + wx + 1, sy + 19, 5, 5, lit ? C.warm : C.glassDay);
-r.rect(sx + wx + 1, sy + 19, 5, 1, lit ? C.warmHi : C.glassHi);
-r.px(sx + wx + 3, sy + 19, C.beam); r.px(sx + wx + 3, sy + 21, C.beam);       // میله‌های صلیبی
-if (lit) r.rect(sx + wx + 3, sy + 21, 2, 3, C.inkMid);                        // سایهٔ کسی که خانه است
-}
-r.rect(sx + 25, sy - 4, 4, 7, C.stone); r.rect(sx + 25, sy - 4, 4, 1, C.stoneHi); r.px(sx + 28, sy - 3, C.stoneSh);
-const sf = fl(time, 1.2, 3);                                   // سیکلِ ۳ فریمی: هر فریم پلهٔ ۳px بالاتر
-for (let k = 0; k < 2; k++) {
-const up = sf * 3 + k * 6, ax = sx + 26 + ((k + sf) & 1);
-r.px(ax, sy - 6 - up, rp('bone', 3)); r.px(ax + 1, sy - 5 - up, rp('bone', 2));
-}
-r.rect(sx + 11, sy + 32, 10, 1, C.stone); r.rect(sx + 12, sy + 32, 8, 1, C.stoneHi);
-r.rect(sx + 11, sy + 33, 10, 1, C.stoneSh);
-}, { mode: 'ink' });
+function drawFarmhouse(r, sx, sy, time, night) { // S9.7: خانه‌ی دست‌پیکسل (farm_px) + outline جوهری
+return bakeOutline(r, sx - 11, sy - 27, 56, 62, (p) => drawHousePx(p, sx, sy, time, night), { mode: 'ink' });
 }
 function drawScarecrow(r, sx, sy, time) {
 return bakeOutline(r, sx + 1, sy + 0, 16, 18, (r) => {
@@ -3518,18 +3614,7 @@ r.px(sx + ARM[0] + ARM[2], sy + ARM[1] + ARM[3], E.waterHi);                    
 r.px(sx + 8, sy + 5, rp('magicCyan', 6)); // جرقهٔ جادوی آب — از رمپ (S5.3: E.essence بیرونِ پالت بود)
 }, { mode: 'ink' });
 }
-function drawFarmhouseGlow(r, sx, sy, time, k) {
-if (k <= 0.45) return;
-const a = Math.round(Math.min(1, (k - 0.45) / 0.55) * 255);
-const fl2 = 0.85 + 0.15 * Math.round(Math.sin(time * 2.1) + 1);
-for (const wx of [5, 21]) {
-r.rect(sx + wx + 1, sy + 19, 5, 5, [255, 214, 110, Math.round(a * fl2)]);
-r.px(sx + wx, sy + 18, [255, 224, 130, Math.round(a * 0.5 * fl2)]);
-r.px(sx + wx + 6, sy + 22, [255, 224, 130, Math.round(a * 0.5 * fl2)]);
-r.px(sx + wx + 2, sy + 25, [255, 234, 150, Math.round(a * 0.3)]);
-}
-r.px(sx + 13, sy + 32, [255, 234, 150, Math.round(a * 0.25)]);                       // نور روی پلهٔ ورودی
-}
+function drawFarmhouseGlow(r, sx, sy, time, k) { drawHouseGlowPx(r, sx, sy, time, k); } // S9.7
 function drawBasketCrate(r, sx, sy, time) {
 return bakeOutline(r, sx + 0, sy + 2, 16, 16, (r) => {
 r.rect(sx + 3, sy + 9, 10, 6, C.wood);                                             // بدنه
@@ -3710,7 +3795,7 @@ if (base) base.over(r, sx, sy);
 if (c.kind === 'hedge') drawForest(r, sx, sy, tx, ty); // S2.9: نوارِ جنگلِ لبه‌ی نقشه (تاج‌های پخته‌شده)
 if (c.kind === 'grass' || c.kind === 'tree' || c.kind === 'sign' || c.kind === 'house' || c.kind === 'scarecrow') tuftBake(r, sx, sy, tx, ty);
 if (c.kind === 'grass') structShadow(r, f, tx, ty, sx, sy); // S2.8: سایهٔ تماسِ حصار/پرچین/بوته (SE)
-if (c.kind === 'grass') bakeDecals(r, f, tx, ty, sx, sy); // S2.9: دکال‌های خوشه‌ای (فقط چمنِ بیرونِ حصار)
+if (c.kind === 'grass') { bakeDecals(r, f, tx, ty, sx, sy); bakeFlora(r, tx, ty, sx, sy, !!c.farmable); } // S2.9 دکال · S9.7 گل‌وگیاهِ دستی
 if (c.kind === 'path') drawPathEdge(r, sx, sy, tx, ty, f);
 if (c.kind === 'soil') soilBake(r, f, tx, ty, sx, sy); // S2.6
 if (c.kind === 'water') bakeWater(r, f, tx, ty, sx, sy, wf);
@@ -4298,7 +4383,7 @@ const WF_SEQ = [0, 1, 2, 1]; // موج آب: ۳ فریم با سیکل نرم �
 let _fr = null; // S2.7: نگاشتِ سلولِ مزرعه برای پیش‌بینیِ آب (بدون تخصیص هر فریم)
 let _now = 0; // S4.4: زمانِ فریم برای پختِ اسکرچِ سایه (بسته‌های ثابت — بدون تخصیص هر فریم)
 const _drawSc = (t) => drawScarecrow(t, 0, 0, _now);   // فقط برای پختِ ماسکِ سایه
-const _drawHs = (t) => drawFarmhouse(t, 0, 0, _now, 0); // night=0: پنجره‌ی روشن به ماسک نیاید
+const _drawHs = (t) => drawFarmhouse(t, 11, 27, _now, 0); // S9.7: بومِ ۵۶×۶۲، کفِ خانه در ردیفِ ۵۹ // night=0: پنجره‌ی روشن به ماسک نیاید
 const _fcell = (x, y) => _fr.cell(x, y);
 const _ho = { dir: 'down', anim: 'idle', phase: 0, breath: 0, moveW: 0, tool: 'none', actP: -1, blink: false, equip: null };
 function farmHeroSprite(game) {
@@ -4421,7 +4506,7 @@ for (let i = 0; i < fn; i++) {
 const e = FENTS[i];
 if (e.t === 0) drawTree(r, e.sx, e.sy, e.v, game.time, (e.sx + cx) >> 4, (e.y >> 4) - 1); // S5.1: تایلِ جهانی ⇒ گونه/اندازه/تابِ پایدار (مستقل از دوربین)
 else if (e.t === 3) { const hx = HOUSE.x * TILE - cx, hy = HOUSE.y * TILE - cy;
-castShadowDraw(r, hx - 1, hy - 13, 44, 38, 48, 'hs', _drawHs); // S4.4: سایه‌ی پرتابیِ خانه
+castShadowDraw(r, hx - 11, hy - 27, 59, 56, 62, 'hs2', _drawHs); // S4.4: سایه‌ی پرتابیِ خانه
 drawFarmhouse(r, hx, hy, game.time, nightFactor(game.dayT)); }
 else if (e.t === 1) {
 game._heroSprite().over(r, Math.round(h.x) - HOX - cx, Math.round(h.y) - HOY - cy); // سایه داخل اسپرایت پخته شده (ن۳۵: دوبل حذف شد)
@@ -4434,7 +4519,7 @@ applyNight(r, game.dayT, raining); // تینت شب×باران در یک گذر
 const nfG = nightFactor(game.dayT);
 drawFarmhouseGlow(r, HOUSE.x * TILE - cx, HOUSE.y * TILE - cy, game.time, nfG); // پنجره‌ی خانه: نور واقعی در تاریکی
 glowBegin();                                        // S4.6: هاله‌ی گرمِ پنجره در شب (افزودنی، پس از LUT)
-if (nfG > 0.45) glowAdd(HOUSE.x * TILE - cx + 8, HOUSE.y * TILE - cy + 21, 0, 1, 74, 2);
+if (nfG > 0.45) glowAdd(HOUSE.x * TILE - cx + 16, HOUSE.y * TILE - cy + 12, 0, 1, 74, 2);
 if (gt) glowAdd(gt.x * TILE - cx + 16, gt.y * TILE - cy + 10, 3, 1, 58, 1); // S5.5: هاله‌ی بنفشِ دروازه (GCOL[3])
 glowDraw(r);
 game.fish.draw(r, cx, cy, game.time, f);

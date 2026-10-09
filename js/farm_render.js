@@ -28,7 +28,7 @@ const WF_SEQ = [0, 1, 2, 1]; // موج آب: ۳ فریم با سیکل نرم �
 let _fr = null; // S2.7: نگاشتِ سلولِ مزرعه برای پیش‌بینیِ آب (بدون تخصیص هر فریم)
 let _now = 0; // S4.4: زمانِ فریم برای پختِ اسکرچِ سایه (بسته‌های ثابت — بدون تخصیص هر فریم)
 const _drawSc = (t) => drawScarecrow(t, 0, 0, _now);   // فقط برای پختِ ماسکِ سایه
-const _drawHs = (t) => drawFarmhouse(t, 0, 0, _now, 0); // night=0: پنجره‌ی روشن به ماسک نیاید
+const _drawHs = (t) => drawFarmhouse(t, 11, 27, _now, 0); // S9.7: بومِ ۵۶×۶۲، کفِ خانه در ردیفِ ۵۹ // night=0: پنجره‌ی روشن به ماسک نیاید
 const _fcell = (x, y) => _fr.cell(x, y);
 // اسکرچ گزینه‌های اسپرایت — بدون آبجکت/spread جدید در هر فریم (فقط خوانده می‌شود)
 const _ho = { dir: 'down', anim: 'idle', phase: 0, breath: 0, moveW: 0, tool: 'none', actP: -1, blink: false, equip: null };
@@ -161,7 +161,7 @@ export function renderFarm(game, r) {
       const e = FENTS[i];
       if (e.t === 0) drawTree(r, e.sx, e.sy, e.v, game.time, (e.sx + cx) >> 4, (e.y >> 4) - 1); // S5.1: تایلِ جهانی ⇒ گونه/اندازه/تابِ پایدار (مستقل از دوربین)
       else if (e.t === 3) { const hx = HOUSE.x * TILE - cx, hy = HOUSE.y * TILE - cy;
-        castShadowDraw(r, hx - 1, hy - 13, 44, 38, 48, 'hs', _drawHs); // S4.4: سایه‌ی پرتابیِ خانه
+        castShadowDraw(r, hx - 11, hy - 27, 59, 56, 62, 'hs2', _drawHs); // S4.4: سایه‌ی پرتابیِ خانه
         drawFarmhouse(r, hx, hy, game.time, nightFactor(game.dayT)); }
       else if (e.t === 1) {
         game._heroSprite().over(r, Math.round(h.x) - HOX - cx, Math.round(h.y) - HOY - cy); // سایه داخل اسپرایت پخته شده (ن۳۵: دوبل حذف شد)
@@ -176,7 +176,7 @@ export function renderFarm(game, r) {
     const nfG = nightFactor(game.dayT);
     drawFarmhouseGlow(r, HOUSE.x * TILE - cx, HOUSE.y * TILE - cy, game.time, nfG); // پنجره‌ی خانه: نور واقعی در تاریکی
     glowBegin();                                        // S4.6: هاله‌ی گرمِ پنجره در شب (افزودنی، پس از LUT)
-    if (nfG > 0.45) glowAdd(HOUSE.x * TILE - cx + 8, HOUSE.y * TILE - cy + 21, 0, 1, 74, 2);
+    if (nfG > 0.45) glowAdd(HOUSE.x * TILE - cx + 16, HOUSE.y * TILE - cy + 12, 0, 1, 74, 2);
     if (gt) glowAdd(gt.x * TILE - cx + 16, gt.y * TILE - cy + 10, 3, 1, 58, 1); // S5.5: هاله‌ی بنفشِ دروازه (GCOL[3])
     glowDraw(r);
     game.fish.draw(r, cx, cy, game.time, f);

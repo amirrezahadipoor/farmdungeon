@@ -2,6 +2,7 @@
 // کش = **دقیقاً** همان ترتیبِ قدیمیِ رسم تایل‌های استاتیک (پایه + لبه‌ی راه + کرانه‌ی آب + بوته)
 // ⇒ خروجی هر فریم با قبل بایت‌به‌بایت یکسان می‌ماند؛ فقط هزینه‌ی هر فریم حذف می‌شود.
 // پویاها (آب متحرک، محصول، درخشش، دکور زنده) در farm_render روی کش کشیده می‌شوند.
+import { bakeFlora } from './art/farm_px.js';
 import { Raster } from './raster.js';
 import { groundSprite, E, TILE, COLS, ROWS, WORLD_W, WORLD_H } from './tiles.js';
 import { drawPathEdge } from './art/farm_decor.js';
@@ -196,7 +197,7 @@ function bakeTile(f, tx, ty, r, wf = 0) {
   // S2.4: تُنِ ماکرو روی زمینِ چمنی (سازه‌ها هم چون پایه‌شان چمن است یکدست می‌مانند)
   if (c.kind === 'grass' || c.kind === 'tree' || c.kind === 'sign' || c.kind === 'house' || c.kind === 'scarecrow') tuftBake(r, sx, sy, tx, ty);
   if (c.kind === 'grass') structShadow(r, f, tx, ty, sx, sy); // S2.8: سایهٔ تماسِ حصار/پرچین/بوته (SE)
-  if (c.kind === 'grass') bakeDecals(r, f, tx, ty, sx, sy); // S2.9: دکال‌های خوشه‌ای (فقط چمنِ بیرونِ حصار)
+  if (c.kind === 'grass') { bakeDecals(r, f, tx, ty, sx, sy); bakeFlora(r, tx, ty, sx, sy, !!c.farmable); } // S2.9 دکال · S9.7 گل‌وگیاهِ دستی
   if (c.kind === 'path') drawPathEdge(r, sx, sy, tx, ty, f);
   if (c.kind === 'soil') soilBake(r, f, tx, ty, sx, sy); // S2.6
   if (c.kind === 'water') bakeWater(r, f, tx, ty, sx, sy, wf);
