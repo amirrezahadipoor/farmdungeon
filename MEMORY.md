@@ -388,3 +388,8 @@ node tools/bench.mjs              # میانه‌ی هم‌پروسه + ذخیر
 - بوت jsdom: beforeParse + جمع خطاها · pretendToBeVisual · ورود دانجن `__farm.onGate()` · خروج `#exitD` · گذار ~۱٫۲ث
 - مرگ تستی: `run._hooks.onHit({kind,dmg:1e9,…},1e9)` بعد `hero.iframe=0` · `__app`=کیف پول
 
+
+### نوبت ۱۳۴ — R6: پوسته‌ی بازی‌گونه + باگ‌یابی ریزبینانه
+- css/style.css: فونت وزیرمتن ExtraBold زیرمجموعه (woff2 ≈۲۵KB، base64)، گوشه‌ی پله‌ای clip-path، بِوِل inset، متنِ دورخط‌دار، داکِ چوبی/سنگی، اسلاتِ گود، نوار جانِ درجه‌دار و کوچک (دیگر روی سر قهرمان نمی‌افتد)؛ FPS فقط با body.debug.
+- باگ‌ها: ارقام لاتین در مأموریت‌ها (quests.js → faNum) و توستِ «طبقه 1» (main_scene.js)؛ «x4» → «×۴»؛ جداکننده‌ی «·» در فارسی با «۰» اشتباه خوانده می‌شد → «،» (i18n.js, ui.js)؛ ۴۰۴ favicon → `<link rel="icon" href="data:,">`؛ ready-glow برجستگی دکمه را پاک می‌کرد.
+- Playwright: کاشت→آبیاری→برداشت→فروش، مرگ→تلاش دوباره، سه اندازه‌ی صفحه: بدون pageerror/watchdog. run_all ALL GREEN.

@@ -37,7 +37,7 @@ export function initScenes(env) {
       playSfx('gate'); // گذر از دروازه
       scene = 'dungeon';
       document.body.classList.add('inDungeon');
-      toast(t('floor') + ' 1');
+      toast(t('floor') + ' ' + faNum(1));
     });
   }
 

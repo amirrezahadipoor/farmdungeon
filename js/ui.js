@@ -110,9 +110,9 @@ export function buildMenu(app, hooks) {
       const row = document.createElement('div');
       row.className = 'upgRow';
       const worn = eq[slot] === id;
-      const stat = (it.stat.dmg ? '+' + faNum(it.stat.dmg) + ' ' + t('statDmg') + ' · ' : '') + (it.stat.hp ? '+' + faNum(it.stat.hp) + ' ' + t('statHp') + ' · ' : '') + (it.stat.speed ? '+' + faNum(Math.round(it.stat.speed * 100)) + '% ' + t('statSpd') + ' · ' : '') + (it.stat.crit ? '+' + faNum(Math.round(it.stat.crit * 100)) + '% ' + t('statCrit') : '');
+      const stat = (it.stat.dmg ? '+' + faNum(it.stat.dmg) + ' ' + t('statDmg') + (getLang()==='fa'?'، ':' · ') : '') + (it.stat.hp ? '+' + faNum(it.stat.hp) + ' ' + t('statHp') + (getLang()==='fa'?'، ':' · ') : '') + (it.stat.speed ? '+' + faNum(Math.round(it.stat.speed * 100)) + '% ' + t('statSpd') + (getLang()==='fa'?'، ':' · ') : '') + (it.stat.crit ? '+' + faNum(Math.round(it.stat.crit * 100)) + '% ' + t('statCrit') : '');
       row.innerHTML =
-        `<div class="upgInfo"><b>${it.name[getLang()]} <small style="opacity:.6">${t('slot_' + slot)} · ${t('tier')} ${faNum(it.tier)}</small></b>` +
+        `<div class="upgInfo"><b>${it.name[getLang()]} <small style="opacity:.6">${t('slot_' + slot)}${getLang()==='fa'?'، ':' · '}${t('tier')} ${faNum(it.tier)}</small></b>` +
         `<small>${stat || '—'} ×${faNum(owned[id])}</small></div>` +
         `<button class="btn upgBuy ${worn ? 'maxed' : 'can'}">${worn ? t('equipped2') : t('equipBtn')}</button>`;
       if (!worn) {

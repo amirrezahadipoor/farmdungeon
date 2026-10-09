@@ -279,3 +279,4 @@ body.debug .fps { display: inline; }
 .skillB.ready, .dashB.ready { box-shadow: inset 0 3px 0 var(--hi), inset 3px 0 0 var(--hi), inset 0 -5px 0 var(--lo), inset -3px 0 0 var(--lo); }
 #hpWrap2 { top: 70px; inset-inline-end: auto; inset-inline-start: 12px; width: min(240px, 46vw); }
 #bossBar { inset-inline: 25%; top: 70px; }
+.btn.x { font-size: 26px; line-height: 1; }
