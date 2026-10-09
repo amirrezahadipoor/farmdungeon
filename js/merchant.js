@@ -40,6 +40,9 @@ export class Merchant {
     n.dir = vx > 0 ? 'right' : 'left';
     n.loco.update(dt, vx ? sp : 0, vx, 0, false);
     if (vx) this.face = vx;
+    // گاریِ پارک‌شده سد است (قهرمان/کارگر از رویش رد نمی‌شوند)؛ رفت ⇒ راه باز
+    const f = game.farm, park = this.state === 'here';
+    if (f && this._park !== park) { this._park = park; for (const tx of [21, 22]) { const c = f.cell(tx, 17); if (c) c.block = park; } }
   }
   // فروش؛ keep(k) = چند تا از k نگه داشته شود. خروجی { coins, items, away? }
   sell(game, keep = null) {

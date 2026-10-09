@@ -8766,6 +8766,8 @@ n.x = this.x + (vx > 0 ? 24 : vx < 0 ? -24 : 23); n.y = this.y + 1;
 n.dir = vx > 0 ? 'right' : 'left';
 n.loco.update(dt, vx ? sp : 0, vx, 0, false);
 if (vx) this.face = vx;
+const f = game.farm, park = this.state === 'here';
+if (f && this._park !== park) { this._park = park; for (const tx of [21, 22]) { const c = f.cell(tx, 17); if (c) c.block = park; } }
 }
 sell(game, keep = null) {
 if (!this.isHere()) return { coins: 0, items: 0, away: true };
