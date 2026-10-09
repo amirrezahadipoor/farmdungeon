@@ -1,7 +1,8 @@
 // monster.js — کلاس Monster: ماشین حالت (idle/move/attack/die) + آمار هر هیولا + کش اسپرایت
 import { drawMonsterFrame } from './art/monsters.js';
 import { AI_EXT } from './mobs_new.js';
-import { BOSS_AI } from './boss_ai.js'; // ن۱۴۸: حمله‌ی ویژه + فاز ۲ باس // ن۴۴: رفتارهای ویژه (تیرانداز/یورش/دزدی/جهش)
+import { BOSS_AI } from './boss_ai.js';
+import { AI2 } from './mobs_ai2.js'; // ن۱۴۹: رفتارِ ۱۴ خانواده‌ی دیگر // ن۱۴۸: حمله‌ی ویژه + فاز ۲ باس // ن۴۴: رفتارهای ویژه (تیرانداز/یورش/دزدی/جهش)
 import { MONSTER_KINDS } from './art/monster_parts.js';
 import { drawBossFrame } from './art/boss.js';
 import { makeSpriteCache } from './art/bake.js'; // S6.1: کشِ سقف‌دارِ خط لوله (snap حالا داخل bake)
@@ -95,7 +96,7 @@ export class Monster {
     }
     // ن۴۴: رفتار ویژه‌ی هیولاهای جدید — اگر مدیریت کرد، ماشین پایه رد می‌شود
     if (this.lord && BOSS_AI(this, dt, target, hooks, spd)) return;
-    const ext = AI_EXT[this.kind];
+    const ext = AI_EXT[this.kind] || AI2[this.kind];
     if (ext && ext(this, dt, target, hooks, s, spd)) return;
     if (this.state === 'idle') {
       this.t += dt;
@@ -137,6 +138,7 @@ export class Monster {
 
   hurt(n, kbx = 0, kby = 0) {
     if (this.state === 'die' || this.dead) return;
+    if (this.guard) n *= 0.45; // شوالیه: سپر (وقتی حمله نمی‌کند)
     this.hp -= n; this.flash = 0.14;
     const kbR = this.isBoss ? 0.18 : 1;
     this.kbx += kbx * kbR; this.kby += kby * kbR;

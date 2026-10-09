@@ -133,7 +133,7 @@ export function renderRun(run, r) {
         }
       }
     }
-    for (const e of D.enemies) if (e.lord && !e.dead && (e.tele || e.enraged)) drawTele(r, e, cx, cy, run.time); // ن۱۴۸: هشدارِ حمله‌ی ویژه
+    for (const e of D.enemies) if (!e.dead && (e.tele || e.enraged) && (e.room == null || D.seen.has(e.room))) drawTele(r, e, cx, cy, run.time); // ن۱۴۸: هشدارِ حمله‌ی ویژه
     // pool رپرها — بدون تخصیص آبجکت در هر فریم
     let ne = 0;
     for (const e of D.enemies) if (!e.dead && (e.room == null || D.seen.has(e.room))) { // ن۱۳۹: هیولای اتاقِ ندیده دیده نمی‌شود
@@ -167,6 +167,7 @@ export function renderRun(run, r) {
       else {
         const e = en.e, s = e.sprite();
         if (e.lord) s.over(r, Math.round(e.x) - (s.w >> 1) - cx, Math.round(e.y) - 160 - cy); // ن۱۳۹: باسِ خانواده ×۱٫۶
+        else if (e.alpha < 1) overDither(s, r, Math.round(e.x) - 64 - cx, Math.round(e.y) - 100 - cy); // ن۱۴۹: روحِ محو (شطرنجی)
         else s.over(r, Math.round(e.x) - 64 - cx, Math.round(e.y) - (e.isBoss ? 112 : 100) - cy);
       }
     }
@@ -308,7 +309,7 @@ function drawTele(r, e, cx, cy, time) {
   const k = Math.min(1, T.k || 0), bl = (Math.sin(time * 30) > 0) ? 255 : 170;
   if (T.kind === 'quake') {
     const qx = T.x - cx, qy = T.y - cy;
-    r.ellipse(qx, qy, Math.round(T.r * k), Math.round(T.r * 0.55 * k), [220, 40, 40, 70]);
+    r.ellipse(qx, qy, Math.round(T.r * k), Math.round(T.r * 0.55 * k), [230, 40, 40, 110]); ring(r, qx, qy, T.r + 1, [255, 140, 90, bl], 0.06);
     ring(r, qx, qy, T.r, [255, 80, 60, bl], 0.06); ring(r, qx, qy, T.r - 1, [120, 20, 20, 160], 0.06);
   } else if (T.kind === 'charge') {
     const ux = Math.cos(T.ang), uy = Math.sin(T.ang), L = T.len * k;
@@ -319,4 +320,9 @@ function drawTele(r, e, cx, cy, time) {
     ring(r, x, y - 18, rad, col, 0.1); ring(r, x, y - 18, rad + 3, [col[0], col[1], col[2], 90], 0.1);
     if (T.kind === 'volley') for (let i = -2; i <= 2; i++) { const a = T.ang + i * 0.17; r.lineW(x + Math.cos(a) * 20, y - 14 + Math.sin(a) * 20, x + Math.cos(a) * (20 + 40 * k), y - 14 + Math.sin(a) * (20 + 40 * k), 1, [255, 220, 120, 150]); }
   }
+}
+
+function overDither(s, r, ox, oy) { // نیمه‌شفافِ پیکسلی: فقط خانه‌های شطرنجی کپی می‌شوند
+  for (let y = 0; y < s.h; y++) { const Y = y + oy; if (Y < 0 || Y >= r.h) continue;
+    for (let x = (y + Y) & 1; x < s.w; x += 2) { const X = x + ox; if (X < 0 || X >= r.w) continue; const i = (y * s.w + x) * 4; if (s.d[i + 3] < 128) continue; const o = (Y * r.w + X) * 4; r.d[o] = s.d[i]; r.d[o + 1] = s.d[i + 1]; r.d[o + 2] = s.d[i + 2]; } }
 }

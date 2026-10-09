@@ -21,7 +21,7 @@ export function updateProjs(list, dt, solid, onHero) {
     const p = list[i];
     p.t += dt;
     p.x += p.vx * dt; p.y += p.vy * dt;
-    if (p.t > p.life || solid(p.x, p.y)) { list.splice(i, 1); continue; }
+    if (p.t > p.life || (p.t > 0.12 && solid(p.x, p.y))) { list.splice(i, 1); continue; }
     if (onHero && onHero(p)) { list.splice(i, 1); }
   }
 }

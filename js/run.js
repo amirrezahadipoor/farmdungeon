@@ -47,7 +47,8 @@ export class Run {
         spawnProj(this.projs, from.kind === 'imp' ? 'fire' : 'arrow', from.x, from.y - 12, tx, ty, from.dmg, from);
       },
       onProj: (from, kind, ang, dmg) => { // ن۱۴۸: پرتابه‌های ویژه‌ی باس
-        spawnProj(this.projs, kind, from.x, from.y - 8, from.x + Math.cos(ang) * 100, from.y - 8 + Math.sin(ang) * 100, dmg, from);
+        const sy = this._hooks.solid(from.x, from.y - 8) ? from.y - 1 : from.y - 8; // ن۱۴۹: کنارِ دیوار از پای باس شلیک شود
+        spawnProj(this.projs, kind, from.x, sy, from.x + Math.cos(ang) * 100, sy + Math.sin(ang) * 100, dmg, from);
         if (this.onSfx && Math.random() < 0.25) this.onSfx(kind === 'fire' ? 'fire' : 'shoot');
       },
       onQuake: (x, y, r) => { this.fx.shake(r > 20 ? 5 : 2, r > 20 ? 0.35 : 0.15); this.fx.dust(x, y, r > 20 ? 14 : 5); if (r > 20) this.fx.dust(x - r * 0.6, y, 5), this.fx.dust(x + r * 0.6, y, 5); if (this.onSfx && r > 20) this.onSfx('hit'); },
@@ -61,7 +62,9 @@ export class Run {
         const hh = this.hero;
         if (hh.iframe > 0 || hh.dead) return;
         hh.hp -= dmg; hh.hurtT = 0.18;
-        if (from.kind === 'yeti') hh.chill = 1.6; // ن۴۴: ضربه‌ی یخ‌مرد = کندی موقت
+        if (from.kind === 'yeti') hh.chill = 1.6;
+        if (from.kind === 'mummy') hh.chill = Math.max(hh.chill, 1.0); // ن۱۴۹: باندپیچ = کندی
+        if (from.kind === 'scorpion') { hh.poison = 3; this._psn = Math.max(1, dmg * 0.25); } // سمِ عقرب: آسیبِ تدریجی ۳ث // ن۴۴: ضربه‌ی یخ‌مرد = کندی موقت
         if (from.kind === 'bandit' && from.stole === undefined) { // ن۴۴: دزدی سکه سپس فرار
           const amt = Math.min(this.loot.coins, 3 + (this.floor >> 1));
           from.stole = amt > 0 ? amt : 0;
@@ -92,7 +95,7 @@ export class Run {
     };
     this.floor = f;
     this.path = null; this.tgt = null; this._trail = null; this.standT = 0; this.projs.length = 0; // ن۴۴: پرتابه‌های طبقه‌ی قبل پاک
-    this.hero.chill = 0; // ن۴۷: کندی یخ بین طبقات حمل نمی‌شود
+    this.hero.chill = 0; this.hero.poison = 0; // ن۴۷: کندی یخ بین طبقات حمل نمی‌شود
     this.dungeon = new Dungeon(this.seed, f);
     _after();
     const h = this.hero;
@@ -148,6 +151,7 @@ export class Run {
     this.fx.update(dt);
     const h = this.hero, D = this.dungeon;
     for (const k of ['skillCd', 'dashCd', 'iframe', 'hurtT', 'chill']) if (h[k] > 0) h[k] -= dt;
+    if (h.poison > 0 && !h.dead) { h.poison -= dt; h.hp -= (this._psn || 1) * dt; if (h.hp <= 0) h.hp = 0.01; } // سم نمی‌کشد، فقط پایین می‌آورد
     if (this.comboT > 0) { this.comboT -= dt; if (this.comboT <= 0) this.comboN = 0; }
     if (this._wasCd > 0 && h.skillCd <= 0) this._skillPulse = 0.55; // پالس «مهارت آماده است»
     this._wasCd = h.skillCd;

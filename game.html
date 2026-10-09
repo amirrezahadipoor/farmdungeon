@@ -7809,6 +7809,101 @@ hare: dHareAI,
 return {MOB_TAGS, AI_EXT};
 })();
 const {MOB_TAGS, AI_EXT} = __m_mobs_new;
+const __m_mobs_ai2 = (() => {
+const busy = (m) => m.state === 'attack' || m.state === 'cool';
+function step(m, ux, uy, sp, dt, hooks, ghost = false) { // حرکت با سر خوردن روی دیوار؛ روح از دیوار رد می‌شود
+const solid = ghost ? () => false : (hooks.solid || (() => false)), ox = m.x, oy = m.y;
+const nx = m.x + ux * sp * dt, ny = m.y + uy * sp * dt;
+if (!solid(nx, m.y)) m.x = nx; if (!solid(m.x, ny)) m.y = ny;
+const mv = Math.hypot(m.x - ox, m.y - oy); if (Math.abs(ux) > 0.1) m.face = ux > 0 ? 1 : -1;
+return mv;
+}
+function walk(m, mv, s) { m.state = 'move'; m.ph = (m.ph + mv / s.stride) % 1; }
+const vec = (m, t) => { const dx = t.x - m.x, dy = t.y - m.y, d = Math.hypot(dx, dy) || 1; return [dx / d, dy / d, d]; };
+const shoot = (m, hooks, kind, t, k = 0.7, spread = 0) => hooks.onProj && hooks.onProj(m, kind, Math.atan2(t.y - 10 - (m.y - 8), t.x - m.x) + spread, m.dmg * k);
+function slime(m, dt, t, hooks, s, spd) {
+if (!t || busy(m)) return false; const [ux, uy, d] = vec(m, t); if (d <= s.range) return false;
+m._c = (m._c || 0) + dt; const c = m._c % 0.9;
+if (c < 0.35) { m.state = 'idle'; m.t += dt; return true; } // جمع شدن
+walk(m, step(m, ux, uy, spd * 2.1, dt, hooks), s); return true;
+}
+function bat(m, dt, t, hooks, s, spd) {
+if (!t || busy(m)) return false; m._c = (m._c || 0) + dt; const [ux, uy, d] = vec(m, t);
+if (m._dive > 0) { m._dive -= dt; walk(m, step(m, ux, uy, spd * 2.6, dt, hooks), s); if (d <= s.range) { m._dive = 0; return false; } return true; }
+if (m._back > 0) { m._back -= dt; walk(m, step(m, -ux, -uy, spd * 1.2, dt, hooks), s); return true; }
+if (d < 70 && m._c > 1.6) { m._c = 0; m._dive = 0.6; m._back = 0; return true; }
+const w = Math.sin(m.time * 5) * 0.9; walk(m, step(m, ux - uy * w, uy + ux * w, spd * 0.8, dt, hooks), s);
+if (d <= s.range) { m._back = 0.5; return false; } return true;
+}
+function spider(m, dt, t, hooks, s, spd) {
+if (!t || busy(m)) return false; const [ux, uy, d] = vec(m, t); m._c = (m._c || 0) - dt;
+if (d <= s.range) return false;
+if (d < 90 && m._c <= 0) { m._c = 3.2; shoot(m, hooks, 'web', t, 0.4); m.state = 'idle'; return true; }
+const side = d < 50 ? -0.6 : 1; walk(m, step(m, ux * side - uy * 0.5, uy * side + ux * 0.5, spd, dt, hooks), s); return true;
+}
+function skeleton(m, dt, t, hooks, s, spd) {
+if (!t || busy(m)) return false; const [ux, uy, d] = vec(m, t); m._c = (m._c || 1) - dt;
+if (d > s.range && d < 100 && m._c <= 0) { m._c = 2.8; shoot(m, hooks, 'shard', t, 0.6); m.state = 'idle'; return true; }
+return false;
+}
+function ghost(m, dt, t, hooks, s, spd) {
+if (!t) return false; const [ux, uy, d] = vec(m, t); m.alpha = d > 60 ? 0.45 : 1; m._c = (m._c || 2) - dt;
+if (busy(m)) return false;
+if (m._c <= 0 && d > 50 && d < 140) { m._c = 4.5; const a = Math.random() * 6.283; const nx = t.x + Math.cos(a) * 26, ny = t.y + Math.sin(a) * 18; if (!(hooks.solid || (() => false))(nx, ny)) { m.x = nx; m.y = ny; m.flash = 0.2; } return true; }
+if (d <= s.range) return false;
+walk(m, step(m, ux, uy, spd, dt, hooks, true), s); return true;
+}
+function wolf(m, dt, t, hooks, s, spd) {
+if (!t || busy(m)) return false; const [ux, uy, d] = vec(m, t); m._c = (m._c || Math.random() * 2) + dt;
+if (m._lunge > 0) { m._lunge -= dt; walk(m, step(m, ux, uy, spd * 2.8, dt, hooks), s); if (d <= s.range + 4) { m._lunge = 0; return false; } return true; }
+if (d < 60 && m._c > 2.2) { m._c = 0; m._lunge = 0.45; return true; }
+const dir = (m._dir || (m._dir = Math.random() < 0.5 ? 1 : -1)), want = d > 46 ? 0.8 : -0.3;
+walk(m, step(m, ux * want - uy * dir, uy * want + ux * dir, spd * 1.05, dt, hooks), s); return true;
+}
+function mummy(m, dt, t, hooks, s, spd) { if (!t || busy(m)) return false; const [, , d] = vec(m, t); if (d <= s.range + 8) { m._set('attack'); return true; } return false; }
+function golem(m, dt, t, hooks, s, spd) {
+if (m._slam) { const S = m._slam; S.t += dt; m.state = 'idle'; m.tele = { kind: 'quake', x: S.x, y: S.y, r: 24, k: S.t / 0.9 };
+if (S.t >= 0.9) { m.tele = null; m._slam = null; if (t && Math.hypot(t.x - S.x, t.y - S.y) < 24) hooks.onHit && hooks.onHit(m, m.dmg * 1.2); hooks.onQuake && hooks.onQuake(S.x, S.y, 24); m.coolT = 1.2; m._set('cool'); }
+return true; }
+if (!t || busy(m)) return false; const [, , d] = vec(m, t); m._c = (m._c || 1.5) - dt;
+if (d < 46 && m._c <= 0) { m._c = 4; m._slam = { x: t.x, y: t.y, t: 0 }; return true; } return false;
+}
+function zombie(m, dt, t, hooks, s, spd) {
+if (!t || busy(m)) return false; const [ux, uy, d] = vec(m, t); if (d <= s.range) return false;
+const lurch = 0.55 + 0.45 * Math.max(0, Math.sin(m.time * 3)), rush = d < 48 ? 2 : 1;
+walk(m, step(m, ux, uy, spd * lurch * rush, dt, hooks), s); return true;
+}
+function scorpion(m, dt, t, hooks, s, spd) {
+if (!t || busy(m)) return false; const [ux, uy, d] = vec(m, t); if (d <= s.range) return false;
+const z = Math.sign(Math.sin(m.time * 4)) * 0.8; walk(m, step(m, ux - uy * z, uy + ux * z, spd, dt, hooks), s); return true;
+}
+function shroom(m, dt, t, hooks, s, spd) {
+if (!t || busy(m)) return false; const [, , d] = vec(m, t); m._c = (m._c || 1) - dt;
+if (d < 64 && m._c <= 0) { m._c = 3.4; for (let i = 0; i < 6; i++) hooks.onProj && hooks.onProj(m, 'spore', i * 1.047 + m.time, m.dmg * 0.5); m.flash = 0.15; return true; }
+return false;
+}
+function lizard(m, dt, t, hooks, s, spd) {
+if (!t) return false; const [ux, uy, d] = vec(m, t);
+if (m.state === 'cool' && !m._hop) m._hop = 0.35;
+if (m._hop > 0) { m._hop -= dt; walk(m, step(m, -ux, -uy, spd * 2.4, dt, hooks), s); if (m._hop <= 0) m._hop = 0; return true; }
+if (busy(m)) return false; if (m.state !== 'cool') m._hop = 0; return false;
+}
+function knight(m, dt, t, hooks, s, spd) {
+m.guard = !busy(m); if (!t || busy(m)) return false; const [ux, uy, d] = vec(m, t); m._c = (m._c || 2) - dt;
+if (m._bash > 0) { m._bash -= dt; walk(m, step(m, ux, uy, spd * 3, dt, hooks), s); if (d <= s.range) { m._bash = 0; return false; } return true; }
+if (d < 70 && d > s.range && m._c <= 0) { m._c = 3.5; m._bash = 0.35; return true; } return false;
+}
+function demon(m, dt, t, hooks, s, spd) {
+if (!t || busy(m)) return false; const [, , d] = vec(m, t); m._c = (m._c || 1.5) - dt; m._f = (m._f || 2) - dt;
+if (m._c <= 0 && d > 40 && d < 120) { m._c = 3.8; const a = Math.random() * 6.283, nx = t.x + Math.cos(a) * 20, ny = t.y + Math.sin(a) * 14;
+if (!(hooks.solid || (() => false))(nx, ny)) { hooks.onQuake && hooks.onQuake(m.x, m.y, 10); m.x = nx; m.y = ny; m.flash = 0.25; } return true; }
+if (m._f <= 0 && d > s.range && d < 110) { m._f = 2.6; shoot(m, hooks, 'fire', t, 0.7); return true; }
+return false;
+}
+const AI2 = { slime, bat, spider, skeleton, ghost, wolf, mummy, golem, zombie, scorpion, shroom, lizard, knight, demon };
+return {AI2};
+})();
+const {AI2} = __m_mobs_ai2;
 const __m_boss_ai = (() => {
 const BOSS_MOVES = {
 slime: [['quake'], ['nova', 'spore']], bat: [['charge'], ['nova', 'shard']], hare: [['charge'], ['quake']],
@@ -7900,7 +7995,7 @@ for (let i = list.length - 1; i >= 0; i--) {
 const p = list[i];
 p.t += dt;
 p.x += p.vx * dt; p.y += p.vy * dt;
-if (p.t > p.life || solid(p.x, p.y)) { list.splice(i, 1); continue; }
+if (p.t > p.life || (p.t > 0.12 && solid(p.x, p.y))) { list.splice(i, 1); continue; }
 if (onHero && onHero(p)) { list.splice(i, 1); }
 }
 }
@@ -8011,7 +8106,7 @@ if (this.t >= 1) { this.t = 1; this.dead = true; }
 return;
 }
 if (this.lord && BOSS_AI(this, dt, target, hooks, spd)) return;
-const ext = AI_EXT[this.kind];
+const ext = AI_EXT[this.kind] || AI2[this.kind];
 if (ext && ext(this, dt, target, hooks, s, spd)) return;
 if (this.state === 'idle') {
 this.t += dt;
@@ -8051,6 +8146,7 @@ if (this.t > this.coolT) this._set(target ? 'move' : 'idle');
 _set(st) { this.state = st; this.t = 0; this.didHit = false; if (st === 'attack' && this.isBoss) this.atk = ['slam', 'sweep', 'roar'][Math.floor(Math.random() * 3)]; }
 hurt(n, kbx = 0, kby = 0) {
 if (this.state === 'die' || this.dead) return;
+if (this.guard) n *= 0.45; // شوالیه: سپر (وقتی حمله نمی‌کند)
 this.hp -= n; this.flash = 0.14;
 const kbR = this.isBoss ? 0.18 : 1;
 this.kbx += kbx * kbR; this.kby += kby * kbR;
@@ -10455,7 +10551,8 @@ if (this.onSfx) this.onSfx(from.kind === 'imp' ? 'fire' : 'shoot');
 spawnProj(this.projs, from.kind === 'imp' ? 'fire' : 'arrow', from.x, from.y - 12, tx, ty, from.dmg, from);
 },
 onProj: (from, kind, ang, dmg) => { // ن۱۴۸: پرتابه‌های ویژه‌ی باس
-spawnProj(this.projs, kind, from.x, from.y - 8, from.x + Math.cos(ang) * 100, from.y - 8 + Math.sin(ang) * 100, dmg, from);
+const sy = this._hooks.solid(from.x, from.y - 8) ? from.y - 1 : from.y - 8; // ن۱۴۹: کنارِ دیوار از پای باس شلیک شود
+spawnProj(this.projs, kind, from.x, sy, from.x + Math.cos(ang) * 100, sy + Math.sin(ang) * 100, dmg, from);
 if (this.onSfx && Math.random() < 0.25) this.onSfx(kind === 'fire' ? 'fire' : 'shoot');
 },
 onQuake: (x, y, r) => { this.fx.shake(r > 20 ? 5 : 2, r > 20 ? 0.35 : 0.15); this.fx.dust(x, y, r > 20 ? 14 : 5); if (r > 20) this.fx.dust(x - r * 0.6, y, 5), this.fx.dust(x + r * 0.6, y, 5); if (this.onSfx && r > 20) this.onSfx('hit'); },
@@ -10469,7 +10566,9 @@ onHit: (from, dmg) => {
 const hh = this.hero;
 if (hh.iframe > 0 || hh.dead) return;
 hh.hp -= dmg; hh.hurtT = 0.18;
-if (from.kind === 'yeti') hh.chill = 1.6; // ن۴۴: ضربه‌ی یخ‌مرد = کندی موقت
+if (from.kind === 'yeti') hh.chill = 1.6;
+if (from.kind === 'mummy') hh.chill = Math.max(hh.chill, 1.0); // ن۱۴۹: باندپیچ = کندی
+if (from.kind === 'scorpion') { hh.poison = 3; this._psn = Math.max(1, dmg * 0.25); } // سمِ عقرب: آسیبِ تدریجی ۳ث // ن۴۴: ضربه‌ی یخ‌مرد = کندی موقت
 if (from.kind === 'bandit' && from.stole === undefined) { // ن۴۴: دزدی سکه سپس فرار
 const amt = Math.min(this.loot.coins, 3 + (this.floor >> 1));
 from.stole = amt > 0 ? amt : 0;
@@ -10500,7 +10599,7 @@ for (const e of this.dungeon.enemies) this.fx.burst(e.x, e.y - 8, [[150, 145, 16
 };
 this.floor = f;
 this.path = null; this.tgt = null; this._trail = null; this.standT = 0; this.projs.length = 0; // ن۴۴: پرتابه‌های طبقه‌ی قبل پاک
-this.hero.chill = 0; // ن۴۷: کندی یخ بین طبقات حمل نمی‌شود
+this.hero.chill = 0; this.hero.poison = 0; // ن۴۷: کندی یخ بین طبقات حمل نمی‌شود
 this.dungeon = new Dungeon(this.seed, f);
 _after();
 const h = this.hero;
@@ -10552,6 +10651,7 @@ if (this.fx.hitstop > 0) { this.fx.hitstop -= dt; this.fx.update(dt); return; } 
 this.fx.update(dt);
 const h = this.hero, D = this.dungeon;
 for (const k of ['skillCd', 'dashCd', 'iframe', 'hurtT', 'chill']) if (h[k] > 0) h[k] -= dt;
+if (h.poison > 0 && !h.dead) { h.poison -= dt; h.hp -= (this._psn || 1) * dt; if (h.hp <= 0) h.hp = 0.01; } // سم نمی‌کشد، فقط پایین می‌آورد
 if (this.comboT > 0) { this.comboT -= dt; if (this.comboT <= 0) this.comboN = 0; }
 if (this._wasCd > 0 && h.skillCd <= 0) this._skillPulse = 0.55; // پالس «مهارت آماده است»
 this._wasCd = h.skillCd;
@@ -10974,7 +11074,7 @@ drawTitleC(r, t('floor') + ' ' + faNum(run._splash.n) + (run._splash.boss ? ' �
 }
 }
 }
-for (const e of D.enemies) if (e.lord && !e.dead && (e.tele || e.enraged)) drawTele(r, e, cx, cy, run.time); // ن۱۴۸: هشدارِ حمله‌ی ویژه
+for (const e of D.enemies) if (!e.dead && (e.tele || e.enraged) && (e.room == null || D.seen.has(e.room))) drawTele(r, e, cx, cy, run.time); // ن۱۴۸: هشدارِ حمله‌ی ویژه
 let ne = 0;
 for (const e of D.enemies) if (!e.dead && (e.room == null || D.seen.has(e.room))) { // ن۱۳۹: هیولای اتاقِ ندیده دیده نمی‌شود
 let wp = ENTS[ne];
@@ -11003,6 +11103,7 @@ else if (h.iframe > 0 && Math.floor(h.iframe * 24) % 2 === 0) r.rect(hx + 14, hy
 else {
 const e = en.e, s = e.sprite();
 if (e.lord) s.over(r, Math.round(e.x) - (s.w >> 1) - cx, Math.round(e.y) - 160 - cy); // ن۱۳۹: باسِ خانواده ×۱٫۶
+else if (e.alpha < 1) overDither(s, r, Math.round(e.x) - 64 - cx, Math.round(e.y) - 100 - cy); // ن۱۴۹: روحِ محو (شطرنجی)
 else s.over(r, Math.round(e.x) - 64 - cx, Math.round(e.y) - (e.isBoss ? 112 : 100) - cy);
 }
 }
@@ -11127,7 +11228,7 @@ if (!T) return;
 const k = Math.min(1, T.k || 0), bl = (Math.sin(time * 30) > 0) ? 255 : 170;
 if (T.kind === 'quake') {
 const qx = T.x - cx, qy = T.y - cy;
-r.ellipse(qx, qy, Math.round(T.r * k), Math.round(T.r * 0.55 * k), [220, 40, 40, 70]);
+r.ellipse(qx, qy, Math.round(T.r * k), Math.round(T.r * 0.55 * k), [230, 40, 40, 110]); ring(r, qx, qy, T.r + 1, [255, 140, 90, bl], 0.06);
 ring(r, qx, qy, T.r, [255, 80, 60, bl], 0.06); ring(r, qx, qy, T.r - 1, [120, 20, 20, 160], 0.06);
 } else if (T.kind === 'charge') {
 const ux = Math.cos(T.ang), uy = Math.sin(T.ang), L = T.len * k;
@@ -11138,6 +11239,10 @@ const rad = 34 - 22 * k, col = T.kind === 'nova' ? [255, 170, 60, bl] : [255, 23
 ring(r, x, y - 18, rad, col, 0.1); ring(r, x, y - 18, rad + 3, [col[0], col[1], col[2], 90], 0.1);
 if (T.kind === 'volley') for (let i = -2; i <= 2; i++) { const a = T.ang + i * 0.17; r.lineW(x + Math.cos(a) * 20, y - 14 + Math.sin(a) * 20, x + Math.cos(a) * (20 + 40 * k), y - 14 + Math.sin(a) * (20 + 40 * k), 1, [255, 220, 120, 150]); }
 }
+}
+function overDither(s, r, ox, oy) { // نیمه‌شفافِ پیکسلی: فقط خانه‌های شطرنجی کپی می‌شوند
+for (let y = 0; y < s.h; y++) { const Y = y + oy; if (Y < 0 || Y >= r.h) continue;
+for (let x = (y + Y) & 1; x < s.w; x += 2) { const X = x + ox; if (X < 0 || X >= r.w) continue; const i = (y * s.w + x) * 4; if (s.d[i + 3] < 128) continue; const o = (Y * r.w + X) * 4; r.d[o] = s.d[i]; r.d[o + 1] = s.d[i + 1]; r.d[o + 2] = s.d[i + 2]; } }
 }
 return {heroSprite, renderRun};
 })();
