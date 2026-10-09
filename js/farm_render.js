@@ -13,6 +13,7 @@ import { isRaining, lightningK, drawPondRipples, drawRainGround } from './art/we
 import { drawRainPx, flashPal, drawBoltPx } from './art/weather_px.js';
 import { drawHeroFrame, frameKey, framePhase, halfSprite } from './art/hero.js';
 import { flushDirty, OPAQUE, wetTransition, WET, WET_FULL, wetRaster, wetTiles } from './farm_terrain.js'; // S2.1 کش زمین · S4.7 لایه‌ی خیس
+import { unchecker } from './art/dither.js';
 import { drawWater, SHORE_FARM } from './art/water.js'; // S2.7: آب و کرانه (یک منبع با دانجن)
 import { HOX, HOY } from './art/hero_pose.js';
 import { applyRim } from './art/rim.js';
@@ -173,7 +174,7 @@ export function renderFarm(game, r) {
     // افکت‌ها (ذرات/متن‌ها/برش)
     game.fx.render(r, cx, cy);
     // ---- شب: تینت آبی + شب‌تاب‌ها ----
-    applyNight(r, game.dayT, raining); // تینت شب×باران در یک گذر (ن۳۶: بدون شب‌تاب)
+    applyNight(r, game.dayT, raining); if (raining) unchecker(r, 0, 0, r.w, r.h); // تینت شب×باران · S10.2: تینت دو رنگ را یکی می‌کند ⇒ شطرنجِ تازه پاک
     const nfG = nightFactor(game.dayT);
     drawFarmhouseGlow(r, HOUSE.x * TILE - cx, HOUSE.y * TILE - cy, game.time, nfG); // پنجره‌ی خانه: نور واقعی در تاریکی
     glowBegin();                                        // S4.6: هاله‌ی گرمِ پنجره در شب (افزودنی، پس از LUT)

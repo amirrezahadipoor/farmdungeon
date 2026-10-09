@@ -1,6 +1,7 @@
 // art/weather_px.js — S9.8: آب‌وهوای دست‌پیکسل — قطره‌ی ۳ گونه، تاجِ شتکِ ۳ فریمی، صاعقه‌ی پله‌ای از قطعه‌های دستی،
 // و فلشِ «پالت‌امن» (هر پیکسل به نزدیک‌ترین رنگِ پالتِ روشن‌شده می‌رود ⇒ M5 در فریمِ فلش هم سالم).
 import { PALETTE_MASTER, nearestPM } from './palette_master.js';
+import { unchecker } from './dither.js'; // S10.2: پله‌های قطریِ صاعقه بی‌شطرنج
 
 const hex = (h) => { const c = nearestPM(parseInt(h.slice(1, 3), 16), parseInt(h.slice(3, 5), 16), parseInt(h.slice(5, 7), 16)); return [c[0], c[1], c[2], 255]; };
 const W = hex('#eef2f7'), L = hex('#aeb9c8'), B = hex('#6fa3d8'), D = hex('#3e6fae'), Y = hex('#ffe082');
@@ -56,13 +57,16 @@ export function drawBoltPx(r, time) {
   const seed = Math.floor(time / 9);
   const h = (n) => { const x = Math.sin(n * 127.1 + seed * 311.7) * 43758.5453; return x - Math.floor(x); };
   let x = 30 + Math.floor(h(1) * (r.w - 60));
+  let x0 = x, x1 = x;
   const bottom = Math.floor(r.h * 0.55), segs = Math.ceil(bottom / 8), br = 2 + ((h(9) * 3) | 0);
   for (let i = 0; i < segs; i++) {
     const s = SEG[(h(i + 2) * SEG.length) | 0];
     blit(r, s, x - 2, i * 8);
     const endShift = s[7].indexOf('w') - s[0].indexOf('w');      // پیوستگی: سرِ قطعه‌ی بعد روی تهِ قبلی
-    x = Math.max(6, Math.min(r.w - 8, x + endShift));
+    x = Math.max(6, Math.min(r.w - 8, x + endShift)); x0 = Math.min(x0, x); x1 = Math.max(x1, x);
     if (i === br) blit(r, BRANCH, x, i * 8 + 6);
   }
   blit(r, FORK, x - 2, segs * 8);
+  const ux = Math.max(0, x0 - 3), uy = Math.min(r.h, segs * 8 + 5); // فقط نوارِ صاعقه (+شاخه/چنگال)
+  unchecker(r, ux, 0, Math.min(r.w - ux, x1 - x0 + 12), uy);
 }

@@ -939,9 +939,10 @@ for (let y = 0; y < m; y++) for (let x = 0; x < m; x++)
 out[y * m + x] = 4 * Bn[(y % n) * n + (x % n)] + _B2[((y / n) | 0) * 2 + ((x / n) | 0)];
 return out;
 }
-const BAYER2 = _B2;
-const BAYER4 = expand(_B2, 2);
-const BAYER8 = expand(BAYER4, 4);
+const BAYER4_REF = expand(_B2, 2);
+const BAYER2 = new Float32Array(4).fill(1.5);    // (1.5+0.5)/4  = 0.5
+const BAYER4 = new Float32Array(16).fill(7.5);   // (7.5+0.5)/16 = 0.5
+const BAYER8 = new Float32Array(64).fill(31.5);  // (31.5+0.5)/64 = 0.5
 function bayer2(x, y) { return (BAYER2[((y & 1) * 2) + (x & 1)] + 0.5) / 4; }
 function bayer4(x, y) { return (BAYER4[((y & 3) * 4) + (x & 3)] + 0.5) / 16; }
 function bayer8(x, y) { return (BAYER8[((y & 7) * 8) + (x & 7)] + 0.5) / 64; }
@@ -950,9 +951,16 @@ const s = Math.min(1, Math.max(0, v)) * (levels - 1);
 const f = Math.floor(s);
 return Math.min(levels - 1, f + (s - f > bayer4(x, y) ? 1 : 0));
 }
-return {BAYER2, BAYER4, BAYER8, bayer2, bayer4, bayer8, ditherStep};
+function unchecker(r, x0, y0, w, h) {
+const d = r.d, W = r.w, eq = (i, j) => d[i] === d[j] && d[i + 1] === d[j + 1] && d[i + 2] === d[j + 2];
+for (let y = y0; y < y0 + h - 1; y++) for (let x = x0; x < x0 + w - 1; x++) {
+const a = (y * W + x) * 4, b = a + 4, c = a + W * 4, e = c + 4;
+if (eq(a, e) && eq(b, c) && !eq(a, b)) { d[e] = d[b]; d[e + 1] = d[b + 1]; d[e + 2] = d[b + 2]; }
+}
+}
+return {BAYER4_REF, BAYER2, BAYER4, BAYER8, bayer2, bayer4, bayer8, ditherStep, unchecker};
 })();
-const {BAYER2, BAYER4, BAYER8, bayer2, bayer4, bayer8, ditherStep} = __m_art_dither;
+const {BAYER4_REF, BAYER2, BAYER4, BAYER8, bayer2, bayer4, bayer8, ditherStep, unchecker} = __m_art_dither;
 const __m_art_ground = (() => {
 const KIND_ID = { grass: 0, soil: 1, path: 2, hedge: 3, water: 4, fence: 5, dfloor: 6, wall: 7, stairs: 8, gateL: 9, gateR: 10, pillar: 11, decor: 12, bush: 13, fencePost: 14 };
 const _gnum = new Array(15 * 512 * 6).fill(null); // S2.8: ۶۴ واریانت × (خیس/نه) × ۴ فریم = ۵۱۲ اسلات/کیند · S3.10: ۶ تم دانجن
@@ -2771,15 +2779,18 @@ function drawBoltPx(r, time) {
 const seed = Math.floor(time / 9);
 const h = (n) => { const x = Math.sin(n * 127.1 + seed * 311.7) * 43758.5453; return x - Math.floor(x); };
 let x = 30 + Math.floor(h(1) * (r.w - 60));
+let x0 = x, x1 = x;
 const bottom = Math.floor(r.h * 0.55), segs = Math.ceil(bottom / 8), br = 2 + ((h(9) * 3) | 0);
 for (let i = 0; i < segs; i++) {
 const s = SEG[(h(i + 2) * SEG.length) | 0];
 blit(r, s, x - 2, i * 8);
 const endShift = s[7].indexOf('w') - s[0].indexOf('w');      // پیوستگی: سرِ قطعه‌ی بعد روی تهِ قبلی
-x = Math.max(6, Math.min(r.w - 8, x + endShift));
+x = Math.max(6, Math.min(r.w - 8, x + endShift)); x0 = Math.min(x0, x); x1 = Math.max(x1, x);
 if (i === br) blit(r, BRANCH, x, i * 8 + 6);
 }
 blit(r, FORK, x - 2, segs * 8);
+const ux = Math.max(0, x0 - 3), uy = Math.min(r.h, segs * 8 + 5); // فقط نوارِ صاعقه (+شاخه/چنگال)
+unchecker(r, ux, 0, Math.min(r.w - ux, x1 - x0 + 12), uy);
 }
 return {drawRainPx, flashPal, drawBoltPx};
 })();
@@ -3853,8 +3864,7 @@ groundSprite('grass', (tx * 5 + ty * 3) & 3).over(r, sx, sy);
 base = groundSprite('fence', fenceVar(f, tx, ty));
 }
 else { groundSprite('grass', (tx * 5 + ty * 3) & 3).over(r, sx, sy); base = null; }
-if (base) base.over(r, sx, sy);
-if (c.kind === 'hedge') drawForest(r, sx, sy, tx, ty); // S2.9: نوارِ جنگلِ لبه‌ی نقشه (تاج‌های پخته‌شده)
+if (base) base.over(r, sx, sy); if (c.kind === 'hedge') drawForest(r, sx, sy, tx, ty); // S2.9: نوارِ جنگلِ لبه‌ی نقشه (تاج‌های پخته‌شده)
 if (c.kind === 'grass' || c.kind === 'tree' || c.kind === 'sign' || c.kind === 'house' || c.kind === 'scarecrow') tuftBake(r, sx, sy, tx, ty);
 if (c.kind === 'grass') structShadow(r, f, tx, ty, sx, sy); // S2.8: سایهٔ تماسِ حصار/پرچین/بوته (SE)
 if (c.kind === 'grass') { bakeDecals(r, f, tx, ty, sx, sy); bakeFlora(r, tx, ty, sx, sy, !!c.farmable); } // S2.9 دکال · S9.7 گل‌وگیاهِ دستی
@@ -3865,6 +3875,7 @@ if (c.kind === 'grass' && !c.farmable && f.insideFence(tx, ty)) {
 const below = f.cell(tx, ty + 1);
 if (below && below.farmable && below.kind === 'grass') groundSprite('bush').over(r, sx, sy);
 }
+unchecker(r, sx, sy, TILE, TILE); // S10.2: بی‌شطرنج (موتیفِ تافت/جنگل)
 }
 let _bf = null;
 const _bcell = (x, y) => _bf.cell(x, y);
@@ -4577,7 +4588,7 @@ else if (e.t === 2 && e.w) e.w.render(r, cx, cy, game.time);
 }
 if (tn) drawBirds(r, TREES, cx, cy, game.time, h.x, h.y, Math.min(2, tn)); // پرندگانِ نشسته روی درخت‌ها (ن۳۶: حداکثر ۲، بی‌حرکت تا فرار)
 game.fx.render(r, cx, cy);
-applyNight(r, game.dayT, raining); // تینت شب×باران در یک گذر (ن۳۶: بدون شب‌تاب)
+applyNight(r, game.dayT, raining); if (raining) unchecker(r, 0, 0, r.w, r.h); // تینت شب×باران · S10.2: تینت دو رنگ را یکی می‌کند ⇒ شطرنجِ تازه پاک
 const nfG = nightFactor(game.dayT);
 drawFarmhouseGlow(r, HOUSE.x * TILE - cx, HOUSE.y * TILE - cy, game.time, nfG); // پنجره‌ی خانه: نور واقعی در تاریکی
 glowBegin();                                        // S4.6: هاله‌ی گرمِ پنجره در شب (افزودنی، پس از LUT)

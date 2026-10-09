@@ -8,7 +8,7 @@ import { groundSprite, E, TILE, COLS, ROWS, WORLD_W, WORLD_H } from './tiles.js'
 import { drawPathEdge } from './art/farm_decor.js';
 import { mask4 } from './art/autotile.js'; // S2.6: لبهٔ خاک/گزارهٔ خیس-خشک از همسایه‌ها
 import { fbm, hash2, vnoise } from './art/noise.js';
-import { bayer4 } from './art/dither.js';
+import { bayer4, unchecker } from './art/dither.js';
 import { rp } from './art/ramps.js';
 import { drawWater, SHORE_FARM } from './art/water.js'; // S2.7: آب و کرانه — یک منبع
 import { bakeDecals, drawForest } from './art/decal.js'; // S2.9: دکال‌های خوشه‌ای + نوارِ جنگلِ لبه (هر دو پخته‌شده)
@@ -192,8 +192,7 @@ function bakeTile(f, tx, ty, r, wf = 0) {
     base = groundSprite('fence', fenceVar(f, tx, ty));
   }
   else { groundSprite('grass', (tx * 5 + ty * 3) & 3).over(r, sx, sy); base = null; }
-  if (base) base.over(r, sx, sy);
-  if (c.kind === 'hedge') drawForest(r, sx, sy, tx, ty); // S2.9: نوارِ جنگلِ لبه‌ی نقشه (تاج‌های پخته‌شده)
+  if (base) base.over(r, sx, sy); if (c.kind === 'hedge') drawForest(r, sx, sy, tx, ty); // S2.9: نوارِ جنگلِ لبه‌ی نقشه (تاج‌های پخته‌شده)
   // S2.4: تُنِ ماکرو روی زمینِ چمنی (سازه‌ها هم چون پایه‌شان چمن است یکدست می‌مانند)
   if (c.kind === 'grass' || c.kind === 'tree' || c.kind === 'sign' || c.kind === 'house' || c.kind === 'scarecrow') tuftBake(r, sx, sy, tx, ty);
   if (c.kind === 'grass') structShadow(r, f, tx, ty, sx, sy); // S2.8: سایهٔ تماسِ حصار/پرچین/بوته (SE)
@@ -206,6 +205,7 @@ function bakeTile(f, tx, ty, r, wf = 0) {
     const below = f.cell(tx, ty + 1);
     if (below && below.farmable && below.kind === 'grass') groundSprite('bush').over(r, sx, sy);
   }
+  unchecker(r, sx, sy, TILE, TILE); // S10.2: بی‌شطرنج (موتیفِ تافت/جنگل)
 }
 
 // آب (S2.7): بدنه بر اساسِ عمق + کاستیکِ ۴ فریم + ساحلِ mask4 + کفِ موج — همه در art/water.js (یک منبع با دانجن)

@@ -9,6 +9,7 @@ import { Raster } from '../js/raster.js';
 import { Run } from '../js/run.js';
 import { Game } from '../js/game.js';
 import { Monster } from '../js/monster.js';
+import { vignette } from '../js/fx.js'; // S10.2: M12 دانجن با وینیتِ واقعیِ بازی
 import { heroSprite } from '../js/run_render.js';
 import { groundSprite } from '../js/art/ground.js';
 import { cropSprite, cropIcon, CROP_STAGES } from '../js/art/crops.js';
@@ -311,14 +312,26 @@ const SWEEP = [
   ['دانجن f22', () => dungeonScene(13, 22)],
   ['دانجن f27', () => dungeonScene(13, 27)],
 ];
+// S10.2: M12 «نسبتِ الگوی شطرنجی» — درصدِ موقعیت‌های ۲×۲ که p(x,y)==p(x+1,y+1) و p(x+1,y)==p(x,y+1) و این دو متفاوت‌اند
+function withVig(sc) { const c = new Raster(sc.w, sc.h); c.d.set(sc.d); vignette(sc.w, sc.h).apply(c); return c; }
+export function checkerPct(sc) {
+  const { w, h, d } = sc; let n = 0, hit = 0;
+  const eq = (i, j) => d[i] === d[j] && d[i + 1] === d[j + 1] && d[i + 2] === d[j + 2];
+  for (let y = 0; y < h - 1; y++) for (let x = 0; x < w - 1; x++) {
+    const a = (y * w + x) * 4, b = a + 4, c = a + w * 4, e = c + 4; n++;
+    if (eq(a, e) && eq(b, c) && !eq(a, b)) hit++;
+  }
+  return n ? (hit / n) * 100 : 0;
+}
 const _pad = (v, n) => String(v).padEnd(n, ' ');
-const _sw = SWEEP.map(([n, mk]) => { const sc = mk(); const m = sceneMetrics(sc); const pm = pmCheck(sc); return { n, ...m, pct: pm.pct }; });
-M.sweep = _sw.map((r) => ({ n: r.n, seam: rnd(r.seam, 2), identical: rnd(r.identical * 100, 1), hard: r.hard, pct: rnd(r.pct, 1) }));
+const _sw = SWEEP.map(([n, mk]) => { const sc = mk(); const m = sceneMetrics(sc); const pm = pmCheck(sc); return { n, ...m, pct: pm.pct, m12: checkerPct(n.startsWith('دانجن') ? withVig(sc) : sc) }; });
+M.sweep = _sw.map((r) => ({ n: r.n, seam: rnd(r.seam, 2), identical: rnd(r.identical * 100, 1), hard: r.hard, pct: rnd(r.pct, 1), m12: rnd(r.m12, 2) }));
 M.sweepSum = {
   m5min: rnd(Math.min(..._sw.map((r) => r.pct)), 1),
   m6min: rnd(Math.min(..._sw.map((r) => r.seam)), 2), m6max: rnd(Math.max(..._sw.map((r) => r.seam)), 2),
   m7max: rnd(Math.max(..._sw.map((r) => r.identical * 100)), 1),
   m8: _sw.reduce((a, r) => a + r.hard, 0),
+  m12max: rnd(Math.max(..._sw.map((r) => r.m12)), 2),
   m6out: _sw.filter((r) => r.seam < 0.8 || r.seam > 1.25).map((r) => r.n),
   m5out: _sw.filter((r) => r.pct < 97).map((r) => r.n),
 };
@@ -393,12 +406,12 @@ for (const k of ['M1', 'M2', 'M3', 'M4', 'M5', 'M6', 'M7', 'M8', 'M9', 'M10']) {
 }
 // پویشِ ۹ صحنه (S8.1)
 console.log('\nپویشِ ۹ صحنه (تشخیصی — سنجه‌ها روی صحنه‌های مرجعِ S0.4 بسته می‌شوند):');
-console.log('   صحنه           M5 پالت   M6 درز   M7 یکسان   M8 سخت');
+console.log('   صحنه           M5 پالت   M6 درز   M7 یکسان   M8 سخت   M12 شطرنج');
 for (const r of M.sweep) {
   const bad = (r.pct < 97 ? ' !' : '  ') + (r.seam < 0.8 || r.seam > 1.25 ? '!' : ' ') + (r.hard ? ' !' : '  ');
-  console.log('   ' + _pad(r.n, 14) + _pad(r.pct + '٪', 10) + _pad(r.seam, 9) + _pad(r.identical + '٪', 11) + r.hard + bad);
+  console.log('   ' + _pad(r.n, 14) + _pad(r.pct + '٪', 10) + _pad(r.seam, 9) + _pad(r.identical + '٪', 11) + _pad(r.hard + bad, 9) + r.m12 + '٪');
 }
-console.log(`   جمع: M5 کمینه ${M.sweepSum.m5min}٪ (ضعیف: ${M.sweepSum.m5out.join('، ') || '—'}) · M6 ${M.sweepSum.m6min}–${M.sweepSum.m6max} (خارج از باند: ${M.sweepSum.m6out.join('، ') || '—'}) · M7 بیشینه ${M.sweepSum.m7max}٪ · M8 جمع ${M.sweepSum.m8}`);
+console.log(`   جمع: M5 کمینه ${M.sweepSum.m5min}٪ (ضعیف: ${M.sweepSum.m5out.join('، ') || '—'}) · M6 ${M.sweepSum.m6min}–${M.sweepSum.m6max} (خارج از باند: ${M.sweepSum.m6out.join('، ') || '—'}) · M7 بیشینه ${M.sweepSum.m7max}٪ · M8 جمع ${M.sweepSum.m8} · M12 بیشینه ${M.sweepSum.m12max}٪`);
 console.log('   ! = خارج از هدفِ همان سنجه');
 
 console.log('\nM5 خارج‌ها (۵ رنگ پرتکرار هر گروه):');
