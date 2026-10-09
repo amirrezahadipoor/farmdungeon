@@ -21,7 +21,22 @@ function stripModule(src, names) {
   // export { a, b }; و export { a, b } from '...'; (صادرکردن مجدد — فقط حذف)
   src = src.replace(/^export[ \t]*\{[^}]*\};?[ \t]*$/gm, '');
   src = src.replace(/^export[ \t]*\{[^}]*\}[ \t]*from[ \t]*['"][^'"]*['"];?[ \t]*$/gm, '');
-  return src;
+  return slim(src);
+}
+
+// S8.4: سبک‌سازیِ امن — حذفِ کامنتِ تمام‌خط و تورفتگی؛ داخلِ template literalِ چندخطی دست نمی‌خورد
+function slim(src) {
+  const out = []; let inTpl = false;
+  for (const line of src.split('\n')) {
+    if (!inTpl) {
+      const t = line.trim();
+      if (t === '' || t.startsWith('//')) continue;
+      out.push(t);
+    } else out.push(line);
+    const bt = (line.replace(/\\./g, '').replace(/'[^']*'|"[^"]*"/g, '').match(/`/g) || []).length;
+    if (bt & 1) inTpl = !inTpl;
+  }
+  return out.join('\n');
 }
 
 function bundle(entryHtml, out, mainName) {
@@ -41,7 +56,7 @@ function bundle(entryHtml, out, mainName) {
   html = html.replace(/<link rel="stylesheet"[^>]*>/, () => '<style>\n' + css + '\n</style>');
   html = html.replace(/<script type="module" src="js\/[^"]*"><\/script>/, () => diag + '<script>\n' + js + '\n</script>');
   fs.writeFileSync(path.join(ROOT, out), html);
-  console.log(out, (html.length / 1024).toFixed(1) + ' KB');
+  console.log(out, (Buffer.byteLength(html) / 1024).toFixed(1) + ' KiB (bytes)');
 }
 
 const [entry, out, main] = process.argv.slice(2);
