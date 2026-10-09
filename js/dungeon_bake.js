@@ -11,6 +11,7 @@ import { DPAL } from './art/ground.js';
 import { mask8, blob47, IDX_MASK, autoSprite, setAutoBuilder } from './art/autotile.js';
 import { drawFront, drawTopFace, pickPattern } from './art/brick.js'; // S3.3
 import { drawFlagstones } from './art/flagstone.js'; // S3.4
+import { bayer4 } from './art/dither.js'; // S8.1: درزِ دیترشده (بافتِ درونِ تایل زنده می‌ماند)
 
 // ۱ — پایه: تایلِ زمینِ هر سلول با تمِ طبقه + فرشِ autotile (S3.8)
 const isCarpet = (D, x, y) => { const c = D.cell(x, y); return !!c && c.kind === 'decor' && c.v === 5; };
@@ -65,11 +66,10 @@ function drawRim(r, m, P) {
     r.rect(1, lo(m & BN), 1, hi(m & BS) - lo(m & BN) + 1, P.stone);
   }
   if (m & BE) {
-    // ردیف‌های ۰–۲ کفِ شرقی معمولاً زیر سایه‌ی AO اند (L۷۰) و ردیف ۱۵ لبه‌ی تاریکِ کف (L۵۲)
-    r.rect(TILE - 1, 0, 1, 3, P.stone);
-    r.rect(TILE - 1, 3, 1, TILE - 4, P.stoneHi);
-    r.rect(TILE - 1, TILE - 1, 1, 1, P.brickHi);
-    r.rect(TILE - 2, lo(m & BN), 1, Math.max(1, hi(m & BS) - 4 - lo(m & BN) + 1), P.brickOut);
+    // ن۱۰۹ (S8.1): تُنِ بیرونی = همان تُنِ لبه‌ی کفِ مقابل (floorB) و ستونِ بعدی میانجی با بدنه (brickHi)
+    // ⇒ شکافِ مرز از ۲۸–۵۵ واحد L به ~۰ می‌رسد (M8/M6) و خطِ تیره‌ی brickOut حذف می‌شود (سایه‌ی مصنوعی).
+    r.rect(TILE - 1, 0, 1, TILE, P.floorB);
+    r.rect(TILE - 2, lo(m & BN), 1, Math.max(1, hi(m & BS) - 4 - lo(m & BN) + 1), P.brickHi);
   }
   // S دست‌نخورده: لبه‌ی روشن + سایه‌ی روی کف را پاسِ AO می‌کشد (S3.5 جایگزین می‌شود)
 }
@@ -111,7 +111,69 @@ function passDecals(cache, D) { drawDungeonDecals(cache, D, D.theme | 0); }
 // ۶ — پراپ‌ها و سازه‌های ایستا (S3.7/3.8) — فعلاً خالی
 function passStaticProps() {}
 
-export const FLOOR_PASSES = ['base', 'wallMass', 'floorPattern', 'AO', 'decals', 'staticProps'];
+// ---------- ۷ — درزگیرِ مرزهای عمودی (S8.1) ----------
+// چرا این‌جا و نه در لبه‌ی پخت؟ چون روشنیِ دو سویِ مرز با تم، الگوی سنگفرش و سایه‌ی تماسی (AO) عوض
+// می‌شود؛ یک تُنِ ثابت برای همه جا جواب نمی‌دهد (اندازه‌گیریِ پیش از این پاس: شکاف تا ۵۵ واحد L روی
+// تم‌های ۳–۵ و ۲۴ واحد روی مرزِ کف↔دکور در همه‌ی تم‌ها).
+// روش: پیکسل‌های سمتِ «کف» با **پله‌ای از همان رمپِ تم** بازنویسی می‌شوند تا از تُنِ لبه‌ی مقابل تا
+// تُنِ درونِ کف یک شیبِ ۲–۳ پیکسلی بسازند ⇒ هر جهش ≤ نیم/یک‌سومِ شکاف (M8 صفر، درزِ M6 پایین).
+// لبه‌ی خودِ توده/دکور/فرش دست‌نخورده می‌ماند (مرزِ تیزِ فرش و خطِ توده حفظ می‌شود) و رنگ‌ها همچنان
+// روی رمپ‌اند (M5 دست‌نخورده). فقط مرزهایی که واقعاً سخت‌اند (>۱۵ واحد L) دست می‌خورند.
+const SEAM_MAX = 12; // سخت‌گیرانه‌تر از آستانه‌ی M8 (۱۵) ⇒ نسبتِ درزِ M6 هم پایین می‌آید
+const lum3 = (c) => 0.2126 * c[0] + 0.7152 * c[1] + 0.0722 * c[2];
+const isFloor = (c) => !!c && (c.kind === 'dfloor' || c.kind === 'water' || c.kind === 'stairs');
+let _seamCand = null, _seamT = -1;
+function seamCand(theme) {
+  if (_seamT === theme) return _seamCand;
+  const P = DPAL(theme | 0);
+  const set = new Set();
+  for (const c of [P.brickOut, P.deep, P.mortar, P.brick, P.brickHi, P.stoneSh, P.floorA, P.floorB, P.cap, P.stone, P.stoneHi]) set.add(c);
+  _seamT = theme;
+  return _seamCand = [...set].map((c) => [c, lum3(c)]).sort((a, b) => a[1] - b[1]);
+}
+const _pick = (cand, L) => { let b = cand[0][0], bd = Infinity; for (const [c, cl] of cand) { const d = Math.abs(cl - L); if (d < bd) { bd = d; b = c; } } return b; };
+function passSeam(cache, D) {
+  const theme = D.theme | 0, cand = seamCand(theme), d = cache.d, w = cache.w;
+  const put = (x, y, c) => { if (x < 0 || x >= w) return; const i = (y * w + x) * 4; d[i] = c[0]; d[i + 1] = c[1]; d[i + 2] = c[2]; d[i + 3] = 255; };
+  // پیکسلِ مرزی **یک‌دست** می‌شود (جهشِ M8 باید برود)؛ پله‌های داخلی **دیتر** می‌شوند تا
+  // بافتِ درونِ تایل زنده بماند و مخرّجِ M6 (میانگین اختلافِ ستون‌های غیرمرزی) نیفتد.
+  const dit = (x, y, pr, c) => { if (bayer4(x, y) < pr) put(x, y, c); };
+  // جابه‌جاییِ تُن **با حفظِ بافت**: پیکسل به تُنِ هدف می‌رود اما انحرافش از تُنِ مرجعِ همان تایل
+  // (تُنِ درونِ کف) نگه داشته می‌شود ⇒ دانه/لکّه‌ی تایل زنده می‌ماند و مخرّجِ M6 نمی‌افتد (ن۴۰).
+  const shift = (x, y, tgt, ref, k) => put(x, y, _pick(cand, tgt + k * (L(x, y) - ref)));
+  const L = (x, y) => { const i = (y * w + x) * 4; return lum3([d[i], d[i + 1], d[i + 2]]); };
+  const op = (x, y) => x >= 0 && x < w && d[(y * w + x) * 4 + 3] > 200;
+  for (let ty = 0; ty < ROWS; ty++) for (let tx = 1; tx < COLS; tx++) {
+    const A = D.cell(tx - 1, ty), B = D.cell(tx, ty);
+    const xa = tx * TILE - 1, xb = tx * TILE;
+    const floorA = isFloor(A), floorB = isFloor(B);
+    for (let y = 0; y < TILE; y++) {
+      const yy = ty * TILE + y;
+      if (!op(xa, yy) || !op(xb, yy)) continue;
+      const La = L(xa, yy), Lb = L(xb, yy), gap = Math.abs(La - Lb);
+      if (gap <= SEAM_MAX) continue;
+      if (floorA === floorB) {                    // کف↔کف یا توده↔توده: دو سویِ مرز به تُنِ میانی می‌روند
+        const mid = (La + Lb) / 2;
+        const refA = L(xa - 2, yy), refB = L(xb + 2, yy); // تُنِ مرجعِ درونِ هر تایل
+        shift(xa, yy, mid, refA, 0.5);
+        shift(xb, yy, mid, refB, 0.5);
+        if (gap > 2 * SEAM_MAX) {
+          dit(xa - 1, yy, 0.5, _pick(cand, (L(xa - 1, yy) + mid) / 2 + (L(xa - 1, yy) - refA)));
+          dit(xb + 1, yy, 0.5, _pick(cand, (L(xb + 1, yy) + mid) / 2 + (L(xb + 1, yy) - refB)));
+        }
+      } else {                                    // کف↔توده/دکور: شیبِ ۳پیکسلی فقط روی کف (لبه‌ی مقابل تیز می‌ماند)
+        const edge = floorA ? Lb : La, dir = floorA ? -1 : 1;
+        const x0 = floorA ? xa : xb;
+        const Li = L(x0 + 3 * dir, yy);           // تُنِ درونِ کف = مرجعِ بافت
+        shift(x0, yy, (3 * edge + Li) / 4, Li, 0.5);
+        dit(x0 + dir, yy, 0.5, _pick(cand, (edge + Li) / 2 + (L(x0 + dir, yy) - Li)));
+        dit(x0 + 2 * dir, yy, 0.25, _pick(cand, (edge + 3 * Li) / 4 + (L(x0 + 2 * dir, yy) - Li)));
+      }
+    }
+  }
+}
+
+export const FLOOR_PASSES = ['base', 'wallMass', 'floorPattern', 'AO', 'decals', 'seam', 'staticProps'];
 
 export function bakeFloor(run) {
   const D = run.dungeon;
@@ -121,6 +183,7 @@ export function bakeFloor(run) {
   passFloorPattern(cache, D);    // ۳
   passAO(cache, D);              // ۴
   passDecals(cache, D);          // ۵
+  passSeam(cache, D);            // ۷ — درزگیرِ مرزِ توده↔کف (S8.1)
   passStaticProps(cache, D);     // ۶
   return cache;
 }

@@ -279,6 +279,33 @@ M.icons.dL = rnd(Math.min(...icPer.map((p) => p.dL)));
 M.icons.steps = Math.min(...icPer.map((p) => p.steps));
 M.icons.ok = M.icons.cover >= 97 && M.icons.dL >= 30 && M.icons.steps >= 4;
 
+// ---------- S8.1: پویشِ ۹ صحنهٔ مرجع (تشخیصی — در امتیازِ ۱۱ سنجه وارد نمی‌شود) ----------
+// چرا جدا: سنجه‌ها روی دو صحنه‌ی مرجعِ S0.4 بسته می‌شوند تا امتیاز بین نشست‌ها قابل‌مقایسه بماند؛
+// این پویش همان سنجه‌ها را روی **۹ صحنه** (۳ وضعیتِ مزرعه × ۶ تمِ دانجن) می‌دود تا نقاطِ کور دیده شوند.
+// شب = ۱۸۰۰ (شبِ صافِ عمیق؛ ۲۲۲۰ بارانی است و لایه‌ی باران با ترکیبِ آلفا رنگِ تازه می‌سازد — خارج از این نشست)
+const SWEEP = [
+  ['مزرعه روز', () => farmScene(100)],
+  ['مزرعه باران', () => farmScene(410)],
+  ['مزرعه شب', () => farmScene(1800)],
+  ['دانجن f01', () => dungeonScene(13, 1)],
+  ['دانجن f06', () => dungeonScene(13, 6)],
+  ['دانجن f11', () => dungeonScene(13, 11)],
+  ['دانجن f16', () => dungeonScene(13, 16)],
+  ['دانجن f22', () => dungeonScene(13, 22)],
+  ['دانجن f27', () => dungeonScene(13, 27)],
+];
+const _pad = (v, n) => String(v).padEnd(n, ' ');
+const _sw = SWEEP.map(([n, mk]) => { const sc = mk(); const m = sceneMetrics(sc); const pm = pmCheck(sc); return { n, ...m, pct: pm.pct }; });
+M.sweep = _sw.map((r) => ({ n: r.n, seam: rnd(r.seam, 2), identical: rnd(r.identical * 100, 1), hard: r.hard, pct: rnd(r.pct, 1) }));
+M.sweepSum = {
+  m5min: rnd(Math.min(..._sw.map((r) => r.pct)), 1),
+  m6min: rnd(Math.min(..._sw.map((r) => r.seam)), 2), m6max: rnd(Math.max(..._sw.map((r) => r.seam)), 2),
+  m7max: rnd(Math.max(..._sw.map((r) => r.identical * 100)), 1),
+  m8: _sw.reduce((a, r) => a + r.hard, 0),
+  m6out: _sw.filter((r) => r.seam < 0.8 || r.seam > 1.25).map((r) => r.n),
+  m5out: _sw.filter((r) => r.pct < 97).map((r) => r.n),
+};
+
 // ---------- امتیاز (هدف‌های ROADMAP) ----------
 const goals = {
   M1: M.M1.min >= 25, M2: M.M2.sd <= 12, M3: M.M3.hero >= 10 && M.M3.hero <= 28 && M.M3.mobsMin >= 10 && M.M3.mobsMax <= 28,
@@ -347,7 +374,17 @@ console.log('\n════════ ممیزی آرت (S0.3) ═════
 for (const k of ['M1', 'M2', 'M3', 'M4', 'M5', 'M6', 'M7', 'M8', 'M9', 'M10']) {
   console.log(`${k}  ${goals[k] ? '✔' : '✘'}  ${fmt[k]}   (هدف ${verdict[k]})`);
 }
-console.log('M5 خارج‌ها (۵ رنگ پرتکرار هر گروه):');
+// پویشِ ۹ صحنه (S8.1)
+console.log('\nپویشِ ۹ صحنه (تشخیصی — سنجه‌ها روی صحنه‌های مرجعِ S0.4 بسته می‌شوند):');
+console.log('   صحنه           M5 پالت   M6 درز   M7 یکسان   M8 سخت');
+for (const r of M.sweep) {
+  const bad = (r.pct < 97 ? ' !' : '  ') + (r.seam < 0.8 || r.seam > 1.25 ? '!' : ' ') + (r.hard ? ' !' : '  ');
+  console.log('   ' + _pad(r.n, 14) + _pad(r.pct + '٪', 10) + _pad(r.seam, 9) + _pad(r.identical + '٪', 11) + r.hard + bad);
+}
+console.log(`   جمع: M5 کمینه ${M.sweepSum.m5min}٪ (ضعیف: ${M.sweepSum.m5out.join('، ') || '—'}) · M6 ${M.sweepSum.m6min}–${M.sweepSum.m6max} (خارج از باند: ${M.sweepSum.m6out.join('، ') || '—'}) · M7 بیشینه ${M.sweepSum.m7max}٪ · M8 جمع ${M.sweepSum.m8}`);
+console.log('   ! = خارج از هدفِ همان سنجه');
+
+console.log('\nM5 خارج‌ها (۵ رنگ پرتکرار هر گروه):');
 for (const [n, t] of M.M5.top) console.log('   ' + n + ': ' + (t.length ? t.join('  ') : '—'));
 console.log(`آیکون‌ها  ${M.icons.ok ? '✔' : '✘'}  پوشش ${M.icons.cover}٪ · کمینه ΔL بدنه/UI=${M.icons.dL} · کمینه پله=${M.icons.steps} · ${M.icons.kinds} آیکون   (هدف ≥۹۷٪ · ≥۳۰ · ≥۴)`);
 console.log(`M11 پرفورمنس: جدا در tools/bench.mjs (S0.4)`);
