@@ -12834,6 +12834,7 @@ app.helperTick(dt); // دستیارها وقتی در دانجنی کار می�
 if (run.log.length) for (const e of run.log.splice(0)) {
 const snd = { bossIntro: 'boss', bossDown: 'boss', gotItem: 'chest', died: 'gate' }[e.k];
 if (snd) playSfx(snd);
+if (e.k === 'floor' && e.n > (app.s.stats.bestFloor || 1)) { app.s.stats.bestFloor = e.n; writeSave(app.s); } // ن۱۵۱: پیشرفت با هر نزول ذخیره شود
 if (e.k === 'floor') toast(t('floor') + ' ' + faNum(e.n) + (e.boss ? ' — ' + t('bossFloor') + '!' : ''));
 else if (e.k === 'bossIntro') showBanner();
 else if (e.k === 'bossDown') { toast(t('bossDown')); showBanner(t('bossDown'), true); }

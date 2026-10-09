@@ -99,3 +99,4 @@ farmdungeon/
 - ن۱۴۹ (N2): `js/mobs_ai2.js` AI2 برای ۱۴ خانواده (لجن جهشی، خفاش شیرجه، عنکبوت تار، اسکلت استخوان، روح محو/عبور از دیوار/پرش، گرگ چرخش+جهش، مومیایی چنگِ بلند+کندی، غول کوبشِ هشداردار، زامبی لنگان/هجوم، عقرب زیگزاگ+سم، قارچ ابرِ هاگ، مارمولک بزن‌ودررو، شوالیه سپر ×۰٫۴۵+ضربه‌ی سپر، اهریمن پرش+گوی آتش). monster: `AI_EXT[k] || AI2[k]`. run: سمِ hero.poison، پرتابه ۰٫۱۲ث اول از دیوار رد می‌شود (باسِ کنارِ دیوار). drawTele برای همه‌ی هیولاهای دیده‌شده.
 
 - ن۱۵۰: js/floor_extras.js (تله spike/tar/fire، اتاقِ مخفی پشتِ دیوارِ ترک‌دار dress 'secret'، رویداد ambush/spring/greed؛ genExtras در Dungeon، extrasUpdate/onRoomReveal در run، drawExtras در run_render) + js/sfx/music.js (چیپ‌تیون farm/dungeon/boss، setMusic در main_app). باسِ روح دیگر از دیوار رد نمی‌شود و تله‌پورتش ≤110px از خانه. صندوق‌ها فقط در تایلِ دیده‌شده رسم می‌شوند.
+- ن۱۵۱: bestFloor با هر نزول ذخیره می‌شود (main_app log loop)؛ تست مرورگر: موسیقی dungeon فعال، 60fps، بدون خطا.
