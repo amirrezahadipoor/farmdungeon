@@ -4446,6 +4446,47 @@ return cv;
 return {iconGrid, iconCellRGB, iconImage, paintIcon, iconEl};
 })();
 const {iconGrid, iconCellRGB, iconImage, paintIcon, iconEl} = __m_art_icons;
+const __m_art_gate = (() => {
+const TAU = Math.PI * 2;
+const GATE_BOX = { ox: 4, oy: 4, w: 24, h: 12 };   // دهانه (نسبت به گوشه‌ی بالا-چپِ دروازه‌ی ۲×۲)
+const IN = { x0: 6, x1: 24, y0: 4, y1: 14 };              // ناحیه‌ی مجازِ بلوک‌ها (جفت‌عدد؛ ستونِ سنگ x≤۴ و x≥۲۷، حاشیه‌ی ۱ بلوک)
+const RINGS = [[10, 4, 7, 1], [8, 3, 6, 2], [5, 2, 5, 3]];   // پله‌های پایه تاریک‌تر ⇒ دهانه تیره می‌ماند (ΔL)
+const RUNE = [[8, 0], [16, 2], [24, 0], [2, 8], [30, 8], [16, 20]]; // بلوک‌های رون روی سنگِ طاق/ستون/دهانهٔ پایین
+const sc2 = (v) => (Math.round(v / 2) * 2);                // snapping به شبکه‌ی ۲px (هم‌ترازیِ کاملِ بلوک‌ها)
+function drawGate(r, gx, gy, time) {
+const cx = gx + 16, cy = gy + 10;
+const f = Math.floor(time * 1.2) % 6;                            // ۶ فریمِ گرداب (~۱٫۲fps)
+const pulse = Math.floor((Math.sin(time * 0.75) + 1) * 0.75);    // ۰..۱ پلهٔ روشنایی (نفسِ آرام)
+for (let i = 0; i < RINGS.length; i++) {
+const [rx, ry, n, base] = RINGS[i];
+const col = rp('magicPurple', Math.min(6, base + pulse));
+const ph = (i % 2 ? -1 : 1) * f * (TAU / 6);
+for (let k = 0; k < n; k++) {
+const a = (k / n) * TAU + ph;
+const px = Math.max(gx + IN.x0, Math.min(gx + IN.x1, sc2(cx + Math.cos(a) * rx)));
+const py = Math.max(gy + IN.y0, Math.min(gy + IN.y1, sc2(cy + Math.sin(a) * ry)));
+r.rect(px, py, 2, 2, col);                                   // بلوکِ ۲×۲ (شبکه‌ی کامل)
+}
+}
+r.rect(sc2(cx), sc2(cy) - 2, 2, 2, rp('magicPurple', 5 + pulse)); // هسته‌ی ۲×۲ (روشن‌ترین نقطه)
+for (let k = 0; k < 4; k++) {
+const c = Math.floor(time * 2 + k * 1.7) % 6;
+const rr = (5 - c) * 0.5 + 0.7;                                // از لبه به سمتِ هسته
+const a = (c / 6) * TAU + k * 2.2;
+const px = Math.max(gx + IN.x0, Math.min(gx + IN.x1, sc2(cx + Math.cos(a) * 9 * rr)));
+const py = Math.max(gy + IN.y0, Math.min(gy + IN.y1, sc2(cy + Math.sin(a) * 4 * rr)));
+r.rect(px, py, 2, 2, k % 2 ? rp('magicCyan', 5) : rp('magicPurple', 5));
+}
+const tick = Math.floor(time * 0.6);
+for (let i = 0; i < RUNE.length; i++) {
+const [dx, dy] = RUNE[i];
+const on = (tick + i) % 3 !== 0;
+r.rect(gx + dx, gy + dy, 2, 2, on ? rp('magicCyan', 6) : rp('magicCyan', 5));
+}
+}
+return {GATE_BOX, drawGate};
+})();
+const {GATE_BOX, drawGate} = __m_art_gate;
 const __m_farm_render = (() => {
 const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
 const FENTS = []; // pool موجودات مزرعه
@@ -10982,7 +11023,7 @@ const app = new App(loadSave());
 const farmScene = new Game(app.s, app.s.upgrades.land, app.s.upgrades, app.s.upgrades.boots);
 app.hydrateFarm(farmScene);
 window.__app = app; window.__farm = farmScene; // برای تست
-let scale = 3, sc = null, offImg = null, _dockH = 0; // ارتفاع داک (ن۴۰) — برای پایش تغییر صحنه
+let scale = 3, sc = null, offImg = null, _dockH = 0, _ox = 0, _oy = 0; // ارتفاع داک (ن۴۰) — برای پایش تغییر صحنه
 const CAM = { scale: 3, camX: 0, camY: 0 }; // بازمصرف — بدون آبجکت جدید در هر فریم
 let _emaMs = 8, _qFrames = 0; // پایش هزینه‌ی فریم برای کیفیت تطبیقی
 const off = document.createElement('canvas');
@@ -11002,9 +11043,14 @@ canvas.width = Math.round(innerWidth * dpr); canvas.height = Math.round(innerHei
 canvas.style.width = innerWidth + 'px'; canvas.style.height = innerHeight + 'px';
 const zoomCss = Math.max(2, Math.floor(Math.min(innerWidth, innerHeight) / 150));
 scale = Math.max(2, Math.round(zoomCss * dpr));
+let fs = 0; try { fs = +(new URLSearchParams(location.search).get('scale') || localStorage.getItem('fd_scale') || 0); } catch (e) { fs = 0; }
+if (fs >= 2 && fs <= 12) scale = Math.round(fs);
 const dockEl = document.querySelector('body.inDungeon #dockDungeon') || document.getElementById('dockFarm');
 _dockH = dockEl ? Math.round(dockEl.offsetHeight) : 0;
-const vw = Math.ceil(canvas.width / scale), vh = Math.ceil(Math.max(64, canvas.height - _dockH * dpr) / scale);
+const availH = Math.max(64, canvas.height - _dockH * dpr);
+const vw = Math.min(WORLD_W, Math.ceil(canvas.width / scale)), vh = Math.min(WORLD_H, Math.ceil(availH / scale));
+_ox = Math.max(0, (canvas.width - vw * scale) >> 1); _oy = Math.max(0, (availH - vh * scale) >> 1);
+canvas._view = { scale, vw, vh, ox: _ox, oy: _oy }; // برای تست/QA
 farmScene.view = { w: vw, h: vh };
 const r = S.getRun(); if (r) r.view = { w: vw, h: vh };
 offImg = offCtx.createImageData(vw, vh);
@@ -11086,7 +11132,7 @@ $('dead').classList.add('show');
 }
 }
 }
-CAM.scale = scale; CAM.camX = Math.round(scene === 'farm' ? farmScene.cam.x : run.cam.x); CAM.camY = Math.round(scene === 'farm' ? farmScene.cam.y : run.cam.y);
+CAM.scale = scale; CAM.camX = Math.round(scene === 'farm' ? farmScene.cam.x : run.cam.x) - _ox / scale; CAM.camY = Math.round(scene === 'farm' ? farmScene.cam.y : run.cam.y) - _oy / scale; // S10.3: حاشیه در نگاشتِ لمس
 canvas._cam = CAM;
 if (scene === 'dungeon' && run && run.dungeon.shrine) { // محراب: نزدیک = باز، دور = بسته
 const sh = run.dungeon.shrine;
@@ -11110,11 +11156,12 @@ if (raining !== _ambRain) { _ambRain = raining; setRain(raining); }
 if (Q.level && scene === 'dungeon') vignette(sc.w, sc.h).apply(sc); // وینیت فقط دانجن — مزرعه روشن و تمیز (ن۳۶: سیاهیِ گوشه‌ها حذف شد)
 S.applyFade(sc, dt);
 offCtx.putImageData(offImg, 0, 0); // sc.d همان offImg.data است — بدون کپی ۶۰۰KB!
-ctx.drawImage(off, 0, 0, sc.w, sc.h, 0, 0, sc.w * scale, sc.h * scale);
-if (sc.h * scale < canvas.height) { // ن۴۰: باندِ زیر داک (نما کوتاه‌تر از بوم) — پاک تا فریم کهنه نماند
+if (_ox || _oy || sc.h * scale < canvas.height) { // ن۴۰ + S10.3: باندِ زیر داک و حاشیه‌ی وسط‌چین — پاک تا فریم کهنه نماند
 ctx.fillStyle = '#141124';
-ctx.fillRect(0, sc.h * scale, canvas.width, canvas.height - sc.h * scale);
+if (_ox || _oy) ctx.fillRect(0, 0, canvas.width, canvas.height);
+else ctx.fillRect(0, sc.h * scale, canvas.width, canvas.height - sc.h * scale);
 }
+ctx.drawImage(off, 0, 0, sc.w, sc.h, _ox, _oy, sc.w * scale, sc.h * scale);
 UI.refreshHud(false);
 fpsN++; fpsT += dt;
 if (fpsT >= 0.5) { fps = Math.round(fpsN / fpsT); fpsN = 0; fpsT = 0; $('fps').textContent = `${faNum(fps)} ${t('fps')}`; }

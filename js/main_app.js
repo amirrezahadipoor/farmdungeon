@@ -5,7 +5,7 @@ import { Input } from './input.js';
 import { Game } from './game.js';
 import { App } from './app.js';
 import { ITEMS } from './items.js';
-import { TILE } from './tiles.js';
+import { TILE, WORLD_W, WORLD_H } from './tiles.js';
 import { loadSave, writeSave } from './save.js';
 import { Raster } from './raster.js';
 import { vignette } from './fx.js';
@@ -27,7 +27,7 @@ const app = new App(loadSave());
 const farmScene = new Game(app.s, app.s.upgrades.land, app.s.upgrades, app.s.upgrades.boots);
 app.hydrateFarm(farmScene);
 window.__app = app; window.__farm = farmScene; // برای تست
-let scale = 3, sc = null, offImg = null, _dockH = 0; // ارتفاع داک (ن۴۰) — برای پایش تغییر صحنه
+let scale = 3, sc = null, offImg = null, _dockH = 0, _ox = 0, _oy = 0; // ارتفاع داک (ن۴۰) — برای پایش تغییر صحنه
 const CAM = { scale: 3, camX: 0, camY: 0 }; // بازمصرف — بدون آبجکت جدید در هر فریم
 let _emaMs = 8, _qFrames = 0; // پایش هزینه‌ی فریم برای کیفیت تطبیقی
 const off = document.createElement('canvas');
@@ -50,10 +50,17 @@ function resize() {
   canvas.style.width = innerWidth + 'px'; canvas.style.height = innerHeight + 'px';
   const zoomCss = Math.max(2, Math.floor(Math.min(innerWidth, innerHeight) / 150));
   scale = Math.max(2, Math.round(zoomCss * dpr));
+  // S10.3 A/B: «?scale=4» یا localStorage.fd_scale=4 ⇒ مقیاسِ صحیحِ ثابت بر حسبِ پیکسلِ دستگاه (B)؛ بدونِ پرچم = A (بالا)
+  let fs = 0; try { fs = +(new URLSearchParams(location.search).get('scale') || localStorage.getItem('fd_scale') || 0); } catch (e) { fs = 0; }
+  if (fs >= 2 && fs <= 12) scale = Math.round(fs);
   // ن۴۰: ارتفاع داک از نما کسر می‌شود — زمین مزرعه/راهروی دانجن دیگر زیر داک پنهان نمی‌شود
   const dockEl = document.querySelector('body.inDungeon #dockDungeon') || document.getElementById('dockFarm');
   _dockH = dockEl ? Math.round(dockEl.offsetHeight) : 0;
-  const vw = Math.ceil(canvas.width / scale), vh = Math.ceil(Math.max(64, canvas.height - _dockH * dpr) / scale);
+  // S10.3 (درسِ ن۱۲۵): نما هرگز بزرگ‌تر از دنیا نمی‌شود — اضافه = حاشیه‌ی وسط‌چین (_ox/_oy پیکسلِ دستگاه)
+  const availH = Math.max(64, canvas.height - _dockH * dpr);
+  const vw = Math.min(WORLD_W, Math.ceil(canvas.width / scale)), vh = Math.min(WORLD_H, Math.ceil(availH / scale));
+  _ox = Math.max(0, (canvas.width - vw * scale) >> 1); _oy = Math.max(0, (availH - vh * scale) >> 1);
+  canvas._view = { scale, vw, vh, ox: _ox, oy: _oy }; // برای تست/QA
   farmScene.view = { w: vw, h: vh };
   const r = S.getRun(); if (r) r.view = { w: vw, h: vh };
   offImg = offCtx.createImageData(vw, vh);
@@ -146,7 +153,7 @@ function frame(now) {
       }
     }
   }
-  CAM.scale = scale; CAM.camX = Math.round(scene === 'farm' ? farmScene.cam.x : run.cam.x); CAM.camY = Math.round(scene === 'farm' ? farmScene.cam.y : run.cam.y);
+  CAM.scale = scale; CAM.camX = Math.round(scene === 'farm' ? farmScene.cam.x : run.cam.x) - _ox / scale; CAM.camY = Math.round(scene === 'farm' ? farmScene.cam.y : run.cam.y) - _oy / scale; // S10.3: حاشیه در نگاشتِ لمس
   canvas._cam = CAM;
   if (scene === 'dungeon' && run && run.dungeon.shrine) { // محراب: نزدیک = باز، دور = بسته
     const sh = run.dungeon.shrine;
@@ -171,11 +178,12 @@ function frame(now) {
   if (Q.level && scene === 'dungeon') vignette(sc.w, sc.h).apply(sc); // وینیت فقط دانجن — مزرعه روشن و تمیز (ن۳۶: سیاهیِ گوشه‌ها حذف شد)
   S.applyFade(sc, dt);
   offCtx.putImageData(offImg, 0, 0); // sc.d همان offImg.data است — بدون کپی ۶۰۰KB!
-  ctx.drawImage(off, 0, 0, sc.w, sc.h, 0, 0, sc.w * scale, sc.h * scale);
-  if (sc.h * scale < canvas.height) { // ن۴۰: باندِ زیر داک (نما کوتاه‌تر از بوم) — پاک تا فریم کهنه نماند
+  if (_ox || _oy || sc.h * scale < canvas.height) { // ن۴۰ + S10.3: باندِ زیر داک و حاشیه‌ی وسط‌چین — پاک تا فریم کهنه نماند
     ctx.fillStyle = '#141124';
-    ctx.fillRect(0, sc.h * scale, canvas.width, canvas.height - sc.h * scale);
+    if (_ox || _oy) ctx.fillRect(0, 0, canvas.width, canvas.height);
+    else ctx.fillRect(0, sc.h * scale, canvas.width, canvas.height - sc.h * scale);
   }
+  ctx.drawImage(off, 0, 0, sc.w, sc.h, _ox, _oy, sc.w * scale, sc.h * scale);
   UI.refreshHud(false);
   fpsN++; fpsT += dt;
   if (fpsT >= 0.5) { fps = Math.round(fpsN / fpsT); fpsN = 0; fpsT = 0; $('fps').textContent = `${faNum(fps)} ${t('fps')}`; }
