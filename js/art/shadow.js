@@ -5,6 +5,7 @@
 // هزینه: هر (شیء، باکت) یک‌بار پخته و کش می‌شود ⇒ فریمِ گرم فقط چند بازه‌ی ردیفی را می‌کشد
 // (ماسک تک‌کاناله + جدولِ آمیزشِ ۲۵۶تایی per α ⇒ بدون ضربِ شناور در حلقه‌ی فریم).
 import { Raster } from '../raster.js';
+import { Q } from './quality.js'; // S8.2: Q.level=0 ⇒ سایه‌ی پرتابی خاموش
 import { RAMP } from './ramps.js';
 import { nightFactor, DAY_LEN } from '../night.js';
 
@@ -58,7 +59,7 @@ export function castShadow(dst, src, id, ox, oy, base) {
 // سایه از تابعِ رسم (اشیایی که مستقیم روی بوم کشیده می‌شوند) — خانه/مترسک:
 // اسپرایتِ موقت یک‌بار در حافظه پخته می‌شود، ماسک هم یک‌بار ⇒ فریمِ گرم صفر پخت.
 export function castShadowDraw(dst, ox, oy, base, w, h, id, draw) {
-  if (S.b < 0) return;
+  if (S.b < 0 || !Q.level) return;
   const k = _key(id);
   let src = _cache.get('@' + k);
   if (!src) { src = new Raster(w, h); draw(src); _put('@' + k, src); }
@@ -146,3 +147,4 @@ function _blit(m, dst, ox, oy) {
     }
   }
 }
+export const shadowCacheStats = () => ({ shadow: _cache.size, shadowMax: CACHE_MAX, keys: _keys.size });

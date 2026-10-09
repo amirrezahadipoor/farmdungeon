@@ -3,6 +3,7 @@
 import { Raster } from '../raster.js';
 import { rp } from './ramps.js';
 import { PM_SNAP, pmSnapTable, pmSnapIdx } from './pm_snap.js'; // S4.6b: قفلِ پالتِ صحنه (جبرانِ M5) // S4.1: رنگِ نورها از رمپ‌های پالت (M5)
+import { Q } from './quality.js'; // S8.2: Q.level=0 ⇒ بدونِ دیترِ تاریکی و نورِ رنگی
 import { BAYER4 } from './dither.js'; // S4.2: کوانتیزه‌ی آلفای تاریکی با دیترِ ترتیبی
 
 let DARK_R = 13, DARK_G = 11, DARK_B = 26; // S4.3: رنگِ تاریکی per تم (گریدینگ)
@@ -133,14 +134,12 @@ export function darkLevelCount() { return new Set(_QLUT).size; } // QA: تعدا
 setThemeGrade(-1); // پیش‌فرض: گریدینگِ خنثی (هم‌رفتار با پیش از S4.3) — رندر دانجن تم را ست می‌کند
 
 // flat = [x, y, rad, strength, ...] — لیست تختِ نورها (بدون تخصیص آبجکت)
+const _mK = new Uint32Array(8192), _mV = new Uint32Array(8192); let _mTheme = -9, _mST = null; // S8.2
 export function applyDarkness(r, dk, flat, flatC, camX = 0, camY = 0) {
-  const dd = dk.d;
-  if (!dk._base || dk._base.length !== dd.length || dk._baseTheme !== _gradeTheme) { // S4.3: رنگِ تاریکی per تم
-    dk._baseTheme = _gradeTheme;
-    const b = dk._base = new Uint8ClampedArray(dd.length);
-    for (let i = 0; i < b.length; i += 4) { b[i] = DARK_R; b[i + 1] = DARK_G; b[i + 2] = DARK_B; b[i + 3] = DARK_A; }
-  }
-  dd.set(dk._base); // کپی یک‌تکه‌ی پایه
+  // S8.2: تاریکی فقط یک کانالِ α لازم دارد (رنگش ثابتِ تم است) ⇒ بافرِ تک‌بایتی، ¼ حافظه و پهنای باند
+  if (!dk._A || dk._A.length !== r.w * r.h) dk._A = new Uint8Array(r.w * r.h);
+  const dd = dk._A;
+  dd.fill(DARK_A);
   let nr = 0, coverAll = false; // S4.2: مستطیل‌های تأثیرِ نور (برای پاسِ کوانتیزه)
   for (let li = 0; li < flat.length; li += 4) {
     const lx = flat[li], ly = flat[li + 1], rad = flat[li + 2], strength = flat[li + 3];
@@ -151,8 +150,8 @@ export function applyDarkness(r, dk, flat, flatC, camX = 0, camY = 0) {
     if (nr < 32) { const o = nr << 2; _rects[o] = x0; _rects[o + 1] = y0; _rects[o + 2] = x1; _rects[o + 3] = y1; nr++; } else coverAll = true;
     for (let y = y0; y <= y1; y++) {
       const srow = (y - cy0 + rad) * n - cx0 + rad;
-      let di = (y * r.w + x0) * 4 + 3;
-      for (let x = x0; x <= x1; x++, di += 4) {
+      let di = y * r.w + x0;
+      for (let x = x0; x <= x1; x++, di++) {
         const v = dd[di] - cut[srow + x];
         dd[di] = v > 0 ? v : 0;
       }
@@ -160,7 +159,7 @@ export function applyDarkness(r, dk, flat, flatC, camX = 0, camY = 0) {
   }
   // ---------- S4.2: کوانتیزه‌ی α به ۶ پله با آستانه‌ی Bayer4 — فقط داخلِ ناحیه‌ی متأثر از نور ----------
   // ناحیه‌ی تختِ تاریک (α = DARK_A) بیرونِ این مستطیل‌ها است ⇒ بیت‌به‌بیت دست‌نخورده (بدون بافتِ دیتر، بدون بایاس، بدون هزینه)
-  if (DITHER_DARK.on && nr) {
+  if (DITHER_DARK.on && Q.level && nr) {
     if (coverAll) { const o = 0; _rects[o] = 0; _rects[o + 1] = 0; _rects[o + 2] = r.w - 1; _rects[o + 3] = r.h - 1; nr = 1; }
     // ادغامِ مستطیل‌های هم‌پوشان (تا جعبه‌ی محیطیِ کوچک‌تر بماند و هیچ پیکسلی دو بار کوانتیزه نشود؛ n ≤ ۳۲)
     let merged = true;
@@ -182,8 +181,8 @@ export function applyDarkness(r, dk, flat, flatC, camX = 0, camY = 0) {
       const rx0 = _rects[k << 2], ry0 = _rects[(k << 2) + 1], rx1 = _rects[(k << 2) + 2], ry1 = _rects[(k << 2) + 3];
       for (let y = ry0; y <= ry1; y++) {
         const rp = ((y + camY) & 3) << 2;
-        let i = (y * W2 + rx0) * 4 + 3;
-        for (let x = rx0; x <= rx1; x++, i += 4) {
+        let i = y * W2 + rx0;
+        for (let x = rx0; x <= rx1; x++, i++) {
           const a0 = dd[i];
           if (a0 > 0 && a0 !== DARK_A) dd[i] = _QLUT[((rp | cols[co + x]) << 8) | a0];
         }
@@ -197,8 +196,19 @@ export function applyDarkness(r, dk, flat, flatC, camX = 0, camY = 0) {
   const su = (PM_SNAP.on && r.u32 && (sd.byteOffset & 3) === 0 && (sd.length & 3) === 0) ? r.u32() : null;
   const ST = su ? pmSnapTable() : null;
   if (ST) {
-    for (let i = 0, k = 0; i < dd.length; i += 4, k++) {
-      const a = dd[i + 3];
+    // S8.2: حافظه‌ی نگاشتِ مستقیم (rgb, α) → خروجی — صحنه از پالتِ ۱۲۸رنگی + ۶ پله‌ی α ساخته شده،
+    // پس ~۹۹٪ پیکسل‌ها برخورد دارند و سه LUT + snap به یک مقایسه تبدیل می‌شود (خروجی بیت‌به‌بیت یکسان)
+    if (_mTheme !== _gradeTheme || _mST !== ST) { _mK.fill(0); _mTheme = _gradeTheme; _mST = ST; }
+    for (let i = 0, k = 0; k < dd.length; i += 4, k++) {
+      const a = dd[k], p = su[k];
+      if ((p >>> 24) >= 8) {
+        const key = ((p & 0xFFFFFF) | (a << 24)) >>> 0, h = (Math.imul(key, 0x9E3779B1) >>> 19);
+        if (_mK[h] === key + 1) { su[k] = _mV[h]; continue; }
+        const q = a << 8;
+        const rr = a <= 0 ? _G0R[sd[i]] : _GR[q | sd[i]], gg = a <= 0 ? _G0G[sd[i + 1]] : _GG[q | sd[i + 1]], bb = a <= 0 ? _G0B[sd[i + 2]] : _GB[q | sd[i + 2]];
+        const out = ((p & 0xFF000000) | (ST[((rr >> 3) << 10) | ((gg >> 3) << 5) | (bb >> 3)] & 0xFFFFFF)) >>> 0;
+        _mK[h] = key + 1; _mV[h] = out; su[k] = out; continue;
+      }
       let rr, gg, bb, al = sd[i + 3];
       if (a <= 0) { rr = _G0R[sd[i]]; gg = _G0G[sd[i + 1]]; bb = _G0B[sd[i + 2]]; }        // S4.3: نواحیِ کاملاً روشن
       else if (al < 8) { rr = DARK_R; gg = DARK_G; bb = DARK_B; al = a; }
@@ -206,8 +216,8 @@ export function applyDarkness(r, dk, flat, flatC, camX = 0, camY = 0) {
       su[k] = (al << 24) | (ST[((rr >> 3) << 10) | ((gg >> 3) << 5) | (bb >> 3)] & 0xFFFFFF);
     }
   } else {
-    for (let i = 0; i < dd.length; i += 4) {
-      const a = dd[i + 3];
+    for (let i = 0; i < sd.length; i += 4) {
+      const a = dd[i >> 2];
       if (a <= 0) { sd[i] = _G0R[sd[i]]; sd[i + 1] = _G0G[sd[i + 1]]; sd[i + 2] = _G0B[sd[i + 2]]; continue; } // S4.3: گریدینگِ نواحیِ کاملاً روشن
       if (sd[i + 3] < 8) { sd[i] = DARK_R; sd[i + 1] = DARK_G; sd[i + 2] = DARK_B; sd[i + 3] = a; continue; }
       const q = a << 8;
@@ -215,7 +225,7 @@ export function applyDarkness(r, dk, flat, flatC, camX = 0, camY = 0) {
     }
   }
   // ---------- S4.1: پاسِ رنگ — افزودنی با clamp، روی تایل‌های روشن هم اعمال می‌شود ----------
-  if (flatC && COLOR_LIGHTS.on) {
+  if (flatC && COLOR_LIGHTS.on && Q.level) {
     CL_DEBUG.n = flatC.length / 5; CL_DEBUG.c = flatC;
     for (let i = 0; i < flatC.length; i += 5) {
       const rad = flatC[i + 2], strength = flatC[i + 3], cid = flatC[i + 4];
@@ -230,7 +240,7 @@ export function applyDarkness(r, dk, flat, flatC, camX = 0, camY = 0) {
           // فقط در «ناحیه‌ی روشن» رنگ اضافه می‌شود و به‌اندازه‌ی روشنایی وزن می‌گیرد
           const ar = add[a2];
           if (ar) {
-            const lit = 255 - dd[s2 + 3];
+            const lit = 255 - dd[s2 >> 2];
             if (lit > 8) {
               sd[s2] += (lit * ar) >> 8;                          // اشباع خودکار (Uint8ClampedArray)
               const ag = add[a2 + 1]; if (ag) sd[s2 + 1] += (lit * ag) >> 8;
@@ -244,3 +254,4 @@ export function applyDarkness(r, dk, flat, flatC, camX = 0, camY = 0) {
     }
   }
 }
+export const lightCacheStats = () => ({ lightSt: _lightSt.size, colorSt: _cSt.size });
