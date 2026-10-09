@@ -2275,7 +2275,7 @@ const paintable = (D, x, y) => { const k = kindAt(D, x, y); return k !== 'wall' 
 function drawAO(r, D, theme) {
 const t = theme | 0, P = DPAL(t), k = K[t] ?? 1;
 const band = P.mortar, corner = P.deep;     // دو تُنِ AO (بقیه با ditherِ ترتیبی)
-const dot = (X, Y, tone, cov) => { if (cov >= 1 || bayer4(X, Y) < cov) r.px(X, Y, tone); };
+const dot = (X, Y, tone, cov) => { if (cov >= 0.5) r.px(X, Y, tone); }; // S9.10: AOِ تخت (نوارِ تمیز) به‌جای دیترِ شطرنجی — در زومِ ۴× نویز بود
 for (let ty = 0; ty < ROWS; ty++) for (let tx = 0; tx < COLS; tx++) {
 if (!paintable(D, tx, ty)) continue;
 const wN = isWall(D, tx, ty - 1), wW = isWall(D, tx - 1, ty), wE = isWall(D, tx + 1, ty);
@@ -2916,7 +2916,7 @@ const DARK_LEVELS = 6;
 const QSTEP = DARK_A / (DARK_LEVELS - 1);
 const _QLUT = new Uint8Array(16 * 256);
 for (let b = 0; b < 16; b++) {
-const th = (BAYER4[b] + 0.5) / 16;
+const th = 0.5 + ((BAYER4[b] + 0.5) / 16 - 0.5) * 0.15; // S9.10: باندهای تمیزِ پیکسلی (دیترِ شطرنجیِ تمام‌دامنه در زومِ ۴× نویز بود) — فقط لرزشِ ±۷٪ لبه
 for (let a = 0; a < 256; a++) {
 const sf = a / QSTEP, i = Math.floor(sf);
 _QLUT[(b << 8) | a] = Math.round(Math.min(DARK_LEVELS - 1, i + (sf - i > th ? 1 : 0)) * QSTEP);
@@ -4946,9 +4946,9 @@ blinkDown: M(3, 4, [
 up: M(3, 4, [
 '.HHHHH.',
 'HHHHHHH',
-'HHHhHHH',
+'HHHHHHH',
 'SHHHHHS',
-'sHhHhHs',
+'shHHHhs',
 '.hhhhh.',
 '..sSs..',
 ]),
@@ -4998,11 +4998,13 @@ const TORSO = {
 down: M(3, 0, [
 '.rRrRr.',
 'JrrRrrd',
-'JjwxjjD',
-'JjwxjjD',
+'JjjwjjD',
+'JjjxjjD',
 'JjjYjjd',
 'jjjjjjD',
 'bbBYbbn',
+'JjjjjjD',
+'Jjd.jjD',
 ]),
 up: M(3, 0, [
 '.rrrrr.',
@@ -5012,6 +5014,8 @@ up: M(3, 0, [
 'Jjjjjjd',
 'jjjjjjD',
 'bbbbbbn',
+'JjjjjjD',
+'Jjj.jjD',
 ]),
 side: M(2, 0, [
 'Rrrr.',
@@ -5021,11 +5025,13 @@ side: M(2, 0, [
 '.Jjjd',
 '.jjjD',
 '.bBbn',
+'.JjjD',
+'.Jjdd',
 ]),
 };
 const BOOT = {
-front: M(1, 1, ['BbB', 'nnn']),
-side: M(1, 1, ['Bbb.', 'nnnn']),
+front: M(1, 2, ['bBb', 'BbB', 'nnn']), // S9.10: چکمه‌ی ۳ردیفه ⇒ ساقِ کوتاه‌تر، تناسبِ بهتر
+side: M(1, 2, ['bBb.', 'Bbbb', 'nnnn']),
 };
 function blit(r, m, x, y, flip) {
 const H = m.rows.length;
@@ -5089,11 +5095,11 @@ const nx = Math.round(nk[0]), ny = Math.round(nk[1]);
 if (layer === 'back') {
 arm(P.arms.far, false);
 leg(P.legs.far, false);
+leg(P.legs.near, true); // S9.10: پای نزدیک زیرِ دامنِ کت
 const hp = half(P.pelvis), py = Math.round(hp[1]);
 for (let x = -2; x <= 2 - (side ? 1 : 0); x++) { r.px(nx + x, py, C.pants); r.px(nx + x, py + 1, x ? C.pantsSh : C.out); }
 blit(r, TORSO[kd], nx, ny, flip);
 } else {
-leg(P.legs.near, true);
 const hx = Math.round(hc[0]), hy = Math.round(hc[1]);
 const hm = o.blink && kd !== 'up' ? HEAD[kd === 'side' ? 'blinkSide' : 'blinkDown'] : HEAD[kd];
 blit(r, hm, hx, hy, flip);

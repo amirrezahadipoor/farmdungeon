@@ -7,7 +7,6 @@
 // شدت per تم (K): دخمه ۱ · خزه ۰٫۹۵ · **گدازه ۰٫۷ (کمتر)** · یخ ۰٫۸۵ — پله‌ی صفر (درزِ تماس) همیشه solid.
 import { TILE, COLS, ROWS } from './palette_env.js';
 import { DPAL } from './ground.js';
-import { bayer4 } from './dither.js';
 
 export const AO_PROF = [1, 0.62, 0.3, 0.12];  // پوششِ هر پله بر حسبِ فاصله از دیوار (px)
 const K = [1, 0.95, 0.7, 0.85, 1.05, 0.9]; // شدت per تم (S3.10: باتلاق/معدن)
@@ -19,7 +18,7 @@ const paintable = (D, x, y) => { const k = kindAt(D, x, y); return k !== 'wall' 
 export function drawAO(r, D, theme) {
   const t = theme | 0, P = DPAL(t), k = K[t] ?? 1;
   const band = P.mortar, corner = P.deep;     // دو تُنِ AO (بقیه با ditherِ ترتیبی)
-  const dot = (X, Y, tone, cov) => { if (cov >= 1 || bayer4(X, Y) < cov) r.px(X, Y, tone); };
+  const dot = (X, Y, tone, cov) => { if (cov >= 0.5) r.px(X, Y, tone); }; // S9.10: AOِ تخت (نوارِ تمیز) به‌جای دیترِ شطرنجی — در زومِ ۴× نویز بود
 
   // ---------- ۱) نوارِ کفِ مجاورِ دیوار ----------
   for (let ty = 0; ty < ROWS; ty++) for (let tx = 0; tx < COLS; tx++) {

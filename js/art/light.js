@@ -112,7 +112,7 @@ export const DARK_LEVELS = 6;
 const QSTEP = DARK_A / (DARK_LEVELS - 1);
 const _QLUT = new Uint8Array(16 * 256);
 for (let b = 0; b < 16; b++) {
-  const th = (BAYER4[b] + 0.5) / 16;
+  const th = 0.5 + ((BAYER4[b] + 0.5) / 16 - 0.5) * 0.15; // S9.10: باندهای تمیزِ پیکسلی (دیترِ شطرنجیِ تمام‌دامنه در زومِ ۴× نویز بود) — فقط لرزشِ ±۷٪ لبه
   for (let a = 0; a < 256; a++) {
     const sf = a / QSTEP, i = Math.floor(sf);
     _QLUT[(b << 8) | a] = Math.round(Math.min(DARK_LEVELS - 1, i + (sf - i > th ? 1 : 0)) * QSTEP);

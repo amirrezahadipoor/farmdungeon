@@ -34,9 +34,9 @@ const HEAD = {
   up: M(3, 4, [
     '.HHHHH.',
     'HHHHHHH',
-    'HHHhHHH',
+    'HHHHHHH',
     'SHHHHHS',
-    'sHhHhHs',
+    'shHHHhs',
     '.hhhhh.',
     '..sSs..',
   ]),
@@ -86,11 +86,13 @@ const TORSO = {
   down: M(3, 0, [
     '.rRrRr.',
     'JrrRrrd',
-    'JjwxjjD',
-    'JjwxjjD',
+    'JjjwjjD',
+    'JjjxjjD',
     'JjjYjjd',
     'jjjjjjD',
     'bbBYbbn',
+    'JjjjjjD',
+    'Jjd.jjD',
   ]),
   up: M(3, 0, [
     '.rrrrr.',
@@ -100,6 +102,8 @@ const TORSO = {
     'Jjjjjjd',
     'jjjjjjD',
     'bbbbbbn',
+    'JjjjjjD',
+    'Jjj.jjD',
   ]),
   side: M(2, 0, [
     'Rrrr.',
@@ -109,11 +113,13 @@ const TORSO = {
     '.Jjjd',
     '.jjjD',
     '.bBbn',
+    '.JjjD',
+    '.Jjdd',
   ]),
 };
 const BOOT = {
-  front: M(1, 1, ['BbB', 'nnn']),
-  side: M(1, 1, ['Bbb.', 'nnnn']),
+  front: M(1, 2, ['bBb', 'BbB', 'nnn']), // S9.10: چکمه‌ی ۳ردیفه ⇒ ساقِ کوتاه‌تر، تناسبِ بهتر
+  side: M(1, 2, ['bBb.', 'Bbbb', 'nnnn']),
 };
 
 function blit(r, m, x, y, flip) {
@@ -182,11 +188,11 @@ export function drawHeroPx(r, dir, P, layer, o = {}) {
   if (layer === 'back') {
     arm(P.arms.far, false);
     leg(P.legs.far, false);
+    leg(P.legs.near, true); // S9.10: پای نزدیک زیرِ دامنِ کت
     const hp = half(P.pelvis), py = Math.round(hp[1]);
     for (let x = -2; x <= 2 - (side ? 1 : 0); x++) { r.px(nx + x, py, C.pants); r.px(nx + x, py + 1, x ? C.pantsSh : C.out); }
     blit(r, TORSO[kd], nx, ny, flip);
   } else {
-    leg(P.legs.near, true);
     const hx = Math.round(hc[0]), hy = Math.round(hc[1]);
     const hm = o.blink && kd !== 'up' ? HEAD[kd === 'side' ? 'blinkSide' : 'blinkDown'] : HEAD[kd];
     blit(r, hm, hx, hy, flip);
