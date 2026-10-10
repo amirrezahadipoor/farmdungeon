@@ -33,7 +33,7 @@ export function paintRows(r, D, y0, y1) {
   for (let y = y0; y < y1; y++) for (let x = 0; x < W; x++) {
     const ox = x * TILE, oy = y * TILE, c = D.cell(x, y);
     if (fl(x, y)) {
-      r.rect(ox, oy, TILE, TILE, FL[Math.floor(hash(x >> 1, y >> 1) * 3)]);
+      { const hq = hash(x >> 1, y >> 1); r.rect(ox, oy, TILE, TILE, hq < 0.7 ? F2 : hq < 0.85 ? F1 : F3); } // ن۱۵۵: لکه‌های کم‌تکرار ⇒ دیگر شبیهِ لایه‌های نور نیست
       if (x % 2 === 0) r.rect(ox, oy, 1, TILE, FMOR); if (y % 2 === 0) r.rect(ox, oy, TILE, 1, FMOR);
       if (hash(x, y, 3) < 0.1) { let cx = ox + 3 + Math.floor(hash(x, y, 4) * 8), cy = oy + 3; for (let k = 0; k < 8; k++) { r.rect(cx, cy, 1, 1, FMOR); cx += hash(x, y, k) < 0.5 ? 1 : 0; cy++; } }
       if (!fl(x, y - 1)) r.rect(ox, oy, TILE, 3, FSH); if (!fl(x - 1, y)) r.rect(ox, oy, 2, TILE, FSH);

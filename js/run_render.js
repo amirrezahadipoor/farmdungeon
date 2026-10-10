@@ -1,4 +1,5 @@
 // run_render.js — رندر دورِ دانجن: تایل‌ها، قطره‌ها/صندوق‌ها، تاریکی + منابع نور، مینی‌مپ، اسپرایت قهرمان
+import { PM_SNAP } from './art/pm_snap.js';
 import { drawExtras } from './floor_extras.js';
 import { drawTextC, drawText, drawTitleC, textW, E, TILE, COLS, ROWS, WORLD_W, WORLD_H } from './tiles.js'; // S3.1: groundSprite دیگر اینجا استفاده نمی‌شود (رفت به dungeon_bake)
 import { Raster } from './raster.js';
@@ -216,7 +217,7 @@ export function renderRun(run, r) {
       if (D.shrine && !D.shrine.used) pushC(D.shrine.x - cx, D.shrine.y - cy, 16, 66, 3);
       for (const e of D.enemies) if (!e.dead && e.isBoss) pushC(e.x - cx, e.y - 40 - cy, 30, 92, 2); // برقِ گدازه‌ایِ باس
       pushC(D.stairs.x * TILE + 8 - cx, D.stairs.y * TILE + 8 - cy, 14, 52, 5);
-      pushC(h.x - cx, h.y - 14 - cy, 22, 44, 4);           // هالهٔ گرمِ ملایمِ قهرمان (آخر ⇒ بودجه‌ی باقی‌مانده)
+      // ن۱۵۵: هاله‌ی رنگیِ قهرمان حذف — لکه‌ی روشنِ روی دیوار می‌ساخت           // هالهٔ گرمِ ملایمِ قهرمان (آخر ⇒ بودجه‌ی باقی‌مانده)
     }
     // ---- S4.6: درخشش‌های افزایشی (استامپِ پیش‌پخته) — پس از تاریکی رسم می‌شوند ----
     glowBegin();
@@ -233,7 +234,9 @@ export function renderRun(run, r) {
       }
     }
     setThemeGrade(GRADE.off || D.big ? -1 : D.theme); // ن۱۳۹: سبکِ سه‌رخ رنگِ خودش را دارد                     // S4.3: گریدینگِ رنگیِ تم (LUT یک‌بار در هر تغییرِ تم)
-    applyDarkness(r, run._dark, L, C, cx, cy); // S4.2: دوربین برای دیترِ جهانی
+    const _pmOn = PM_SNAP.on; if (D.big && !globalThis.__SNAPTEST) PM_SNAP.on = false; // ن۱۵۵: قفلِ پالت روی گرادیانِ نور خاکستری را به بنفش/نارنجی می‌پراند (حلقه‌های رنگی)
+    applyDarkness(r, run._dark, L, C, cx, cy);
+    PM_SNAP.on = _pmOn; // S4.2: دوربین برای دیترِ جهانی
     glowDraw(r);                               // S4.6: هاله‌ها روی تاریکی (افزودنی + clamp)
     for (const en of LIT) drawEnt(en);         // S9.2: موجوداتِ روشن روی تاریکی
     drawMotes(r, 'dungeon', D.theme, cx, cy, run.time, r.w, r.h); // S4.8: ذراتِ آرامِ تم (≤۶، ۱px)
@@ -288,17 +291,24 @@ export function renderRun(run, r) {
   }
 
 // ن۱۳۹: مه — تایل‌های ندیده = رنگِ پوچیِ تم؛ دهانه‌ی راهرو (vis=2) نیمه‌تاریک
-function fogMask(r, D, cx, cy) {
+function fogMask(r, D, cx, cy) { // ن۱۵۵: لبه‌ی نرم (۵px دیترِ دومرحله‌ای) به‌جای پله‌ی سخت؛ نیمه‌تاریکِ دهانه حذف (راهرو در لحظه کشف می‌شود)
   if (!D.big) return;
-  const v = voidCol(D.theme | 0), W = r.w, H = r.h;
+  const v = voidCol(D.theme | 0), W = r.w, H = r.h, d = r.d;
   const tx0 = Math.max(0, Math.floor(cx / TILE)), ty0 = Math.max(0, Math.floor(cy / TILE));
   const tx1 = Math.min(D.cols - 1, Math.floor((cx + W - 1) / TILE)), ty1 = Math.min(D.rows - 1, Math.floor((cy + H - 1) / TILE));
   for (let ty = ty0; ty <= ty1; ty++) for (let tx = tx0; tx <= tx1; tx++) {
-    const vis = D.visible(tx, ty), half = vis && D.vis[ty * D.cols + tx] === 2;
-    if (vis && !half) continue;
-    const x0 = Math.max(0, tx * TILE - cx), y0 = Math.max(0, ty * TILE - cy), x1 = Math.min(W, tx * TILE + TILE - cx), y1 = Math.min(H, ty * TILE + TILE - cy);
-    for (let y = y0; y < y1; y++) { let i = (y * W + x0) * 4;
-      for (let x = x0; x < x1; x++, i += 4) { if (half) { r.d[i] = (r.d[i] + v[0]) >> 1; r.d[i + 1] = (r.d[i + 1] + v[1]) >> 1; r.d[i + 2] = (r.d[i + 2] + v[2]) >> 1; } else { r.d[i] = v[0]; r.d[i + 1] = v[1]; r.d[i + 2] = v[2]; } } }
+    if (D.visible(tx, ty)) continue;
+    const vl = D.visible(tx - 1, ty), vr = D.visible(tx + 1, ty), vu = D.visible(tx, ty - 1), vd = D.visible(tx, ty + 1);
+    const soft = vl || vr || vu || vd;
+    const X0 = tx * TILE - cx, Y0 = ty * TILE - cy;
+    const x0 = Math.max(0, X0), y0 = Math.max(0, Y0), x1 = Math.min(W, X0 + TILE), y1 = Math.min(H, Y0 + TILE);
+    for (let y = y0; y < y1; y++) { let i = (y * W + x0) * 4; const ly = y - Y0;
+      for (let x = x0; x < x1; x++, i += 4) {
+        let e = 99; if (soft) { const lx = x - X0; if (vl) e = lx; if (vr && 15 - lx < e) e = 15 - lx; if (vu && ly < e) e = ly; if (vd && 15 - ly < e) e = 15 - ly; }
+        const gx = x + cx, gy = y + cy;
+        if (e < 2 ? ((gx + gy) & 1) === 0 : e < 5 ? ((gx & 1) | (gy & 1)) !== 0 : true) { d[i] = v[0]; d[i + 1] = v[1]; d[i + 2] = v[2]; }
+        else if (e < 5) { d[i] = (d[i] + v[0]) >> 1; d[i + 1] = (d[i + 1] + v[1]) >> 1; d[i + 2] = (d[i + 2] + v[2]) >> 1; }
+      } }
   }
 }
 
