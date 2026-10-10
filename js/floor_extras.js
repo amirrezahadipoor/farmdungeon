@@ -79,6 +79,14 @@ export function extrasUpdate(run, dt) {
       tp.hitT = 0.9; run._hooks.onHit(TRAP_FROM, (3 + run.floor * 0.45) * (tp.t === 'fire' ? 1.5 : 1));
     }
   }
+  // ن۱۵۴: تله‌ها هیولاها را هم می‌زنند (هر فعال‌شدن یک‌بار) — کشاندنِ دشمن روی تله تاکتیک است
+  if (D.traps && D.traps.length) for (const e of D.enemies) {
+    if (e.dead || e.state === 'die' || e.lord || e.alpha < 1) continue;
+    const ex = Math.floor(e.x / TILE), ey = Math.floor(e.y / TILE);
+    for (let i = 0; i < D.traps.length; i++) { const tp = D.traps[i]; if (tp.x !== ex || tp.y !== ey || tp.t === 'tar' || trapPhase(tp, run.time) !== 2) continue;
+      const cid = i * 100000 + Math.floor((run.time + tp.off) / CYC[tp.t][0]); if (e._tc === cid) break; e._tc = cid;
+      const d = Math.round((6 + run.floor * 0.9) * (tp.t === 'fire' ? 1.5 : 1)); e.hurt(d); run.fx.float(e.x, e.y - 46, '-' + d, 'hit'); break; }
+  }
   // دیوارِ مخفی: کنارش بایست (۰٫۷ث) یا به آن ضربه بزن ⇒ فرو می‌ریزد
   const S = D.secret;
   if (S && !S.open) {
